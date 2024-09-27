@@ -1,0 +1,21 @@
+[build-system]
+requires = ["setuptools >= 61.0"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "pyaspparsing"
+dynamic = ["version"]
+authors = [{ name = "Daniel N. Buckley", email = "dbuckley@mtech.edu" }]
+requires-python = ">=3.12"
+
+[project.optional-dependencies]
+testing = ["mypy", "pylint", "pytest"]
+
+[tool.setuptools.packages.find]
+where = ["src/"]
+
+[tool.setuptools.dynamic]
+version = { attr = "pyaspparsing.__version__" }
+
+[tool.setuptools.dynamic.optional-dependencies.tests]
+file = ["reqs/test.txt"]
