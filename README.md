@@ -1,2 +1,2 @@
 # pyASPparsing
- Python parser for classic ASP
+Python toolkit for parsing legacy classic ASP code
