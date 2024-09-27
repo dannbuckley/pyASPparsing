@@ -134,7 +134,7 @@ class Tokenizer:
                 del start_str, found_dbl_quote, terminated
                 # already at next character, don't advance further
             elif pos_char.isnumeric():
-                # int or float literal
+                # ======== INT OR FLOAT LITERAL ========
                 start_num: int = (
                     pos_idx  # don't know token type, but save starting position for later
                 )
