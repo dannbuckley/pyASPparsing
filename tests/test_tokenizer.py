@@ -17,6 +17,11 @@ def test_empty_code():
         ("&H7f", TokenType.LITERAL_HEX),  # lowercase hex
         ("&HAB", TokenType.LITERAL_HEX),  # uppercase hex
         ("&123", TokenType.LITERAL_OCT),
+        ("1000", TokenType.LITERAL_INT),
+        ("1000.0", TokenType.LITERAL_FLOAT),  # only decimal point
+        ("1E3", TokenType.LITERAL_FLOAT),  # only scientific notation
+        ("1.0E3", TokenType.LITERAL_FLOAT),  # both decimal and scientific notation
+        ("1.0E+3", TokenType.LITERAL_FLOAT),  # scientific notation with +/-
     ],
 )
 def test_valid_literal(codeblock: str, exp_type: TokenType):
@@ -38,6 +43,8 @@ def test_valid_literal(codeblock: str, exp_type: TokenType):
         ("&HG"),  # invalid hexadecimal digit
         ("&"),  # needs at least one octal digit
         ("&8"),  # invalid octal digit
+        ("1."), # need at least one digit after '.'
+        ("1E"), # need at least one digit after 'E'
     ],
 )
 def test_invalid_literal(codeblock: str):

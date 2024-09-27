@@ -123,10 +123,9 @@ class Tokenizer:
                             # quote is escaped ('""'), keep looping
                             found_dbl_quote = False
                             continue
-                        else:
-                            # string literal ends before codeblock does, stop looping
-                            terminated = True
-                            break
+                        # string literal ends before codeblock does, stop looping
+                        terminated = True
+                        break
                 if not found_dbl_quote and not terminated:
                     raise TokenizerError(
                         "Expected ending '\"' for string literal, but reached end of code string"
@@ -136,7 +135,54 @@ class Tokenizer:
                 # already at next character, don't advance further
             elif pos_char.isnumeric():
                 # int or float literal
-                pass
+                start_num: int = (
+                    pos_idx  # don't know token type, but save starting position for later
+                )
+                # goto end of current number chunk
+                while _advance_pos() and pos_char.isnumeric():
+                    pass
+
+                # TODO: handle float that starts with '.' (no leading digits)
+                # does the token have a decimal point?
+                float_dec_pt = pos_char == "."
+                if float_dec_pt:
+                    _advance_pos()  # consume '.'
+                    # there should be one or more digits after '.'
+                    if pos_char is None or not pos_char.isnumeric():
+                        raise TokenizerError(
+                            "Expected digit after '.' in float literal"
+                        )
+                    # goto end of current number chunk
+                    while _advance_pos() and pos_char.isnumeric():
+                        pass
+
+                # does the token have the scientific notation indicator?
+                float_sci_e = pos_char == "E"
+                if float_sci_e:
+                    _advance_pos()  # consume 'E'
+                    # optional '+' or '-'
+                    if pos_char is not None and pos_char in "+-":
+                        _advance_pos()  # consume
+                    # there should be one or more digits after 'E' (or after '+'/'-')
+                    if pos_char is None or not pos_char.isnumeric():
+                        raise TokenizerError(
+                            "Expected digit after 'E' in float literal"
+                        )
+                    # goto end of current number chunk
+                    while _advance_pos() and pos_char.isnumeric():
+                        pass
+
+                yield Token(
+                    # is this an int or a float?
+                    (
+                        TokenType.LITERAL_FLOAT
+                        if float_dec_pt or float_sci_e
+                        else TokenType.LITERAL_INT
+                    ),
+                    slice(start_num, pos_idx),
+                )
+                del start_num, float_dec_pt, float_sci_e
+                # already at next character, don't advance further
             elif pos_char == "&":
                 # hex or oct literal
                 _advance_pos()  # consume '&'
