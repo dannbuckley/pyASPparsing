@@ -13,6 +13,7 @@ from . import TokenizerError
 class TokenType(enum.Enum):
     """Enumeration containing supported token types"""
 
+    NEWLINE = 0
     SYMBOL = 1
     IDENTIFIER = 2
     LITERAL_STRING = 3
@@ -96,10 +97,47 @@ class Tokenizer:
 
     def _skip_whitespace(self):
         """Consume and ignore extraneous whitespace"""
-        if self._pos_char.isspace():
-            while self._advance_pos() and self._pos_char.isspace():
+        if self._pos_char.isspace() and not self._pos_char in "\r\n":
+            while self._advance_pos() and (
+                self._pos_char.isspace() and not self._pos_char in "\r\n"
+            ):
                 pass
+
+            # check for line continuation
+            if self._pos_char == "_":
+                self._advance_pos()  # consume '_'
+            if self._pos_char is not None and (
+                self._pos_char.isspace() and not self._pos_char in "\r\n"
+            ):
+                while self._advance_pos() and (
+                    self._pos_char.isspace() and not self._pos_char in "\r\n"
+                ):
+                    pass
+            if self._pos_char == "\r":
+                self._advance_pos()  # consume
+            if self._pos_char == "\n":
+                self._advance_pos()  # consume
+
             self._check_for_end()
+
+    def _handle_newline(self) -> Token:
+        """"""
+        if self._pos_char in ":\r\n":
+            start_newline: int = self._pos_idx
+            while self._advance_pos() and self._pos_char in ":\r\n":
+                pass
+            return Token(TokenType.NEWLINE, slice(start_newline, self._pos_idx))
+        raise RuntimeError(
+            "Newline token handler called, but no newline characters found"
+        )
+
+    def _skip_comment(self) -> Token:
+        """"""
+        while self._advance_pos() and not self._pos_char in ":\r\n":
+            pass
+        self._check_for_end()
+        # didn't throw StopIteration, check for newline
+        return self._handle_newline()
 
     def _handle_identifier(self) -> Token:
         """"""
@@ -122,7 +160,13 @@ class Tokenizer:
             self._pos_char.isalnum() or self._pos_char == "_"
         ):
             pass
-        return Token(TokenType.IDENTIFIER, slice(start_iden, self._pos_idx))
+
+        iden_slice = slice(start_iden, self._pos_idx)
+        match self.codeblock[iden_slice].casefold():
+            case "rem":
+                return self._skip_comment()
+            case _:
+                return Token(TokenType.IDENTIFIER, iden_slice)
 
     def _handle_string_literal(self) -> Token:
         """"""
@@ -208,6 +252,13 @@ class Tokenizer:
         )  # don't know token type, but save starting position for later
         self._advance_pos()  # consume '&'
 
+        if self._pos_char is not None and (
+            self._pos_char.isspace() and not self._pos_char in "\r\n"
+        ):
+            # nothing after ampersand
+            # this is a concatenation operator
+            return Token(TokenType.SYMBOL, slice(start_amp, self._pos_idx))
+
         if self._pos_char == "H":
             # ======== HEX LITERAL ========
             self._advance_pos()  # consume 'H'
@@ -246,7 +297,43 @@ class Tokenizer:
 
     def _handle_date_literal(self) -> Token:
         """"""
-        return Token(TokenType.LITERAL_DATE)
+        start_date: int = self._pos_idx
+        self._advance_pos()  # consume '#'
+        printable = set([0xA0, *range(0x20, 0x7F)]).difference([ord("#")])
+        if self._pos_char is None or not ord(self._pos_char) in printable:
+            raise TokenizerError(
+                "Expected printable character in date literal, "
+                f"but found {repr(self._pos_char)} instead"
+            )
+        # goto end of date literal content
+        while self._advance_pos() and ord(self._pos_char) in printable:
+            pass
+        if self._pos_char != "#":
+            raise TokenizerError(
+                f"Expected '#' at end of date literal, but found {repr(self._pos_char)} instead"
+            )
+        self._advance_pos()  # consume '#'
+        return Token(TokenType.LITERAL_DATE, slice(start_date, self._pos_idx))
+
+    def _handle_terminal(self) -> Token:
+        """"""
+        # determine token type
+        if self._pos_char in ":\r\n":
+            return self._handle_newline()
+        if self._pos_char.isalpha() or self._pos_char == "[":
+            # could be comment if identifier is "Rem"
+            return self._handle_identifier()
+        if self._pos_char == '"':
+            return self._handle_string_literal()
+        if self._pos_char.isnumeric():
+            # could be LITERAL_FLOAT or LITERAL_INT
+            return self._handle_number_literal()
+        if self._pos_char == "&":
+            # could be SYMBOL, LITERAL_HEX, or LITERAL_OCT
+            return self._handle_amp_literal()
+        if self._pos_char == "#":
+            return self._handle_date_literal()
+        raise ValueError()
 
     def __next__(self) -> Token:
         """Advance to next token
@@ -274,18 +361,18 @@ class Tokenizer:
         # extraneous whitespace != code
         self._skip_whitespace()
 
-        # determine token type
-        if self._pos_char.isalpha() or self._pos_char == "[":
-            return self._handle_identifier()
-        if self._pos_char == '"':
-            return self._handle_string_literal()
-        if self._pos_char.isnumeric():
-            return self._handle_number_literal()
-        if self._pos_char == "&":
-            return self._handle_amp_literal()
-        if self._pos_char == "#":
-            return self._handle_date_literal()
+        # comment != code
+        if self._pos_char == "'":
+            # will raise StopIteration if comment goes till end of codeblock
+            return self._skip_comment()
 
-        # other token type, return symbol
-        self._advance_pos()  # consume symbol
-        return Token(TokenType.SYMBOL, slice(self._pos_idx - 1, self._pos_idx))
+        try:
+            return self._handle_terminal()
+        except StopIteration as stop_ex:
+            raise StopIteration from stop_ex
+        except TokenizerError as tok_ex:
+            raise TokenizerError("Terminal tokenizer raised an error") from tok_ex
+        except ValueError:
+            # other token type, just return symbol
+            self._advance_pos()  # consume symbol
+            return Token(TokenType.SYMBOL, slice(self._pos_idx - 1, self._pos_idx))
