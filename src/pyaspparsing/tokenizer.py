@@ -103,7 +103,26 @@ class Tokenizer:
 
     def _handle_identifier(self) -> Token:
         """"""
-        return Token(TokenType.IDENTIFIER)
+        # save starting position for later
+        start_iden: int = self._pos_idx
+        if self._pos_char == "[":
+            # escaped identifier
+            # GOLD parser set of printable characters
+            printable = set([0xA0, *range(0x20, 0x7F)]).difference(map(ord, "[]"))
+            while self._advance_pos() and ord(self._pos_char) in printable:
+                pass
+            # there should be a closing ']'
+            if self._pos_char is None or self._pos_char != "]":
+                raise TokenizerError("Expected closing ']' for espaced identifier")
+            self._advance_pos()  # consume ']'
+            return Token(TokenType.IDENTIFIER, slice(start_iden, self._pos_idx))
+
+        # normal identifier
+        while self._advance_pos() and (
+            self._pos_char.isalnum() or self._pos_char == "_"
+        ):
+            pass
+        return Token(TokenType.IDENTIFIER, slice(start_iden, self._pos_idx))
 
     def _handle_string_literal(self) -> Token:
         """"""
@@ -256,7 +275,7 @@ class Tokenizer:
         self._skip_whitespace()
 
         # determine token type
-        if self._pos_char.isalpha():
+        if self._pos_char.isalpha() or self._pos_char == "[":
             return self._handle_identifier()
         if self._pos_char == '"':
             return self._handle_string_literal()

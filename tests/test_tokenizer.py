@@ -13,6 +13,8 @@ def test_empty_code():
 @pytest.mark.parametrize(
     "codeblock,exp_type",
     [
+        ("Normal_Identifier1", TokenType.IDENTIFIER), # normal identifier
+        ("[_$% :-) @]", TokenType.IDENTIFIER), # escaped identifier
         ('"This is a valid string"', TokenType.LITERAL_STRING),
         ("&H7f", TokenType.LITERAL_HEX),  # lowercase hex
         ("&HAB", TokenType.LITERAL_HEX),  # uppercase hex
@@ -24,7 +26,7 @@ def test_empty_code():
         ("1.0E+3", TokenType.LITERAL_FLOAT),  # scientific notation with +/-
     ],
 )
-def test_valid_literal(codeblock: str, exp_type: TokenType):
+def test_valid_token(codeblock: str, exp_type: TokenType):
     valid_code = Tokenizer(codeblock)
     valid_iter = iter(valid_code)
     match next(valid_iter, None):
@@ -38,6 +40,7 @@ def test_valid_literal(codeblock: str, exp_type: TokenType):
 @pytest.mark.parametrize(
     "codeblock",
     [
+        ("[Invalid Escaped Identifier"), # missing final ']'
         ('"This string does not have an end'),  # missing final '"'
         ("&H"),  # needs at least one hexadecimal digit
         ("&HG"),  # invalid hexadecimal digit
@@ -47,7 +50,7 @@ def test_valid_literal(codeblock: str, exp_type: TokenType):
         ("1E"), # need at least one digit after 'E'
     ],
 )
-def test_invalid_literal(codeblock: str):
+def test_invalid_token(codeblock: str):
     with pytest.raises(TokenizerError):
         invalid_code = Tokenizer(codeblock)
         for _ in invalid_code:
