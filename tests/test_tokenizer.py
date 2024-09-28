@@ -5,7 +5,7 @@ from pyaspparsing.tokenizer import *
 
 def test_empty_code():
     empty_code = Tokenizer("")
-    empty_iter = iter(empty_code.process())
+    empty_iter = iter(empty_code)
     # there should not be any tokens in an empty codeblock
     assert next(empty_iter, None) is None
 
@@ -26,7 +26,7 @@ def test_empty_code():
 )
 def test_valid_literal(codeblock: str, exp_type: TokenType):
     valid_code = Tokenizer(codeblock)
-    valid_iter = iter(valid_code.process())
+    valid_iter = iter(valid_code)
     match next(valid_iter, None):
         case Token(x, y):
             assert x == exp_type
@@ -50,5 +50,5 @@ def test_valid_literal(codeblock: str, exp_type: TokenType):
 def test_invalid_literal(codeblock: str):
     with pytest.raises(TokenizerError):
         invalid_code = Tokenizer(codeblock)
-        for _ in invalid_code.process():
+        for _ in invalid_code:
             pass
