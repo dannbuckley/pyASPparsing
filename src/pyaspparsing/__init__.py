@@ -8,4 +8,8 @@ class CodetoolError(Exception):
 
 
 class TokenizerError(CodetoolError):
-    """An error that occurs in Tokenizer.process()"""
+    """An error that occurs during Tokenizer iteration"""
+
+
+class ParserError(CodetoolError):
+    """An error that occurs during Parser iteration"""
