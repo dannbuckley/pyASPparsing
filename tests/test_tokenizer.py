@@ -46,6 +46,7 @@ def test_comment_newline(comment_delim: str, newline: str):
         ("Normal_Identifier1", TokenType.IDENTIFIER),  # normal identifier
         ("[_$% :-) @]", TokenType.IDENTIFIER),  # escaped identifier
         ('"This is a valid string"', TokenType.LITERAL_STRING),
+        ("&", TokenType.SYMBOL),  # concatenation operator
         ("&H7f", TokenType.LITERAL_HEX),  # lowercase hex
         ("&HAB", TokenType.LITERAL_HEX),  # uppercase hex
         ("&123", TokenType.LITERAL_OCT),
@@ -54,7 +55,15 @@ def test_comment_newline(comment_delim: str, newline: str):
         ("1E3", TokenType.LITERAL_FLOAT),  # only scientific notation
         ("1.0E3", TokenType.LITERAL_FLOAT),  # both decimal and scientific notation
         ("1.0E+3", TokenType.LITERAL_FLOAT),  # scientific notation with +/-
+        (".01", TokenType.LITERAL_FLOAT),  # no leading digits
+        (".01E5", TokenType.LITERAL_FLOAT),  # no leading digits w/ scientific notation
         ("#1970/01/01#", TokenType.LITERAL_DATE),
+        ("And.", TokenType.IDENTIFIER_IDDOT),
+        (".And", TokenType.IDENTIFIER_DOTID),
+        (".And.", TokenType.IDENTIFIER_DOTIDDOT),
+        ("[ID Dot].", TokenType.IDENTIFIER_IDDOT),
+        (".[Dot ID]", TokenType.IDENTIFIER_DOTID),
+        (".[Dot ID Dot].", TokenType.IDENTIFIER_DOTIDDOT),
     ],
 )
 def test_valid_token(codeblock: str, exp_type: TokenType):
@@ -75,12 +84,14 @@ def test_valid_token(codeblock: str, exp_type: TokenType):
         ('"This string does not have an end'),  # missing final '"'
         ("&H"),  # needs at least one hexadecimal digit
         ("&HG"),  # invalid hexadecimal digit
-        ("&"),  # needs at least one octal digit
-        ("&8"),  # invalid octal digit
         ("1."),  # need at least one digit after '.'
         ("1E"),  # need at least one digit after 'E'
         ("#"),  # need at least one printable character
         ("#1970/01/01"),  # need ending '#'
+        ("."),  # '.' cannot appear by itself
+        ("a . b"),  # '.' cannot appear by itself
+        ("a ."),  # '.' cannot appear at end of codeblock by itself
+        (".Rem"),  # '.' cannot appear right before a comment
     ],
 )
 def test_invalid_token(codeblock: str):

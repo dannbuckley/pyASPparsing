@@ -15,13 +15,20 @@ class TokenType(enum.Enum):
 
     NEWLINE = 0
     SYMBOL = 1
+
+    # identifier
     IDENTIFIER = 2
-    LITERAL_STRING = 3
-    LITERAL_INT = 4
-    LITERAL_HEX = 5
-    LITERAL_OCT = 6
-    LITERAL_FLOAT = 7
-    LITERAL_DATE = 8
+    IDENTIFIER_IDDOT = 3
+    IDENTIFIER_DOTID = 4
+    IDENTIFIER_DOTIDDOT = 5
+
+    # literals
+    LITERAL_STRING = 6
+    LITERAL_INT = 7
+    LITERAL_HEX = 8
+    LITERAL_OCT = 9
+    LITERAL_FLOAT = 10
+    LITERAL_DATE = 11
 
 
 @dataclass
@@ -139,10 +146,10 @@ class Tokenizer:
         # didn't throw StopIteration, check for newline
         return self._handle_newline()
 
-    def _handle_identifier(self) -> Token:
+    def _handle_identifier(self, dot_start: bool = False) -> Token:
         """"""
         # save starting position for later
-        start_iden: int = self._pos_idx
+        start_iden: int = self._pos_idx - 1 if dot_start else self._pos_idx
         if self._pos_char == "[":
             # escaped identifier
             # GOLD parser set of printable characters
@@ -153,7 +160,24 @@ class Tokenizer:
             if self._pos_char is None or self._pos_char != "]":
                 raise TokenizerError("Expected closing ']' for espaced identifier")
             self._advance_pos()  # consume ']'
-            return Token(TokenType.IDENTIFIER, slice(start_iden, self._pos_idx))
+
+            if self._pos_char == ".":
+                self._advance_pos()  # consume
+                return Token(
+                    # was there also a dot at the beginning?
+                    (
+                        TokenType.IDENTIFIER_DOTIDDOT
+                        if dot_start
+                        else TokenType.IDENTIFIER_IDDOT
+                    ),
+                    slice(start_iden, self._pos_idx),
+                )
+
+            return Token(
+                # was there a dot at the beginning?
+                TokenType.IDENTIFIER_DOTID if dot_start else TokenType.IDENTIFIER,
+                slice(start_iden, self._pos_idx),
+            )
 
         # normal identifier
         while self._advance_pos() and (
@@ -161,12 +185,30 @@ class Tokenizer:
         ):
             pass
 
-        iden_slice = slice(start_iden, self._pos_idx)
-        match self.codeblock[iden_slice].casefold():
-            case "rem":
-                return self._skip_comment()
-            case _:
-                return Token(TokenType.IDENTIFIER, iden_slice)
+        if "rem" in self.codeblock[start_iden : self._pos_idx].casefold():
+            if dot_start:
+                raise TokenizerError(
+                    "Illegal use of '.' symbol; cannot appear before Rem"
+                )
+            return self._skip_comment()
+
+        if self._pos_char == ".":
+            self._advance_pos()  # consume
+            return Token(
+                # was there also a dot at the beginning?
+                (
+                    TokenType.IDENTIFIER_DOTIDDOT
+                    if dot_start
+                    else TokenType.IDENTIFIER_IDDOT
+                ),
+                slice(start_iden, self._pos_idx),
+            )
+
+        return Token(
+            # was there a dot at the beginning?
+            TokenType.IDENTIFIER_DOTID if dot_start else TokenType.IDENTIFIER,
+            slice(start_iden, self._pos_idx),
+        )
 
     def _handle_string_literal(self) -> Token:
         """"""
@@ -198,27 +240,27 @@ class Tokenizer:
 
         return Token(TokenType.LITERAL_STRING, slice(start_str, self._pos_idx))
 
-    def _handle_number_literal(self) -> Token:
+    def _handle_number_literal(self, dot_start: bool = False) -> Token:
         """"""
         start_num: int = (
-            self._pos_idx
+            self._pos_idx - 1 if dot_start else self._pos_idx
         )  # don't know token type, but save starting position for later
         # goto end of current number chunk
         while self._advance_pos() and self._pos_char.isnumeric():
             pass
 
-        # TODO: handle float that starts with '.' (no leading digits)
-
-        # does the token have a decimal point?
-        float_dec_pt = self._pos_char == "."
-        if float_dec_pt:
-            self._advance_pos()  # consume '.'
-            # there should be one or more digits after '.'
-            if self._pos_char is None or not self._pos_char.isnumeric():
-                raise TokenizerError("Expected digit after '.' in float literal")
-            # goto end of number chunk
-            while self._advance_pos() and self._pos_char.isnumeric():
-                pass
+        if not dot_start:
+            # token did not start with a decimal point
+            # is there a decimal point after the first number chunk?
+            float_dec_pt = self._pos_char == "."
+            if float_dec_pt:
+                self._advance_pos()  # consume '.'
+                # there should be one or more digits after '.'
+                if self._pos_char is None or not self._pos_char.isnumeric():
+                    raise TokenizerError("Expected digit after '.' in float literal")
+                # goto end of number chunk
+                while self._advance_pos() and self._pos_char.isnumeric():
+                    pass
 
         # does the token have the scientific notation indicator?
         float_sci_e = self._pos_char == "E"
@@ -239,7 +281,7 @@ class Tokenizer:
             # is this an int or a float?
             (
                 TokenType.LITERAL_FLOAT
-                if float_dec_pt or float_sci_e
+                if dot_start or float_dec_pt or float_sci_e
                 else TokenType.LITERAL_INT
             ),
             slice(start_num, self._pos_idx),
@@ -251,13 +293,6 @@ class Tokenizer:
             self._pos_idx
         )  # don't know token type, but save starting position for later
         self._advance_pos()  # consume '&'
-
-        if self._pos_char is not None and (
-            self._pos_char.isspace() and not self._pos_char in "\r\n"
-        ):
-            # nothing after ampersand
-            # this is a concatenation operator
-            return Token(TokenType.SYMBOL, slice(start_amp, self._pos_idx))
 
         if self._pos_char == "H":
             # ======== HEX LITERAL ========
@@ -283,10 +318,8 @@ class Tokenizer:
         # ======== OCT LITERAL ========
         # need at least one octal digit
         if self._pos_char is None or not self._pos_char in "01234567":
-            raise TokenizerError(
-                "Expected at least one octal digit after '&', "
-                f"but found {repr(self._pos_char)} instead"
-            )
+            # treat as concatenation operator, return as symbol
+            return Token(TokenType.SYMBOL, slice(start_amp, self._pos_idx))
         # goto end of oct literal
         while self._advance_pos() and self._pos_char in "01234567":
             pass
@@ -315,25 +348,49 @@ class Tokenizer:
         self._advance_pos()  # consume '#'
         return Token(TokenType.LITERAL_DATE, slice(start_date, self._pos_idx))
 
+    def _handle_dot(self) -> Token:
+        """"""
+        if self._pos_char == ".":
+            # consume '.'
+            if not self._advance_pos():
+                raise TokenizerError(
+                    "The '.' symbol cannot appear by itself, found at the end of the codeblock"
+                )
+
+            if self._pos_char.isalpha() or self._pos_char == "[":
+                # dotted identifier
+                return self._handle_identifier(True)
+
+            if self._pos_char.isnumeric():
+                # float literal with no leading digits
+                return self._handle_number_literal(True)
+
+            raise TokenizerError(
+                "Illegal use of '.' symbol; "
+                f"next character was {repr(self._pos_char)} "
+            )
+        raise RuntimeError("Dot token handler called, but did not find dot symbol")
+
     def _handle_terminal(self) -> Token:
         """"""
         # determine token type
-        if self._pos_char in ":\r\n":
-            return self._handle_newline()
+        if self._pos_char == ".":
+            # could be float or identifier
+            return self._handle_dot()
         if self._pos_char.isalpha() or self._pos_char == "[":
-            # could be comment if identifier is "Rem"
+            # could be identifier or newline if "Rem" comment present
             return self._handle_identifier()
         if self._pos_char == '"':
             return self._handle_string_literal()
         if self._pos_char.isnumeric():
-            # could be LITERAL_FLOAT or LITERAL_INT
+            # could be float or int
             return self._handle_number_literal()
         if self._pos_char == "&":
-            # could be SYMBOL, LITERAL_HEX, or LITERAL_OCT
+            # could be hex or oct literal, or just '&' symbol
             return self._handle_amp_literal()
         if self._pos_char == "#":
             return self._handle_date_literal()
-        raise ValueError()
+        raise ValueError("Could not determine token type")
 
     def __next__(self) -> Token:
         """Advance to next token
@@ -365,6 +422,11 @@ class Tokenizer:
         if self._pos_char == "'":
             # will raise StopIteration if comment goes till end of codeblock
             return self._skip_comment()
+
+        # treat newline as a token
+        # condenses multiple contiguous newlines into a single token
+        if self._pos_char in ":\r\n":
+            return self._handle_newline()
 
         try:
             return self._handle_terminal()
