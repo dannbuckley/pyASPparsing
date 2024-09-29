@@ -96,7 +96,12 @@ class Tokenizer:
         """If tokenizer reached the end of the codeblock,
         signal to the consumer that iteration should stop
 
-        The StopIteration exception will bubble up through __next__()"""
+        The StopIteration exception will bubble up through __next__()
+
+        Raises
+        ------
+        StopIteration
+        """
         if self._pos_char is None:
             self._code_iter = None
             self._pos_idx = None
@@ -128,7 +133,18 @@ class Tokenizer:
             self._check_for_end()
 
     def _handle_newline(self) -> Token:
-        """"""
+        """Handles newline characters (':', carriage return, or line feed)
+
+        Returns
+        -------
+        Token
+            Token of type NEWLINE
+
+        Raises
+        ------
+        RuntimeError
+            When the character at the current position is not a newline character
+        """
         if self._pos_char in ":\r\n":
             start_newline: int = self._pos_idx
             while self._advance_pos() and self._pos_char in ":\r\n":
@@ -139,7 +155,16 @@ class Tokenizer:
         )
 
     def _skip_comment(self) -> Token:
-        """"""
+        """Skip comments that start with either a single quote or "Rem"
+
+        Calls _check_for_end(), which may raise StopIteration if
+        the comment persists until the end of the codeblock
+
+        Returns
+        -------
+        Token
+            Token of type NEWLINE (if comment is terminated by a newline)
+        """
         while self._advance_pos() and not self._pos_char in ":\r\n":
             pass
         self._check_for_end()
@@ -147,7 +172,25 @@ class Tokenizer:
         return self._handle_newline()
 
     def _handle_identifier(self, dot_start: bool = False) -> Token:
-        """"""
+        """Handles an identifier token
+
+        Could be one of:
+        - a normal identifier
+        - an escaped identifier (i.e., wrapped in [square brackets])
+        - an identifier preceded by a dot ('.')
+        - an identiifer succeeded by a dot ('.')
+        - an identifier both preceded and succeeded  by a dot ('.')
+
+        Returns
+        -------
+        Token
+
+        Raises
+        ------
+        TokenizerError
+            When the final ']' is missing for an escaped identifier,
+            or when the dot ('.') symbol appears before a "Rem" comment
+        """
         # save starting position for later
         start_iden: int = self._pos_idx - 1 if dot_start else self._pos_idx
         if self._pos_char == "[":
@@ -211,7 +254,18 @@ class Tokenizer:
         )
 
     def _handle_string_literal(self) -> Token:
-        """"""
+        """Handles a string literal token
+
+        Returns
+        -------
+        Token
+            Token of type LITERAL_STRING
+
+        Raises
+        ------
+        TokenizerError
+            When the final double quote ('"') is missing
+        """
         # save starting index of string literal for later
         start_str: int = self._pos_idx
         # helper variables to keep track of state
@@ -241,7 +295,22 @@ class Tokenizer:
         return Token(TokenType.LITERAL_STRING, slice(start_str, self._pos_idx))
 
     def _handle_number_literal(self, dot_start: bool = False) -> Token:
-        """"""
+        """Handles a number literal token
+
+        Could be one of:
+        - an integer literal token
+        - a float literal token
+
+        Returns
+        -------
+        Token
+
+        Raises
+        ------
+        TokenizerError
+            When something other than a digit appears after '.' in a float literal,
+            or when something other than a digit appears after 'E' in a float literal
+        """
         start_num: int = (
             self._pos_idx - 1 if dot_start else self._pos_idx
         )  # don't know token type, but save starting position for later
@@ -287,8 +356,23 @@ class Tokenizer:
             slice(start_num, self._pos_idx),
         )
 
-    def _handle_amp_literal(self) -> Token:
-        """"""
+    def _handle_amp(self) -> Token:
+        """Handles tokens that begin with an ampersand ('&')
+
+        Could be one of:
+        - an ampersand ('&') symbol
+        - a hexadecimal literal token
+        - an octal literal token
+
+        Returns
+        -------
+        Token
+
+        Raises
+        ------
+        TokenizerError
+            When something other than a hexadecimal digit appears after '&H'
+        """
         start_amp: int = (
             self._pos_idx
         )  # don't know token type, but save starting position for later
@@ -329,7 +413,19 @@ class Tokenizer:
         return Token(TokenType.LITERAL_OCT, slice(start_amp, self._pos_idx))
 
     def _handle_date_literal(self) -> Token:
-        """"""
+        """Handles a date literal token
+
+        Returns
+        -------
+        Token
+            Token of type LITERAL_DATE
+
+        Raises
+        ------
+        TokenizerError
+            When something other than a printable character appears after the first '#',
+            or when the final '#' is missing
+        """
         start_date: int = self._pos_idx
         self._advance_pos()  # consume '#'
         printable = set([0xA0, *range(0x20, 0x7F)]).difference([ord("#")])
@@ -349,7 +445,23 @@ class Tokenizer:
         return Token(TokenType.LITERAL_DATE, slice(start_date, self._pos_idx))
 
     def _handle_dot(self) -> Token:
-        """"""
+        """Handles tokens that begin with a dot
+
+        Could be either of:
+        - an identifier
+        - a float
+
+        Returns
+        -------
+        Token
+
+        Raises
+        ------
+        TokenizerError
+            When the dot ('.') appears by itself
+        RuntimeError
+            When the character at the current position is not a dot ('.')
+        """
         if self._pos_char == ".":
             # consume '.'
             if not self._advance_pos():
@@ -372,7 +484,26 @@ class Tokenizer:
         raise RuntimeError("Dot token handler called, but did not find dot symbol")
 
     def _handle_terminal(self) -> Token:
-        """"""
+        """Determines which token type is appropriate given
+        the current position in the codeblock
+
+        Could be one of:
+        - a dotted ('.') terminal
+        - an identifier
+        - a string literal
+        - a number literal
+        - an ampersand ('&') terminal
+        - a date literal
+
+        Returns
+        -------
+        Token
+
+        Raises
+        ------
+        ValueError
+            When token type cannot be determined
+        """
         # determine token type
         if self._pos_char == ".":
             # could be float or identifier
@@ -387,7 +518,7 @@ class Tokenizer:
             return self._handle_number_literal()
         if self._pos_char == "&":
             # could be hex or oct literal, or just '&' symbol
-            return self._handle_amp_literal()
+            return self._handle_amp()
         if self._pos_char == "#":
             return self._handle_date_literal()
         raise ValueError("Could not determine token type")
