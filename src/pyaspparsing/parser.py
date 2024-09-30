@@ -155,6 +155,9 @@ class ErrorStmt(InlineStmt):
     If 'GoTo' specified, IntLiteral must be 0
     """
 
+    resume_next: bool = attrs.field(default=False, kw_only=True)
+    goto_spec: typing.Optional[Token] = attrs.field(default=None, kw_only=True)
+
 
 @attrs.define(slots=False)
 class ExitStmt(InlineStmt):
@@ -162,6 +165,8 @@ class ExitStmt(InlineStmt):
 
     'Exit' { 'Do' | 'For' | 'Function' | 'Property' | 'Sub' }
     """
+
+    exit_token: Token
 
 
 @attrs.define(slots=False)
@@ -346,8 +351,8 @@ class Parser:
 
             # should have 'Explicit' token
             if (
-                self._try_token_type(TokenType.IDENTIFIER)
-                and self._get_token_code() == "explicit"
+                not self._try_token_type(TokenType.IDENTIFIER)
+                or self._get_token_code() != "explicit"
             ):
                 raise ParserError("Missing 'Explicit' after 'Option'")
             self._advance_pos()  # consume "explicit"
@@ -459,12 +464,75 @@ class Parser:
         return SubCallStmt()
 
     def _parse_error_stmt(self) -> GlobalStmt:
-        """"""
-        return ErrorStmt()
+        """
+
+        Returns
+        -------
+        GlobalStmt
+
+        Raises
+        ------
+        ParserError
+        """
+        if (
+            not self._try_token_type(TokenType.IDENTIFIER)
+            or self._get_token_code() != "on"
+        ):
+            raise ParserError("Expected 'On' in error statement")
+        self._advance_pos()  # consume 'On'
+
+        if (
+            not self._try_token_type(TokenType.IDENTIFIER)
+            or self._get_token_code() != "error"
+        ):
+            raise ParserError("Expected 'Error' after 'On' keyword")
+        self._advance_pos()  # consume 'Error'
+
+        if self._try_token_type(TokenType.IDENTIFIER):
+            if self._get_token_code() == "resume":
+                self._advance_pos()  # consume 'Return'
+                if (
+                    not self._try_token_type(TokenType.IDENTIFIER)
+                    or self._get_token_code() != "next"
+                ):
+                    raise ParserError("Expected 'Next' after 'On Error Resume'")
+                self._advance_pos()  # consume 'Next'
+                return ErrorStmt(resume_next=True)
+            if self._get_token_code() == "goto":
+                self._advance_pos()  # consume 'GoTo'
+                if not self._try_token_type(TokenType.LITERAL_INT):
+                    raise ParserError(
+                        "Expected an integer literal after 'On Error GoTo'"
+                    )
+                goto_spec = self._pos_tok
+                self._advance_pos()  # consume int literal
+                return ErrorStmt(goto_spec=goto_spec)
+        raise ParserError(
+            "Expected either 'Resume Next' or 'GoTo <int>' after 'On Error'"
+        )
 
     def _parse_exit_stmt(self) -> GlobalStmt:
         """"""
-        return ExitStmt()
+        if (
+            not self._try_token_type(TokenType.IDENTIFIER)
+            or self._get_token_code() != "exit"
+        ):
+            raise ParserError("Expected 'Exit' in exit statement")
+        self._advance_pos()  # consume 'Exit'
+
+        if self._try_token_type(TokenType.IDENTIFIER):
+            if self._get_token_code() in ["do", "for", "function", "property", "sub"]:
+                exit_tok = self._pos_tok
+                self._advance_pos()  # consume exit type token
+                return ExitStmt(exit_tok)
+            raise ParserError(
+                "Invalid identifier found after 'Exit'; "
+                "expected one of 'Do', 'For', 'Function', 'Property', or 'Sub'"
+            )
+        raise ParserError(
+            "Expected one of 'Do', 'For', 'Function', "
+            "'Property', or 'Sub' after 'Exit'"
+        )
 
     def _parse_erase_stmt(self) -> GlobalStmt:
         """"""
@@ -498,7 +566,16 @@ class Parser:
         )
 
     def _parse_block_stmt(self) -> GlobalStmt:
-        """"""
+        """
+
+        Returns
+        -------
+        GlobalStmt
+
+        Raises
+        ------
+        ParserError
+        """
         if (
             self._try_token_type(TokenType.IDENTIFIER)
             or self._try_token_type(TokenType.IDENTIFIER_IDDOT)
