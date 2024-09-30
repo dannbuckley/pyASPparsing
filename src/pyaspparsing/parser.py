@@ -11,6 +11,13 @@ from .tokenizer import TokenType, Token, Tokenizer
 
 
 @attrs.define(slots=False)
+class QualifiedID:
+    """"""
+
+    id_tokens: typing.List[Token] = attrs.field(default=attrs.Factory(list))
+
+
+@attrs.define(slots=False)
 class GlobalStmt:
     """Defined on grammar line 357
 
@@ -340,6 +347,139 @@ class Parser:
         if self._pos_tok is None:
             return False
         return self._pos_tok.token_type == tok_type
+
+    def _try_safe_keyword_id(self) -> typing.Optional[Token]:
+        """
+
+        Returns
+        -------
+        Token or None
+            Token if the current token is a safe keyword identifier,
+            otherwise None
+        """
+        if self._try_token_type(TokenType.IDENTIFIER) and self._get_token_code() in [
+            "default",
+            "erase",
+            "error",
+            "explicit",
+            "property",
+            "step",
+        ]:
+            return self._pos_tok
+        return None
+
+    def _try_keyword_id(self) -> typing.Optional[Token]:
+        """
+
+        Returns
+        -------
+        Token or None
+            Token if the current token is a keyword identifier,
+            otherwise None
+        """
+        if (safe_kw := self._try_safe_keyword_id()) is not None:
+            return safe_kw
+        if self._try_token_type(TokenType.IDENTIFIER) and self._get_token_code() in [
+            "and",
+            "byref",
+            "byval",
+            "call",
+            "case",
+            "class",
+            "const",
+            "dim",
+            "do",
+            "each",
+            "else",
+            "elseif",
+            "empty",
+            "end",
+            "eqv",
+            "exit",
+            "false",
+            "for",
+            "function",
+            "get",
+            "goto",
+            "if",
+            "imp",
+            "in",
+            "is",
+            "let",
+            "loop",
+            "mod",
+            "new",
+            "next",
+            "not",
+            "nothing",
+            "null",
+            "on",
+            "option",
+            "or",
+            "preserve",
+            "private",
+            "public",
+            "redim",
+            "resume",
+            "select",
+            "set",
+            "sub",
+            "then",
+            "to",
+            "true",
+            "until",
+            "wend",
+            "while",
+            "with",
+            "xor",
+        ]:
+            return self._pos_tok
+        return None
+
+    def _parse_qualified_id_tail(self) -> Token:
+        """"""
+        if (kw_id := self._try_keyword_id()) is not None:
+            self._advance_pos()  # consume keyword identifier
+            return kw_id
+        if self._try_token_type(TokenType.IDENTIFIER) or self._try_token_type(
+            TokenType.IDENTIFIER_IDDOT
+        ):
+            id_tok = self._pos_tok
+            self._advance_pos()  # consume identifier
+            return id_tok
+        raise ParserError(
+            "Expected an identifier or a dotted identifier "
+            "in the tail of the qualified identifier symbol"
+        )
+
+    def _parse_qualified_id(self):
+        """"""
+        if self._try_token_type(TokenType.IDENTIFIER_IDDOT) or self._try_token_type(
+            TokenType.IDENTIFIER_DOTIDDOT
+        ):
+            id_tokens: typing.List[Token] = [self._pos_tok]
+            self._advance_pos()  # consume identifier
+            expand_tail = True
+            while expand_tail:
+                id_tokens.append(self._parse_qualified_id_tail())
+                if id_tokens[-1].token_type != TokenType.IDENTIFIER_IDDOT:
+                    expand_tail = False
+            return QualifiedID(id_tokens)
+
+        if self._try_token_type(TokenType.IDENTIFIER) or self._try_token_type(
+            TokenType.IDENTIFIER_DOTID
+        ):
+            id_token = self._pos_tok
+            self._advance_pos()  # consume identifier
+            return QualifiedID([id_token])
+
+        raise ParserError(
+            "Expected either an identifier token or a dotted identifier token "
+            "for the qualified identifier symbol"
+        )
+
+    def _parse_left_expr(self, qualified_id: typing.Optional[QualifiedID] = None):
+        """"""
 
     def _parse_option_explicit(self) -> GlobalStmt:
         """"""

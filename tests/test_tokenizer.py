@@ -46,6 +46,7 @@ def test_comment_newline(comment_delim: str, newline: str):
         ("Normal_Identifier1", TokenType.IDENTIFIER),  # normal identifier
         ("[_$% :-) @]", TokenType.IDENTIFIER),  # escaped identifier
         ('"This is a valid string"', TokenType.LITERAL_STRING),
+        (".", TokenType.SYMBOL),  # dot symbol
         ("&", TokenType.SYMBOL),  # concatenation operator
         ("&H7f", TokenType.LITERAL_HEX),  # lowercase hex
         ("&HAB", TokenType.LITERAL_HEX),  # uppercase hex
@@ -88,9 +89,6 @@ def test_valid_token(codeblock: str, exp_type: TokenType):
         ("1E"),  # need at least one digit after 'E'
         ("#"),  # need at least one printable character
         ("#1970/01/01"),  # need ending '#'
-        ("."),  # '.' cannot appear by itself
-        ("a . b"),  # '.' cannot appear by itself
-        ("a ."),  # '.' cannot appear at end of codeblock by itself
         (".Rem"),  # '.' cannot appear right before a comment
     ],
 )

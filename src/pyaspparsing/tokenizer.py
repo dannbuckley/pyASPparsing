@@ -466,23 +466,20 @@ class Tokenizer:
         """
         if self._pos_char == ".":
             # consume '.'
-            if not self._advance_pos():
-                raise TokenizerError(
-                    "The '.' symbol cannot appear by itself, found at the end of the codeblock"
-                )
+            start_dot: int = self._pos_idx
+            self._advance_pos()  # consume '.'
 
-            if self._pos_char.isalpha() or self._pos_char == "[":
-                # dotted identifier
-                return self._handle_identifier(True)
+            if self._pos_char is not None:
+                if self._pos_char.isalpha() or self._pos_char == "[":
+                    # dotted identifier
+                    return self._handle_identifier(True)
 
-            if self._pos_char.isnumeric():
-                # float literal with no leading digits
-                return self._handle_number_literal(True)
+                if self._pos_char.isnumeric():
+                    # float literal with no leading digits
+                    return self._handle_number_literal(True)
 
-            raise TokenizerError(
-                "Illegal use of '.' symbol; "
-                f"next character was {repr(self._pos_char)} "
-            )
+            # just return as symbol, let parser interpret meaning
+            return Token(TokenType.SYMBOL, slice(start_dot, self._pos_idx))
         raise RuntimeError("Dot token handler called, but did not find dot symbol")
 
     def _handle_terminal(self) -> Token:
