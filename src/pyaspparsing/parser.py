@@ -12,7 +12,164 @@ from .tokenizer import TokenType, Token, Tokenizer
 
 @attrs.define(slots=False)
 class Expr:
-    """"""
+    """Defined on grammar line 664
+
+    &lt;ImpExpr&gt;
+    """
+
+
+@attrs.define(slots=False)
+class ImpExpr(Expr):
+    """Defined on grammar line 666
+
+    [ &lt;ImpExpr&gt; 'Imp' ] &lt;EqvExpr&gt;
+    """
+
+
+@attrs.define(slots=False)
+class EqvExpr(Expr):
+    """Defined on grammar line 669
+
+    [ &lt;EqvExpr&gt; 'Eqv' ] &lt;XorExpr&gt;
+    """
+
+
+@attrs.define(slots=False)
+class XorExpr(Expr):
+    """Defined on grammar line 672
+
+    [ &lt;XorExpr&gt; 'Xor' ] &lt;OrExpr&gt;
+    """
+
+
+@attrs.define(slots=False)
+class OrExpr(Expr):
+    """Defined on grammar line 675
+
+    [ &lt;OrExpr&gt; 'Or' ] &lt;AndExpr&gt;
+    """
+
+
+@attrs.define(slots=False)
+class AndExpr(Expr):
+    """Defined on grammar line 678
+
+    [ &lt;AndExpr&gt; 'And' ] &lt;NotExpr&gt;
+    """
+
+
+@attrs.define(slots=False)
+class NotExpr(Expr):
+    """Defined on grammar line 681
+
+    { 'Not' &lt;NotExpr&gt; | &lt;CompareExpr&gt; }
+    """
+
+
+@attrs.define(slots=False)
+class CompareExpr(Expr):
+    """Defined on grammar line 684
+
+    [
+        &lt;CompareExpr&gt;
+        { 'Is' [ 'Not' ] | '>=' | '=>' | '<=' | '=<' | '>' | '<' | '<>' | '=' }
+    ] &lt;ConcatExpr&gt;
+    """
+
+
+@attrs.define(slots=False)
+class ConcatExpr(Expr):
+    """Defined on grammar line 696
+
+    [ &lt;ConcatExpr&gt; '&' ] &lt;AddExpr&gt;
+    """
+
+
+@attrs.define(slots=False)
+class AddExpr(Expr):
+    """Defined on grammar line 699
+
+    [ &lt;AddExpr&gt; { '+' | '-' } ] &lt;ModExpr&gt;
+    """
+
+
+@attrs.define(slots=False)
+class ModExpr(Expr):
+    """Defined on grammar line 703
+
+    [ &lt;ModExpr&gt; 'Mod' ] &lt;IntDivExpr&gt;
+    """
+
+
+@attrs.define(slots=False)
+class IntDivExpr(Expr):
+    """Defined on grammar line 706
+
+    [ &lt;IntDivExpr&gt; '\\\\' ] &lt;MultExpr&gt;
+    """
+
+
+@attrs.define(slots=False)
+class MultExpr(Expr):
+    """Defined on grammar line 709
+
+    [ &lt;MultExpr&gt; { '*' | '/' } ] &lt;UnaryExpr&gt;
+    """
+
+
+@attrs.define(slots=False)
+class UnaryExpr(Expr):
+    """Defined on grammar line 713
+
+    { { '-' | '+' } &lt;UnaryExpr&gt; | &lt;ExpExpr&gt; }
+    """
+
+
+@attrs.define(slots=False)
+class ExpExpr(Expr):
+    """Defined on grammar line 717
+
+    &lt;Value&gt; [ '^' &lt;ExpExpr&gt; ]
+    """
+
+
+@attrs.define(slots=False)
+class Value(Expr):
+    """Defined on grammar line 720
+
+    &lt;ConstExpr&gt; | &lt;LeftExpr&gt; | { '(' &lt;Expr&gt; ')' }
+    """
+
+
+@attrs.define(slots=False)
+class ConstExpr(Value):
+    """Defined on grammar line 724"""
+
+    const_token: Token
+
+
+@attrs.define(slots=False)
+class BoolLiteral(ConstExpr):
+    """Defined on grammar line 731
+
+    'True' | 'False'
+    """
+
+
+@attrs.define(slots=False)
+class IntLiteral(ConstExpr):
+    """Defined on grammar line 734
+
+    LITERAL_INT | LITERAL_HEX | LITERAL_OCT
+    """
+
+
+@attrs.define(slots=False)
+class Nothing(ConstExpr):
+    """Defined on grammar line 738
+
+    'Nothing' | 'Null' | 'Empty'
+    """
 
 
 @attrs.define(slots=False)
@@ -48,7 +205,7 @@ class LeftExprTail:
 
 
 @attrs.define(slots=False)
-class LeftExpr:
+class LeftExpr(Value):
     """"""
 
     qual_id: QualifiedID
@@ -310,9 +467,11 @@ class ClassDecl(GlobalStmt):
 
     Attributes
     ----------
+    extended_id : ExtendedID
     member_decl_list : List[MemberDecl], default=[]
     """
 
+    extended_id: ExtendedID
     member_decl_list: typing.List[MemberDecl] = attrs.field(default=attrs.Factory(list))
 
 
@@ -593,9 +752,48 @@ class Parser:
             return OptionExplicit()
         raise ParserError("_parse_option_explicit() did not find 'Option' token")
 
+    def _parse_member_decl(self) -> MemberDecl:
+        """"""
+        return MemberDecl()
+
     def _parse_class_decl(self) -> GlobalStmt:
         """"""
-        return ClassDecl()
+        if (
+            self._try_token_type(TokenType.IDENTIFIER)
+            and self._get_token_code() == "class"
+        ):
+            self._advance_pos()  # consume 'Class'
+            # should have an extended identifier
+            class_id = self._parse_extended_id()
+            if not self._try_token_type(TokenType.NEWLINE):
+                raise ParserError("Missing newline after class identifier")
+            self._advance_pos()  # consume newline
+
+            # member declaration list could be empty
+            member_decl_list: typing.List[MemberDecl] = []
+            while (
+                self._try_token_type(TokenType.IDENTIFIER)
+                and self._get_token_code() != "end"
+            ):
+                member_decl_list.append(self._parse_member_decl())
+
+            if (
+                not self._try_token_type(TokenType.IDENTIFIER)
+                or self._get_token_code() != "end"
+            ):
+                raise ParserError("Expected 'End' after class member declaration list")
+            self._advance_pos()  # consume 'End'
+            if (
+                not self._try_token_type(TokenType.IDENTIFIER)
+                or self._get_token_code() != "class"
+            ):
+                raise ParserError("Expected 'Class' after 'End' in class declaration")
+            self._advance_pos()  # consume 'Class'
+            if not self._try_token_type(TokenType.NEWLINE):
+                raise Parser("Missing newline after 'End Class'")
+            self._advance_pos()  # consume newline
+            return ClassDecl(class_id, member_decl_list)
+        raise ParserError("_parse_class_decl() did not find 'Class' token")
 
     def _parse_const_decl(self) -> GlobalStmt:
         """"""

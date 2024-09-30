@@ -9,6 +9,7 @@ from pyaspparsing.parser import *
     "stmt_code,stmt_type",
     [
         ("Option Explicit\n", OptionExplicit()),
+        ("Class MyClass\nEnd Class\n", ClassDecl(ExtendedID(Token.identifier(6, 13)))),
         (
             "Dim my_var\n",
             VarDecl([VarName(ExtendedID(Token.identifier(4, 10)))]),
