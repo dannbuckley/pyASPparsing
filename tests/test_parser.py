@@ -11,14 +11,14 @@ from pyaspparsing.parser import *
         ("Option Explicit\n", OptionExplicit()),
         (
             "Dim my_var\n",
-            VarDecl([VarName(ExtendedID(Token(TokenType.IDENTIFIER, slice(4, 10))))]),
+            VarDecl([VarName(ExtendedID(Token.identifier(4, 10)))]),
         ),
         (
             "Dim vara, var_b\n",
             VarDecl(
                 [
-                    VarName(ExtendedID(Token(TokenType.IDENTIFIER, slice(4, 8)))),
-                    VarName(ExtendedID(Token(TokenType.IDENTIFIER, slice(10, 15)))),
+                    VarName(ExtendedID(Token.identifier(4, 8))),
+                    VarName(ExtendedID(Token.identifier(10, 15))),
                 ]
             ),
         ),
@@ -27,23 +27,23 @@ from pyaspparsing.parser import *
             VarDecl(
                 [
                     VarName(
-                        ExtendedID(Token(TokenType.IDENTIFIER, slice(4, 12))),
-                        [Token(TokenType.LITERAL_INT, slice(13, 14))],
+                        ExtendedID(Token.identifier(4, 12)),
+                        [Token.int_literal(13, 14)],
                     )
                 ]
             ),
         ),
         (
             "Dim my_array()\n",
-            VarDecl([VarName(ExtendedID(Token(TokenType.IDENTIFIER, slice(4, 12))))]),
+            VarDecl([VarName(ExtendedID(Token.identifier(4, 12)))]),
         ),
         (
             "Dim my_array(3,)\n",
             VarDecl(
                 [
                     VarName(
-                        ExtendedID(Token(TokenType.IDENTIFIER, slice(4, 12))),
-                        [Token(TokenType.LITERAL_INT, slice(13, 14))],
+                        ExtendedID(Token.identifier(4, 12)),
+                        [Token.int_literal(13, 14)],
                     )
                 ]
             ),
@@ -53,10 +53,10 @@ from pyaspparsing.parser import *
             VarDecl(
                 [
                     VarName(
-                        ExtendedID(Token(TokenType.IDENTIFIER, slice(4, 12))),
+                        ExtendedID(Token.identifier(4, 12)),
                         [
-                            Token(TokenType.LITERAL_INT, slice(13, 14)),
-                            Token(TokenType.LITERAL_INT, slice(16, 17)),
+                            Token.int_literal(13, 14),
+                            Token.int_literal(16, 17),
                         ],
                     )
                 ]
@@ -65,13 +65,13 @@ from pyaspparsing.parser import *
         ("On Error Resume Next\n", ErrorStmt(resume_next=True)),
         (
             "On Error GoTo 0\n",
-            ErrorStmt(goto_spec=Token(TokenType.LITERAL_INT, slice(14, 15))),
+            ErrorStmt(goto_spec=Token.int_literal(14, 15)),
         ),
-        ("Exit Do\n", ExitStmt(Token(TokenType.IDENTIFIER, slice(5, 7)))),
-        ("Exit For\n", ExitStmt(Token(TokenType.IDENTIFIER, slice(5, 8)))),
-        ("Exit Function\n", ExitStmt(Token(TokenType.IDENTIFIER, slice(5, 13)))),
-        ("Exit Property\n", ExitStmt(Token(TokenType.IDENTIFIER, slice(5, 13)))),
-        ("Exit Sub\n", ExitStmt(Token(TokenType.IDENTIFIER, slice(5, 8)))),
+        ("Exit Do\n", ExitStmt(Token.identifier(5, 7))),
+        ("Exit For\n", ExitStmt(Token.identifier(5, 8))),
+        ("Exit Function\n", ExitStmt(Token.identifier(5, 13))),
+        ("Exit Property\n", ExitStmt(Token.identifier(5, 13))),
+        ("Exit Sub\n", ExitStmt(Token.identifier(5, 8))),
     ],
 )
 def test_valid_global_stmt(stmt_code: str, stmt_type: GlobalStmt):
