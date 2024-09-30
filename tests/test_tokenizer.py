@@ -48,6 +48,7 @@ def test_comment_newline(comment_delim: str, newline: str):
         ('"This is a valid string"', TokenType.LITERAL_STRING),
         (".", TokenType.SYMBOL),  # dot symbol
         ("&", TokenType.SYMBOL),  # concatenation operator
+        ("(", TokenType.SYMBOL), # should be returned at the very end of __next__()
         ("&H7f", TokenType.LITERAL_HEX),  # lowercase hex
         ("&HAB", TokenType.LITERAL_HEX),  # uppercase hex
         ("&123", TokenType.LITERAL_OCT),
@@ -103,12 +104,12 @@ def test_line_continuation():
     codeblock = '"Hello, " & _\n" world!"'
     test_code = Tokenizer(codeblock)
     exp_tok = [
-        Token(TokenType.LITERAL_STRING),
-        Token(TokenType.SYMBOL),
-        Token(TokenType.LITERAL_STRING),
+        TokenType.LITERAL_STRING,
+        TokenType.SYMBOL,
+        TokenType.LITERAL_STRING,
     ]
     for tok, etok in zip(test_code, exp_tok):
-        assert tok.token_type == etok.token_type
+        assert tok.token_type == etok
 
 
 @pytest.mark.parametrize("delim", [("\r"), ("\n"), ("\r\n"), (":")])
@@ -116,9 +117,9 @@ def test_newline(delim: str):
     codeblock = f'"First line"{delim}"Second write"'
     test_code = Tokenizer(codeblock)
     exp_tok = [
-        Token(TokenType.LITERAL_STRING),
-        Token(TokenType.NEWLINE),
-        Token(TokenType.LITERAL_STRING),
+        TokenType.LITERAL_STRING,
+        TokenType.NEWLINE,
+        TokenType.LITERAL_STRING,
     ]
     for tok, etok in zip(test_code, exp_tok):
-        assert tok.token_type == etok.token_type
+        assert tok.token_type == etok

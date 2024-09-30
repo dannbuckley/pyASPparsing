@@ -48,6 +48,69 @@ class Token:
     token_type: TokenType
     token_src: slice = slice(None, None, None)  # default: entire string
 
+    @staticmethod
+    def _factory(tok_type: TokenType, start: int, stop: int):
+        """Base factory method, constructs token_src argument from start and stop"""
+        if start is None or stop is None:
+            raise ValueError("Must specify both start and stop parameters")
+        return Token(tok_type, slice(start, stop))
+
+    @staticmethod
+    def newline(start: int, stop: int):
+        """Factory method for Token of type NEWLINE"""
+        return Token._factory(TokenType.NEWLINE, start, stop)
+
+    @staticmethod
+    def symbol(start: int, stop: int):
+        """Factory method for Token of type SYMBOL"""
+        return Token._factory(TokenType.SYMBOL, start, stop)
+
+    @staticmethod
+    def identifier(
+        start: int, stop: int, *, dot_start: bool = False, dot_end: bool = False
+    ):
+        """Factory method for Tokens of types IDENTIFIER, IDENTIFIER_DOTID,
+        IDENTIFIER_IDDOT, or IDENTIFIER_DOTIDDOT"""
+        if dot_start and dot_end:
+            return Token._factory(TokenType.IDENTIFIER_DOTIDDOT, start, stop)
+        if dot_start or dot_end:
+            return Token._factory(
+                TokenType.IDENTIFIER_DOTID if dot_start else TokenType.IDENTIFIER_IDDOT,
+                start,
+                stop,
+            )
+        return Token._factory(TokenType.IDENTIFIER, start, stop)
+
+    @staticmethod
+    def string_literal(start: int, stop: int):
+        """Factory method for Token of type LITERAL_STRING"""
+        return Token._factory(TokenType.LITERAL_STRING, start, stop)
+
+    @staticmethod
+    def int_literal(start: int, stop: int):
+        """Factory method for Token of type LITERAL_INT"""
+        return Token._factory(TokenType.LITERAL_INT, start, stop)
+
+    @staticmethod
+    def hex_literal(start: int, stop: int):
+        """Factory method for Token of type LITERAL_HEX"""
+        return Token._factory(TokenType.LITERAL_HEX, start, stop)
+
+    @staticmethod
+    def oct_literal(start: int, stop: int):
+        """Factory method for Token of type LITERAL_OCT"""
+        return Token._factory(TokenType.LITERAL_OCT, start, stop)
+
+    @staticmethod
+    def float_literal(start: int, stop: int):
+        """Factory method for Token of type LITERAL_FLOAT"""
+        return Token._factory(TokenType.LITERAL_FLOAT, start, stop)
+
+    @staticmethod
+    def date_literal(start: int, stop: int):
+        """Factory method for Token of type LITERAL_DATE"""
+        return Token._factory(TokenType.LITERAL_DATE, start, stop)
+
 
 @attrs.define()
 class Tokenizer:
@@ -151,7 +214,7 @@ class Tokenizer:
             start_newline: int = self._pos_idx
             while self._advance_pos() and self._pos_char in ":\r\n":
                 pass
-            return Token(TokenType.NEWLINE, slice(start_newline, self._pos_idx))
+            return Token.newline(start_newline, self._pos_idx)
         raise RuntimeError(
             "Newline token handler called, but no newline characters found"
         )
@@ -208,21 +271,11 @@ class Tokenizer:
 
             if self._pos_char == ".":
                 self._advance_pos()  # consume
-                return Token(
-                    # was there also a dot at the beginning?
-                    (
-                        TokenType.IDENTIFIER_DOTIDDOT
-                        if dot_start
-                        else TokenType.IDENTIFIER_IDDOT
-                    ),
-                    slice(start_iden, self._pos_idx),
+                return Token.identifier(
+                    start_iden, self._pos_idx, dot_start=dot_start, dot_end=True
                 )
 
-            return Token(
-                # was there a dot at the beginning?
-                TokenType.IDENTIFIER_DOTID if dot_start else TokenType.IDENTIFIER,
-                slice(start_iden, self._pos_idx),
-            )
+            return Token.identifier(start_iden, self._pos_idx, dot_start=dot_start)
 
         # normal identifier
         while self._advance_pos() and (
@@ -239,21 +292,11 @@ class Tokenizer:
 
         if self._pos_char == ".":
             self._advance_pos()  # consume
-            return Token(
-                # was there also a dot at the beginning?
-                (
-                    TokenType.IDENTIFIER_DOTIDDOT
-                    if dot_start
-                    else TokenType.IDENTIFIER_IDDOT
-                ),
-                slice(start_iden, self._pos_idx),
+            return Token.identifier(
+                start_iden, self._pos_idx, dot_start=dot_start, dot_end=True
             )
 
-        return Token(
-            # was there a dot at the beginning?
-            TokenType.IDENTIFIER_DOTID if dot_start else TokenType.IDENTIFIER,
-            slice(start_iden, self._pos_idx),
-        )
+        return Token.identifier(start_iden, self._pos_idx, dot_start=dot_start)
 
     def _handle_string_literal(self) -> Token:
         """Handles a string literal token
@@ -294,7 +337,7 @@ class Tokenizer:
                 "Expected ending '\"' for string literal, but reached end of codeblock"
             )
 
-        return Token(TokenType.LITERAL_STRING, slice(start_str, self._pos_idx))
+        return Token.string_literal(start_str, self._pos_idx)
 
     def _handle_number_literal(self, dot_start: bool = False) -> Token:
         """Handles a number literal token
@@ -348,15 +391,10 @@ class Tokenizer:
             while self._advance_pos() and self._pos_char.isnumeric():
                 pass
 
-        return Token(
-            # is this an int or a float?
-            (
-                TokenType.LITERAL_FLOAT
-                if dot_start or float_dec_pt or float_sci_e
-                else TokenType.LITERAL_INT
-            ),
-            slice(start_num, self._pos_idx),
-        )
+        if dot_start or float_dec_pt or float_sci_e:
+            return Token.float_literal(start_num, self._pos_idx)
+        # otherwise, int literal
+        return Token.int_literal(start_num, self._pos_idx)
 
     def _handle_amp(self) -> Token:
         """Handles tokens that begin with an ampersand ('&')
@@ -399,20 +437,20 @@ class Tokenizer:
             # check for optional '&' at end
             if self._pos_char == "&":
                 self._advance_pos()  # consume
-            return Token(TokenType.LITERAL_HEX, slice(start_amp, self._pos_idx))
+            return Token.hex_literal(start_amp, self._pos_idx)
 
         # ======== OCT LITERAL ========
         # need at least one octal digit
         if self._pos_char is None or not self._pos_char in "01234567":
             # treat as concatenation operator, return as symbol
-            return Token(TokenType.SYMBOL, slice(start_amp, self._pos_idx))
+            return Token.symbol(start_amp, self._pos_idx)
         # goto end of oct literal
         while self._advance_pos() and self._pos_char in "01234567":
             pass
         # check for optional '&' at end
         if self._pos_char == "&":
             self._advance_pos()  # consume
-        return Token(TokenType.LITERAL_OCT, slice(start_amp, self._pos_idx))
+        return Token.oct_literal(start_amp, self._pos_idx)
 
     def _handle_date_literal(self) -> Token:
         """Handles a date literal token
@@ -444,7 +482,7 @@ class Tokenizer:
                 f"Expected '#' at end of date literal, but found {repr(self._pos_char)} instead"
             )
         self._advance_pos()  # consume '#'
-        return Token(TokenType.LITERAL_DATE, slice(start_date, self._pos_idx))
+        return Token.date_literal(start_date, self._pos_idx)
 
     def _handle_dot(self) -> Token:
         """Handles tokens that begin with a dot
@@ -479,7 +517,7 @@ class Tokenizer:
                     return self._handle_number_literal(True)
 
             # just return as symbol, let parser interpret meaning
-            return Token(TokenType.SYMBOL, slice(start_dot, self._pos_idx))
+            return Token.symbol(start_dot, self._pos_idx)
         raise RuntimeError("Dot token handler called, but did not find dot symbol")
 
     def _handle_terminal(self) -> Token:
@@ -567,4 +605,4 @@ class Tokenizer:
         except ValueError:
             # other token type, just return symbol
             self._advance_pos()  # consume symbol
-            return Token(TokenType.SYMBOL, slice(self._pos_idx - 1, self._pos_idx))
+            return Token.symbol(self._pos_idx - 1, self._pos_idx)
