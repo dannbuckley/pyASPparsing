@@ -11,10 +11,51 @@ from .tokenizer import TokenType, Token, Tokenizer
 
 
 @attrs.define(slots=False)
+class Expr:
+    """"""
+
+
+@attrs.define(slots=False)
+class ExtendedID:
+    """"""
+
+    id_token: Token
+
+
+@attrs.define(slots=False)
 class QualifiedID:
     """"""
 
     id_tokens: typing.List[Token] = attrs.field(default=attrs.Factory(list))
+
+
+@attrs.define(slots=False)
+class IndexOrParams:
+    """"""
+
+    expr_list: typing.List[Expr] = attrs.field(default=attrs.Factory(list))
+    dot: bool = attrs.field(default=False, kw_only=True)
+
+
+@attrs.define(slots=False)
+class LeftExprTail:
+    """"""
+
+    qual_id_tail: QualifiedID
+    index_or_params: typing.List[IndexOrParams] = attrs.field(
+        default=attrs.Factory(list)
+    )
+
+
+@attrs.define(slots=False)
+class LeftExpr:
+    """"""
+
+    qual_id: QualifiedID
+    index_or_params: typing.List[IndexOrParams] = attrs.field(
+        default=attrs.Factory(list)
+    )
+    tail: typing.List[LeftExprTail] = attrs.field(default=attrs.Factory(list))
 
 
 @attrs.define(slots=False)
@@ -198,11 +239,28 @@ class FieldDecl(GlobalStmt, MemberDecl):
 
 
 @attrs.define(slots=False)
+class VarName:
+    """Defined on grammar line 300
+
+    &lt;ExtendedID&gt; [ '(' &lt;ArrayRankList&gt; ')']
+
+    Where &lt;ArrayRankList&gt; is defined as (line 306):
+
+    [ &lt;IntLiteral&gt; [ ',' &lt;ArrayRankList&gt; ] ]
+    """
+
+    extended_id: ExtendedID
+    array_rank_list: typing.List[Token] = attrs.field(default=attrs.Factory(list))
+
+
+@attrs.define(slots=False)
 class VarDecl(MemberDecl, BlockStmt):
     """Defined on grammar line 298
 
     'Dim' &lt;VarName&gt; &lt;OtherVarsOpt&gt; &lt;NEWLINE&gt;
     """
+
+    var_name: typing.List[VarName] = attrs.field(default=attrs.Factory(list))
 
 
 @attrs.define(slots=False)
@@ -306,7 +364,13 @@ class Parser:
         return self.suppress_exc
 
     def _advance_pos(self) -> bool:
-        """"""
+        """
+
+        Returns
+        -------
+        bool
+            True if tokenizer is not exhausted
+        """
         if self._pos_tok is None:
             # iterator already exhausted, or __enter__() not called yet
             return False
@@ -367,6 +431,19 @@ class Parser:
         ]:
             return self._pos_tok
         return None
+
+    def _parse_extended_id(self) -> ExtendedID:
+        """"""
+        if (safe_kw := self._try_safe_keyword_id()) is not None:
+            self._advance_pos()  # consume safe keyword
+            return ExtendedID(safe_kw)
+        if self._try_token_type(TokenType.IDENTIFIER):
+            id_token = self._pos_tok
+            self._advance_pos()  # consume identifier
+            return ExtendedID(id_token)
+        raise ParserError(
+            "Expected an identifier token for the extended identifier symbol"
+        )
 
     def _try_keyword_id(self) -> typing.Optional[Token]:
         """
@@ -452,7 +529,7 @@ class Parser:
             "in the tail of the qualified identifier symbol"
         )
 
-    def _parse_qualified_id(self):
+    def _parse_qualified_id(self) -> QualifiedID:
         """"""
         if self._try_token_type(TokenType.IDENTIFIER_IDDOT) or self._try_token_type(
             TokenType.IDENTIFIER_DOTIDDOT
@@ -478,8 +555,20 @@ class Parser:
             "for the qualified identifier symbol"
         )
 
-    def _parse_left_expr(self, qualified_id: typing.Optional[QualifiedID] = None):
+    def _parse_left_expr(self) -> LeftExpr:
         """"""
+        # attempt to parse qualified identifier
+        try:
+            qual_id = self._parse_qualified_id()
+        except ParserError as ex:
+            raise ParserError(
+                "Expected qualified identifier in left expression"
+            ) from ex
+
+        # check for index or params list
+        if not self._try_token_type(TokenType.SYMBOL) or self._get_token_code() != "(":
+            return LeftExpr(qual_id)
+        # TODO: parse index or params list
 
     def _parse_option_explicit(self) -> GlobalStmt:
         """"""
@@ -565,7 +654,78 @@ class Parser:
 
     def _parse_var_decl(self) -> GlobalStmt:
         """"""
-        return VarDecl()
+        if (
+            not self._try_token_type(TokenType.IDENTIFIER)
+            or self._get_token_code() != "dim"
+        ):
+            raise ParserError("Expected 'Dim' in variable declaration")
+        self._advance_pos()  # consume 'Dim'
+
+        var_name: typing.List[VarName] = []
+        parse_var_name = True
+        while parse_var_name:
+            var_id = self._parse_extended_id()
+            if self._try_token_type(TokenType.SYMBOL) and self._get_token_code() == "(":
+                # parse array rank list
+                self._advance_pos()  # consume '('
+                # first int literal is also optional
+                find_int_literal = (
+                    self._try_token_type(TokenType.LITERAL_INT)
+                    or self._try_token_type(TokenType.LITERAL_HEX)
+                    or self._try_token_type(TokenType.LITERAL_OCT)
+                )
+                int_literals: typing.List[Token] = []
+                while find_int_literal:
+                    if not (
+                        self._try_token_type(TokenType.LITERAL_INT)
+                        or self._try_token_type(TokenType.LITERAL_HEX)
+                        or self._try_token_type(TokenType.LITERAL_OCT)
+                    ):
+                        raise ParserError(
+                            "Invalid token type found in array rank list of variable name declaration"
+                        )
+                    int_literals.append(self._pos_tok)
+                    self._advance_pos()  # consume int literal
+
+                    if (
+                        self._try_token_type(TokenType.SYMBOL)
+                        and self._get_token_code() == ","
+                    ):
+                        self._advance_pos()  # consume ','
+
+                    # last int literal is optional, check for ending ')'
+                    if (
+                        self._try_token_type(TokenType.SYMBOL)
+                        and self._get_token_code() == ")"
+                    ):
+                        find_int_literal = False
+                # should have an ending ')'
+                if (
+                    not self._try_token_type(TokenType.SYMBOL)
+                    or self._get_token_code() != ")"
+                ):
+                    raise ParserError(
+                        "Expected ending ')' for array rank list of variable name declaration"
+                    )
+                self._advance_pos()  # consume ')'
+                var_name.append(VarName(var_id, int_literals))
+                del find_int_literal, int_literals
+            else:
+                var_name.append(VarName(var_id))
+
+            # another variable name?
+            if (
+                not self._try_token_type(TokenType.SYMBOL)
+                or self._get_token_code() != ","
+            ):
+                parse_var_name = False
+            else:
+                self._advance_pos()  # consume ','
+
+        if not self._try_token_type(TokenType.NEWLINE):
+            raise ParserError("Variable declaration should be terminated by a newline")
+        self._advance_pos()  # consume newline
+        return VarDecl(var_name)
 
     def _parse_redim_stmt(self) -> GlobalStmt:
         """"""

@@ -9,6 +9,59 @@ from pyaspparsing.parser import *
     "stmt_code,stmt_type",
     [
         ("Option Explicit\n", OptionExplicit()),
+        (
+            "Dim my_var\n",
+            VarDecl([VarName(ExtendedID(Token(TokenType.IDENTIFIER, slice(4, 10))))]),
+        ),
+        (
+            "Dim vara, var_b\n",
+            VarDecl(
+                [
+                    VarName(ExtendedID(Token(TokenType.IDENTIFIER, slice(4, 8)))),
+                    VarName(ExtendedID(Token(TokenType.IDENTIFIER, slice(10, 15)))),
+                ]
+            ),
+        ),
+        (
+            "Dim my_array(3)\n",
+            VarDecl(
+                [
+                    VarName(
+                        ExtendedID(Token(TokenType.IDENTIFIER, slice(4, 12))),
+                        [Token(TokenType.LITERAL_INT, slice(13, 14))],
+                    )
+                ]
+            ),
+        ),
+        (
+            "Dim my_array()\n",
+            VarDecl([VarName(ExtendedID(Token(TokenType.IDENTIFIER, slice(4, 12))))]),
+        ),
+        (
+            "Dim my_array(3,)\n",
+            VarDecl(
+                [
+                    VarName(
+                        ExtendedID(Token(TokenType.IDENTIFIER, slice(4, 12))),
+                        [Token(TokenType.LITERAL_INT, slice(13, 14))],
+                    )
+                ]
+            ),
+        ),
+        (
+            "Dim my_table(4, 6)\n",
+            VarDecl(
+                [
+                    VarName(
+                        ExtendedID(Token(TokenType.IDENTIFIER, slice(4, 12))),
+                        [
+                            Token(TokenType.LITERAL_INT, slice(13, 14)),
+                            Token(TokenType.LITERAL_INT, slice(16, 17)),
+                        ],
+                    )
+                ]
+            ),
+        ),
         ("On Error Resume Next\n", ErrorStmt(resume_next=True)),
         (
             "On Error GoTo 0\n",
@@ -34,6 +87,10 @@ def test_valid_global_stmt(stmt_code: str, stmt_type: GlobalStmt):
     [
         ("Option"),  # missing 'Explicit' <NEWLINE>
         ("Option Explicit"),  # missing <NEWLINE>
+        ("Dim"),  # missing variable name and <NEWLINE>
+        ("Dim myvar"),  # missing <NEWLINE>
+        ("Dim myarray()"),  # missing <NEWLINE>
+        ("Dim myarray("),  # missing ending ')' and <NEWLINE>
         ("On"),  # missing Error { Resume Next | Goto IntLiteral } <NEWLINE>
         ("On Error"),  # missing { Resume Next | GoTo IntLiteral } <NEWLINE>
         ("On Error Resume"),  # missing 'Next' <NEWLINE>
