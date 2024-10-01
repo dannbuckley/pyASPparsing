@@ -36,6 +36,12 @@ class Parser:
         """"""
         if tb is not None:
             print("Parser exited with an exception!", file=self.output_file)
+            print("Current token:", self._pos_tok, file=self.output_file)
+            print(
+                "Current token code:",
+                repr(self._get_token_code(False)) if not self._pos_tok is None else "",
+                file=self.output_file,
+            )
             print("Exception type:", exc_type, file=self.output_file)
             print("Exception value:", str(exc_val), file=self.output_file)
             print("Traceback:", file=self.output_file)
@@ -632,11 +638,9 @@ class Parser:
                 )
             self._advance_pos()  # consume ')'
 
-            dot = (
-                self._try_token_type(TokenType.SYMBOL) and self._get_token_code() == "."
-            )
-            if dot:
-                self._advance_pos()  # consume '.'
+            dot = self._try_token_type(
+                TokenType.IDENTIFIER_DOTID
+            ) or self._try_token_type(TokenType.IDENTIFIER_DOTIDDOT)
             index_or_params.append(IndexOrParams(expr_list, dot=dot))
             del dot, expr_list
 
@@ -650,7 +654,7 @@ class Parser:
         left_expr_tail: typing.List[LeftExprTail] = []
         parse_tail: bool = True
         while parse_tail:
-            qual_id_tail: Token = self._parse_qualified_id_tail()
+            qual_id_tail: QualifiedID = self._parse_qualified_id()
 
             # check for index or params list
             index_or_params_tail: typing.List[IndexOrParams] = []
@@ -689,22 +693,19 @@ class Parser:
                     )
                 self._advance_pos()  # consume ')'
 
-                dot = (
-                    self._try_token_type(TokenType.SYMBOL)
-                    and self._get_token_code() == "."
-                )
-                if dot:
-                    self._advance_pos()  # consume '.'
+                dot = self._try_token_type(
+                    TokenType.IDENTIFIER_DOTID
+                ) or self._try_token_type(TokenType.IDENTIFIER_DOTIDDOT)
                 index_or_params_tail.append(IndexOrParams(expr_list, dot=dot))
                 del dot, expr_list
 
             left_expr_tail.append(LeftExprTail(qual_id_tail, index_or_params_tail))
-            del index_or_params_tail
 
             # continue if this left expression tail contained a dotted "index or params" list
             parse_tail = (len(index_or_params_tail) > 0) and index_or_params_tail[
                 -1
             ].dot
+            del index_or_params_tail
         return LeftExpr(qual_id, index_or_params, left_expr_tail)
 
     def _parse_value(self) -> Expr:

@@ -65,9 +65,129 @@ from pyaspparsing.ast_types import *
             ),
         ),
         (
+            "Call Hello.World()\n",  # call QualifiedID with a QualifiedIDTail
+            CallStmt(
+                LeftExpr(
+                    QualifiedID(
+                        [
+                            Token.identifier(5, 11, dot_end=True),
+                            Token.identifier(11, 16),
+                        ]
+                    ),
+                    [IndexOrParams()],
+                )
+            ),
+        ),
+        (
             "Call HelloWorld()\n",  # no params
             CallStmt(
                 LeftExpr(QualifiedID([Token.identifier(5, 15)]), [IndexOrParams()])
+            ),
+        ),
+        (
+            "Call HelloWorld()()\n",  # multiple IndexOrParam in LeftExpr
+            CallStmt(
+                LeftExpr(
+                    QualifiedID([Token.identifier(5, 15)]),
+                    [IndexOrParams(), IndexOrParams()],
+                )
+            ),
+        ),
+        (
+            "Call HelloWorld()(1)\n",  # param in later IndexOrParam for LeftExpr
+            CallStmt(
+                LeftExpr(
+                    QualifiedID([Token.identifier(5, 15)]),
+                    [
+                        IndexOrParams(),
+                        IndexOrParams([IntLiteral(Token.int_literal(18, 19))]),
+                    ],
+                )
+            ),
+        ),
+        (
+            "Call HelloWorld().GoodMorning()\n",  # LeftExprTail
+            CallStmt(
+                LeftExpr(
+                    QualifiedID([Token.identifier(5, 15)]),
+                    [IndexOrParams(dot=True)],
+                    [
+                        LeftExprTail(
+                            QualifiedID([Token.identifier(17, 29, dot_start=True)]),
+                            [IndexOrParams()],
+                        )
+                    ],
+                )
+            ),
+        ),
+        (
+            "Call HelloWorld().GoodMorning()()\n",  # multiple IndexOrParam in LeftExprTail
+            CallStmt(
+                LeftExpr(
+                    QualifiedID([Token.identifier(5, 15)]),
+                    [IndexOrParams(dot=True)],
+                    [
+                        LeftExprTail(
+                            QualifiedID([Token.identifier(17, 29, dot_start=True)]),
+                            [IndexOrParams(), IndexOrParams()],
+                        )
+                    ],
+                )
+            ),
+        ),
+        (
+            "Call HelloWorld().GoodMorning(1)\n",  # param in LeftExprTail
+            CallStmt(
+                LeftExpr(
+                    QualifiedID([Token.identifier(5, 15)]),
+                    [IndexOrParams(dot=True)],
+                    [
+                        LeftExprTail(
+                            QualifiedID([Token.identifier(17, 29, dot_start=True)]),
+                            [IndexOrParams([IntLiteral(Token.int_literal(30, 31))])],
+                        )
+                    ],
+                )
+            ),
+        ),
+        (
+            "Call HelloWorld().GoodMorning(1, 2)\n",  # multiple params in LeftExprTail
+            CallStmt(
+                LeftExpr(
+                    QualifiedID([Token.identifier(5, 15)]),
+                    [IndexOrParams(dot=True)],
+                    [
+                        LeftExprTail(
+                            QualifiedID([Token.identifier(17, 29, dot_start=True)]),
+                            [
+                                IndexOrParams(
+                                    [
+                                        IntLiteral(Token.int_literal(30, 31)),
+                                        IntLiteral(Token.int_literal(33, 34)),
+                                    ]
+                                )
+                            ],
+                        )
+                    ],
+                )
+            ),
+        ),
+        (
+            "Call HelloWorld().GoodMorning()(1)\n",  # param in later IndexOrParam for LeftExprTail
+            CallStmt(
+                LeftExpr(
+                    QualifiedID([Token.identifier(5, 15)]),
+                    [IndexOrParams(dot=True)],
+                    [
+                        LeftExprTail(
+                            QualifiedID([Token.identifier(17, 29, dot_start=True)]),
+                            [
+                                IndexOrParams(),
+                                IndexOrParams([IntLiteral(Token.int_literal(32, 33))]),
+                            ],
+                        )
+                    ],
+                )
             ),
         ),
         (

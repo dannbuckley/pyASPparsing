@@ -10,7 +10,7 @@ authors = [{ name = "Daniel N. Buckley", email = "dbuckley@mtech.edu" }]
 requires-python = ">=3.12"
 
 [project.optional-dependencies]
-testing = ["mypy", "pylint", "pytest"]
+testing = ["mypy", "pylint", "pytest", "pytest-cov"]
 
 [tool.setuptools.packages.find]
 where = ["src/"]
