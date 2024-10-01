@@ -1,5 +1,6 @@
 """Parser for classic ASP code"""
 
+import enum
 import sys
 import traceback
 import typing
@@ -25,6 +26,9 @@ class ImpExpr(Expr):
     [ &lt;ImpExpr&gt; 'Imp' ] &lt;EqvExpr&gt;
     """
 
+    left: Expr
+    right: Expr
+
 
 @attrs.define(slots=False)
 class EqvExpr(Expr):
@@ -32,6 +36,9 @@ class EqvExpr(Expr):
 
     [ &lt;EqvExpr&gt; 'Eqv' ] &lt;XorExpr&gt;
     """
+
+    left: Expr
+    right: Expr
 
 
 @attrs.define(slots=False)
@@ -41,6 +48,9 @@ class XorExpr(Expr):
     [ &lt;XorExpr&gt; 'Xor' ] &lt;OrExpr&gt;
     """
 
+    left: Expr
+    right: Expr
+
 
 @attrs.define(slots=False)
 class OrExpr(Expr):
@@ -48,6 +58,9 @@ class OrExpr(Expr):
 
     [ &lt;OrExpr&gt; 'Or' ] &lt;AndExpr&gt;
     """
+
+    left: Expr
+    right: Expr
 
 
 @attrs.define(slots=False)
@@ -57,6 +70,9 @@ class AndExpr(Expr):
     [ &lt;AndExpr&gt; 'And' ] &lt;NotExpr&gt;
     """
 
+    left: Expr
+    right: Expr
+
 
 @attrs.define(slots=False)
 class NotExpr(Expr):
@@ -64,6 +80,22 @@ class NotExpr(Expr):
 
     { 'Not' &lt;NotExpr&gt; | &lt;CompareExpr&gt; }
     """
+
+    term: Expr
+
+
+@enum.verify(enum.CONTINUOUS, enum.UNIQUE)
+class CompareExprType(enum.Enum):
+    COMPARE_IS = 0
+    COMPARE_ISNOT = 1
+    COMPARE_GTEQ = 2
+    COMPARE_EQGT = 3
+    COMPARE_LTEQ = 4
+    COMPARE_EQLT = 5
+    COMPARE_GT = 6
+    COMPARE_LT = 7
+    COMPARE_LTGT = 8
+    COMPARE_EQ = 9
 
 
 @attrs.define(slots=False)
@@ -76,6 +108,10 @@ class CompareExpr(Expr):
     ] &lt;ConcatExpr&gt;
     """
 
+    cmp_type: CompareExprType
+    left: Expr
+    right: Expr
+
 
 @attrs.define(slots=False)
 class ConcatExpr(Expr):
@@ -83,6 +119,9 @@ class ConcatExpr(Expr):
 
     [ &lt;ConcatExpr&gt; '&' ] &lt;AddExpr&gt;
     """
+
+    left: Expr
+    right: Expr
 
 
 @attrs.define(slots=False)
@@ -92,6 +131,10 @@ class AddExpr(Expr):
     [ &lt;AddExpr&gt; { '+' | '-' } ] &lt;ModExpr&gt;
     """
 
+    op: Token
+    left: Expr
+    right: Expr
+
 
 @attrs.define(slots=False)
 class ModExpr(Expr):
@@ -99,6 +142,9 @@ class ModExpr(Expr):
 
     [ &lt;ModExpr&gt; 'Mod' ] &lt;IntDivExpr&gt;
     """
+
+    left: Expr
+    right: Expr
 
 
 @attrs.define(slots=False)
@@ -108,6 +154,9 @@ class IntDivExpr(Expr):
     [ &lt;IntDivExpr&gt; '\\\\' ] &lt;MultExpr&gt;
     """
 
+    left: Expr
+    right: Expr
+
 
 @attrs.define(slots=False)
 class MultExpr(Expr):
@@ -115,6 +164,10 @@ class MultExpr(Expr):
 
     [ &lt;MultExpr&gt; { '*' | '/' } ] &lt;UnaryExpr&gt;
     """
+
+    op: Token
+    left: Expr
+    right: Expr
 
 
 @attrs.define(slots=False)
@@ -124,6 +177,9 @@ class UnaryExpr(Expr):
     { { '-' | '+' } &lt;UnaryExpr&gt; | &lt;ExpExpr&gt; }
     """
 
+    sign: Token
+    term: Expr
+
 
 @attrs.define(slots=False)
 class ExpExpr(Expr):
@@ -131,6 +187,9 @@ class ExpExpr(Expr):
 
     &lt;Value&gt; [ '^' &lt;ExpExpr&gt; ]
     """
+
+    left: Expr
+    right: Expr
 
 
 @attrs.define(slots=False)
@@ -190,7 +249,9 @@ class QualifiedID:
 class IndexOrParams:
     """"""
 
-    expr_list: typing.List[Expr] = attrs.field(default=attrs.Factory(list))
+    expr_list: typing.List[typing.Optional[Expr]] = attrs.field(
+        default=attrs.Factory(list)
+    )
     dot: bool = attrs.field(default=False, kw_only=True)
 
 
@@ -714,6 +775,356 @@ class Parser:
             "for the qualified identifier symbol"
         )
 
+    def _parse_exp_expr(self) -> Expr:
+        """"""
+        # exp expression expands to the right, use a stack
+        expr_stack: typing.List[Expr] = [self._parse_value()]
+
+        # more than one term?
+        while self._try_token_type(TokenType.SYMBOL) and self._get_token_code() == "^":
+            self._advance_pos()  # consume '^'
+            expr_stack.append(self._parse_value())
+
+        # combine terms into one expression
+        while len(expr_stack) > 1:
+            expr_right: Expr = expr_stack.pop()
+            expr_left: Expr = expr_stack.pop()
+            expr_stack.append(ExpExpr(expr_left, expr_right))
+        return expr_stack.pop()
+
+    def _parse_unary_expr(self) -> Expr:
+        """"""
+        # unary expression expands to the right, use a stack
+        sign_stack: typing.List[Token] = []
+
+        while self._try_token_type(TokenType.SYMBOL) and self._get_token_code() in "-+":
+            sign_stack.append(self._pos_tok)
+            self._advance_pos()  # consume sign
+
+        # combine signs into one expression
+        ret_expr: Expr = self._parse_exp_expr()
+        while len(sign_stack) > 0:
+            ret_expr = UnaryExpr(sign_stack.pop(), ret_expr)
+        return ret_expr
+
+    def _parse_mult_expr(self) -> Expr:
+        """"""
+        # mult expression expands to the left, use a queue
+        op_queue: typing.List[Token] = []
+        expr_queue: typing.List[Expr] = [self._parse_unary_expr()]
+
+        # more than one term?
+        while self._try_token_type(TokenType.SYMBOL) and self._get_token_code() in "*/":
+            op_queue.append(self._pos_tok)
+            self._advance_pos()  # consume operator
+            expr_queue.append(self._parse_unary_expr())
+
+        # combine terms into one expression
+        while len(expr_queue) > 1:
+            expr_left: Expr = expr_queue.pop(0)
+            expr_right: Expr = expr_queue.pop(0)
+            expr_queue.insert(0, MultExpr(op_queue.pop(0), expr_left, expr_right))
+        return expr_queue.pop()
+
+    def _parse_int_div_expr(self) -> Expr:
+        """"""
+        # int div expression expands to the left, use a queue
+        expr_queue: typing.List[Expr] = [self._parse_mult_expr()]
+
+        # more than one term?
+        while self._try_token_type(TokenType.SYMBOL) and self._get_token_code() == "\\":
+            self._advance_pos()  # consume operator
+            expr_queue.append(self._parse_mult_expr())
+
+        # combine terms into one expression
+        while len(expr_queue) > 1:
+            expr_left: Expr = expr_queue.pop(0)
+            expr_right: Expr = expr_queue.pop(0)
+            expr_queue.insert(0, IntDivExpr(expr_left, expr_right))
+        return expr_queue.pop()
+
+    def _parse_mod_expr(self) -> Expr:
+        """"""
+        # mod expression expands to the left, use a queue
+        expr_queue: typing.List[Expr] = [self._parse_int_div_expr()]
+
+        # more than one term?
+        while (
+            self._try_token_type(TokenType.SYMBOL) and self._get_token_code() == "mod"
+        ):
+            self._advance_pos()  # consume 'Mod'
+            expr_queue.append(self._parse_int_div_expr())
+
+        # combine terms into one expression
+        while len(expr_queue) > 1:
+            expr_left: Expr = expr_queue.pop(0)
+            expr_right: Expr = expr_queue.pop(0)
+            expr_queue.insert(0, ModExpr(expr_left, expr_right))
+        return expr_queue.pop()
+
+    def _parse_add_expr(self) -> Expr:
+        """"""
+        # add expression expands to the left, use a queue
+        op_queue: typing.List[Token] = []
+        expr_queue: typing.List[Expr] = [self._parse_mod_expr()]
+
+        # more than one term?
+        while self._try_token_type(TokenType.SYMBOL) and self._get_token_code() in "+-":
+            op_queue.append(self._pos_tok)
+            self._advance_pos()  # consume operator
+            expr_queue.append(self._parse_mod_expr())
+
+        # combine terms into one expression
+        while len(expr_queue) > 1:
+            expr_left: Expr = expr_queue.pop(0)
+            expr_right: Expr = expr_queue.pop(0)
+            expr_queue.insert(0, AddExpr(op_queue.pop(0), expr_left, expr_right))
+        return expr_queue.pop()
+
+    def _parse_concat_expr(self) -> Expr:
+        """"""
+        # concat expression expands to the left, use a queue
+        expr_queue: typing.List[Expr] = [self._parse_add_expr()]
+
+        # more than one term?
+        while self._try_token_type(TokenType.SYMBOL) and self._get_token_code() == "&":
+            self._advance_pos()  # consume '&'
+            expr_queue.append(self._parse_add_expr())
+
+        # combine terms into one expression
+        while len(expr_queue) > 1:
+            expr_left: Expr = expr_queue.pop(0)
+            expr_right: Expr = expr_queue.pop(0)
+            expr_queue.insert(0, ConcatExpr(expr_left, expr_right))
+        return expr_queue.pop()
+
+    def _parse_compare_expr(self) -> Expr:
+        """"""
+        # compare expression expands to the left, use a queue
+        cmp_queue: typing.List[CompareExprType] = []
+        expr_queue: typing.List[Expr] = [self._parse_concat_expr()]
+
+        # more than one term?
+        while (
+            self._try_token_type(TokenType.IDENTIFIER)
+            and self._get_token_code() == "is"
+        ) or (
+            self._try_token_type(TokenType.SYMBOL) and self._get_token_code() in "<>="
+        ):
+            if (
+                self._try_token_type(TokenType.IDENTIFIER)
+                and self._get_token_code() == "is"
+            ):
+                self._advance_pos()  # consume 'is'
+                if (
+                    self._try_token_type(TokenType.IDENTIFIER)
+                    and self._get_token_code() == "not"
+                ):
+                    self._advance_pos()  # consume 'not'
+                    cmp_queue.append(CompareExprType.COMPARE_ISNOT)
+                else:
+                    cmp_queue.append(CompareExprType.COMPARE_IS)
+            elif self._try_token_type(TokenType.SYMBOL):
+                if self._get_token_code() == ">":
+                    self._advance_pos()  # consume '>'
+                    if (
+                        self._try_token_type(TokenType.SYMBOL)
+                        and self._get_token_code() == "="
+                    ):
+                        self._advance_pos()  # consume '='
+                        cmp_queue.append(CompareExprType.COMPARE_GTEQ)
+                    else:
+                        cmp_queue.append(CompareExprType.COMPARE_GT)
+                elif self._get_token_code() == "<":
+                    self._advance_pos()  # consume '<'
+                    if (
+                        self._try_token_type(TokenType.SYMBOL)
+                        and self._get_token_code() == "="
+                    ):
+                        self._advance_pos()  # consume '='
+                        cmp_queue.append(CompareExprType.COMPARE_LTEQ)
+                    elif (
+                        self._try_token_type(TokenType.SYMBOL)
+                        and self._get_token_code() == ">"
+                    ):
+                        self._advance_pos()  # consume '>'
+                        cmp_queue.append(CompareExprType.COMPARE_LTGT)
+                    else:
+                        cmp_queue.append(CompareExprType.COMPARE_LT)
+                elif self._get_token_code() == "=":
+                    self._advance_pos()  # consume '='
+                    if (
+                        self._try_token_type(TokenType.SYMBOL)
+                        and self._get_token_code() == ">"
+                    ):
+                        self._advance_pos()  # consume '>'
+                        cmp_queue.append(CompareExprType.COMPARE_EQGT)
+                    elif (
+                        self._try_token_type(TokenType.SYMBOL)
+                        and self._get_token_code() == "<"
+                    ):
+                        self._advance_pos()  # consume '<'
+                        cmp_queue.append(CompareExprType.COMPARE_EQLT)
+                    else:
+                        cmp_queue.append(CompareExprType.COMPARE_EQ)
+            expr_queue.append(self._parse_concat_expr())
+
+        # combine terms into one expression
+        while len(expr_queue) > 1:
+            expr_left: Expr = expr_queue.pop(0)
+            expr_right: Expr = expr_queue.pop(0)
+            expr_queue.insert(0, CompareExpr(cmp_queue.pop(0), expr_left, expr_right))
+        return expr_queue.pop()
+
+    def _parse_not_expr(self) -> Expr:
+        """"""
+        # optimization: "Not Not" is a no-op
+        # only use NotExpr when not_counter is odd
+        not_counter = 0
+        while (
+            self._try_token_type(TokenType.IDENTIFIER)
+            and self._get_token_code() == "not"
+        ):
+            not_counter += 1
+            self._advance_pos()  # consume 'Not'
+
+        not_expr = self._parse_compare_expr()
+        return NotExpr(not_expr) if not_counter % 2 == 1 else not_expr
+
+    def _parse_and_expr(self) -> Expr:
+        """"""
+        # and expression expands to the left, use a queue
+        expr_queue: typing.List[Expr] = [self._parse_not_expr()]
+
+        # more than one term
+        while (
+            self._try_token_type(TokenType.IDENTIFIER)
+            and self._get_token_code() == "and"
+        ):
+            self._advance_pos()  # consume 'And'
+            expr_queue.append(self._parse_not_expr())
+
+        # combine terms into one expression
+        while len(expr_queue) > 1:
+            expr_left: Expr = expr_queue.pop(0)
+            expr_right: Expr = expr_queue.pop(0)
+            expr_queue.insert(0, AndExpr(expr_left, expr_right))
+        return expr_queue.pop()
+
+    def _parse_or_expr(self) -> Expr:
+        """"""
+        # or expression expands to the left, use a queue
+        expr_queue: typing.List[Expr] = []
+
+        # more than one term?
+        while (
+            self._try_token_type(TokenType.IDENTIFIER)
+            and self._get_token_code() == "or"
+        ):
+            self._advance_pos()  # consume 'Or'
+            expr_queue.append(self._parse_and_expr())
+
+        # combine terms into one expression
+        while len(expr_queue) > 1:
+            expr_left: Expr = expr_queue.pop(0)
+            expr_right: Expr = expr_queue.pop(0)
+            expr_queue.insert(0, OrExpr(expr_left, expr_right))
+        return expr_queue.pop()
+
+    def _parse_xor_expr(self) -> Expr:
+        """"""
+        # xor expression expands to the left, use a queue
+        expr_queue: typing.List[Expr] = [self._parse_or_expr()]
+
+        # more than one term?
+        while (
+            self._try_token_type(TokenType.IDENTIFIER)
+            and self._get_token_code() == "xor"
+        ):
+            self._advance_pos()  # consume 'Xor'
+            expr_queue.append(self._parse_or_expr())
+
+        # combine terms into one expression
+        while len(expr_queue) > 1:
+            expr_left: Expr = expr_queue.pop(0)
+            expr_right: Expr = expr_queue.pop(0)
+            expr_queue.insert(0, XorExpr(expr_left, expr_right))
+        return expr_queue.pop()
+
+    def _parse_eqv_expr(self) -> Expr:
+        """"""
+        # eqv expression expands to the left, use a queue
+        expr_queue: typing.List[Expr] = [self._parse_xor_expr()]
+
+        # more than one term?
+        while (
+            self._try_token_type(TokenType.IDENTIFIER)
+            and self._get_token_code() == "eqv"
+        ):
+            self._advance_pos()  # consume 'Eqv'
+            expr_queue.append(self._parse_xor_expr())
+
+        # combine terms into one expression
+        while len(expr_queue) > 1:
+            expr_left: Expr = expr_queue.pop(0)
+            expr_right: Expr = expr_queue.pop(0)
+            expr_queue.insert(0, EqvExpr(expr_left, expr_right))
+        return expr_queue.pop()
+
+    def _parse_imp_expr(self) -> Expr:
+        """"""
+        # imp expression expands to the left, use a queue
+        expr_queue: typing.List[Expr] = [self._parse_eqv_expr()]
+
+        # more than one term?
+        while (
+            self._try_token_type(TokenType.IDENTIFIER)
+            and self._get_token_code() == "imp"
+        ):
+            self._advance_pos()  # consume 'Imp'
+            expr_queue.append(self._parse_eqv_expr())
+
+        # combine terms into one expression
+        while len(expr_queue) > 1:
+            expr_left: Expr = expr_queue.pop(0)
+            expr_right: Expr = expr_queue.pop(0)
+            expr_queue.insert(0, ImpExpr(expr_left, expr_right))
+        return expr_queue.pop()
+
+    def _parse_expr(self) -> Expr:
+        """"""
+        return self._parse_imp_expr()
+
+    def _parse_const_expr(self) -> ConstExpr:
+        """"""
+        ret_token = self._pos_tok
+        if (
+            self._try_token_type(TokenType.LITERAL_FLOAT)
+            or self._try_token_type(TokenType.LITERAL_STRING)
+            or self._try_token_type(TokenType.LITERAL_DATE)
+        ):
+            self._advance_pos()  # consume const expression
+            return ConstExpr(ret_token)
+        if (
+            self._try_token_type(TokenType.LITERAL_INT)
+            or self._try_token_type(TokenType.LITERAL_HEX)
+            or self._try_token_type(TokenType.LITERAL_OCT)
+        ):
+            self._advance_pos()  # consume int literal expression
+            return IntLiteral(ret_token)
+        # try to match as identifier
+        if self._try_token_type(TokenType.IDENTIFIER):
+            match self._get_token_code():
+                case "true" | "false":
+                    self._advance_pos()  # consume bool literal
+                    return BoolLiteral(ret_token)
+                case "nothing" | "null" | "empty":
+                    self._advance_pos()  # consume nothing symbol
+                    return Nothing(ret_token)
+                case _:
+                    raise ParserError("Invalid identifier in const expression")
+        raise ParserError("Invalid token in const expression")
+
     def _parse_left_expr(self) -> LeftExpr:
         """"""
         # attempt to parse qualified identifier
@@ -725,9 +1136,82 @@ class Parser:
             ) from ex
 
         # check for index or params list
-        if not self._try_token_type(TokenType.SYMBOL) or self._get_token_code() != "(":
+        index_or_params: typing.List[IndexOrParams] = []
+        while self._try_token_type(TokenType.SYMBOL) and self._get_token_code() == "(":
+            self._advance_pos()  # consume '('
+            expr_list: typing.List[typing.Optional[Expr]] = []
+            while not (
+                self._try_token_type(TokenType.SYMBOL) and self._get_token_code() == ")"
+            ):
+                if (
+                    self._try_token_type(TokenType.SYMBOL)
+                    and self._get_token_code() == ","
+                ):
+                    self._advance_pos()  # consume ','
+                    expr_list.append(None)
+                else:
+                    # interpret as expression
+                    expr_list.append(self._parse_expr())
+
+            if (
+                not self._try_token_type(TokenType.SYMBOL)
+                or self._get_token_code() != ")"
+            ):
+                raise ParserError(
+                    "Expected closing ')' for index or params list in left expression"
+                )
+            self._advance_pos()  # consume ')'
+
+            dot = False
+            if self._try_token_type(TokenType.SYMBOL) and self._get_token_code() == ".":
+                dot = True
+                self._advance_pos()  # consume '.'
+            index_or_params.append(IndexOrParams(expr_list, dot=dot))
+            del dot
+
+        if len(index_or_params) == 0:
             return LeftExpr(qual_id)
-        # TODO: parse index or params list
+
+        if not index_or_params[-1].dot:
+            return LeftExpr(qual_id, index_or_params)
+
+        # TODO: check for left expression tail
+
+    def _parse_value(self) -> Expr:
+        """"""
+        # value could be expression wrapped in parentheses
+        if self._try_token_type(TokenType.SYMBOL) and self._get_token_code() == "(":
+            self._advance_pos()  # consume '('
+            ret_expr = self._parse_expr()
+            if (
+                not self._try_token_type(TokenType.SYMBOL)
+                or self._get_token_code() != ")"
+            ):
+                raise ParserError("Expected ')' after value expression")
+            self._advance_pos()  # consume ')'
+            return ret_expr
+
+        # try const expression
+        if (
+            self._try_token_type(TokenType.LITERAL_INT)
+            or self._try_token_type(TokenType.LITERAL_HEX)
+            or self._try_token_type(TokenType.LITERAL_OCT)
+            or self._try_token_type(TokenType.LITERAL_FLOAT)
+            or self._try_token_type(TokenType.LITERAL_STRING)
+            or self._try_token_type(TokenType.LITERAL_DATE)
+            or (
+                self._try_token_type(TokenType.IDENTIFIER)
+                and self._get_token_code()
+                in ["true", "false", "nothing", "null", "empty"]
+            )
+        ):
+            return self._parse_const_expr()
+
+        # try left expression
+        if self._try_token_type(TokenType.IDENTIFIER):
+            return self._parse_left_expr()
+
+        raise ParserError("Invalid token in value expression")
 
     def _parse_option_explicit(self) -> GlobalStmt:
         """"""
