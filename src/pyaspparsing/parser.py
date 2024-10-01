@@ -406,6 +406,8 @@ class CallStmt(InlineStmt):
     'Call' &lt;LeftExpr&gt;
     """
 
+    left_expr: LeftExpr
+
 
 @attrs.define(slots=False)
 class SubCallStmt(InlineStmt):
@@ -850,7 +852,8 @@ class Parser:
 
         # more than one term?
         while (
-            self._try_token_type(TokenType.SYMBOL) and self._get_token_code() == "mod"
+            self._try_token_type(TokenType.IDENTIFIER)
+            and self._get_token_code() == "mod"
         ):
             self._advance_pos()  # consume 'Mod'
             expr_queue.append(self._parse_int_div_expr())
@@ -1014,7 +1017,7 @@ class Parser:
     def _parse_or_expr(self) -> Expr:
         """"""
         # or expression expands to the left, use a queue
-        expr_queue: typing.List[Expr] = []
+        expr_queue: typing.List[Expr] = [self._parse_and_expr()]
 
         # more than one term?
         while (
@@ -1140,6 +1143,7 @@ class Parser:
         while self._try_token_type(TokenType.SYMBOL) and self._get_token_code() == "(":
             self._advance_pos()  # consume '('
             expr_list: typing.List[typing.Optional[Expr]] = []
+            found_expr: bool = False  # helper variable for parsing commas
             while not (
                 self._try_token_type(TokenType.SYMBOL) and self._get_token_code() == ")"
             ):
@@ -1148,10 +1152,16 @@ class Parser:
                     and self._get_token_code() == ","
                 ):
                     self._advance_pos()  # consume ','
-                    expr_list.append(None)
+                    # was the previous entry not empty?
+                    if found_expr:
+                        found_expr = False
+                    else:
+                        expr_list.append(None)
                 else:
                     # interpret as expression
                     expr_list.append(self._parse_expr())
+                    found_expr = True
+            del found_expr
 
             if (
                 not self._try_token_type(TokenType.SYMBOL)
@@ -1162,12 +1172,13 @@ class Parser:
                 )
             self._advance_pos()  # consume ')'
 
-            dot = False
-            if self._try_token_type(TokenType.SYMBOL) and self._get_token_code() == ".":
-                dot = True
+            dot = (
+                self._try_token_type(TokenType.SYMBOL) and self._get_token_code() == "."
+            )
+            if dot:
                 self._advance_pos()  # consume '.'
             index_or_params.append(IndexOrParams(expr_list, dot=dot))
-            del dot
+            del dot, expr_list
 
         if len(index_or_params) == 0:
             return LeftExpr(qual_id)
@@ -1175,7 +1186,66 @@ class Parser:
         if not index_or_params[-1].dot:
             return LeftExpr(qual_id, index_or_params)
 
-        # TODO: check for left expression tail
+        # check for left expression tail
+        left_expr_tail: typing.List[LeftExprTail] = []
+        parse_tail: bool = True
+        while parse_tail:
+            qual_id_tail: Token = self._parse_qualified_id_tail()
+
+            # check for index or params list
+            index_or_params_tail: typing.List[IndexOrParams] = []
+            while (
+                self._try_token_type(TokenType.SYMBOL) and self._get_token_code() == "("
+            ):
+                self._advance_pos()  # consume '('
+                expr_list: typing.List[Expr] = []
+                found_expr: bool = False  # helper variable for parsing commas
+                while not (
+                    self._try_token_type(TokenType.SYMBOL)
+                    and self._get_token_code() == ")"
+                ):
+                    if (
+                        self._try_token_type(TokenType.SYMBOL)
+                        and self._get_token_code() == ","
+                    ):
+                        self._advance_pos()  # consume ','
+                        # was the previous entry not empty?
+                        if found_expr:
+                            found_expr = False
+                        else:
+                            expr_list.append(None)
+                    else:
+                        # interpret as expression
+                        expr_list.append(self._parse_expr())
+                        found_expr = True
+                del found_expr
+
+                if (
+                    not self._try_token_type(TokenType.SYMBOL)
+                    or self._get_token_code() != ")"
+                ):
+                    raise ParserError(
+                        "Expected closing ')' for index or params list in left expression tail"
+                    )
+                self._advance_pos()  # consume ')'
+
+                dot = (
+                    self._try_token_type(TokenType.SYMBOL)
+                    and self._get_token_code() == "."
+                )
+                if dot:
+                    self._advance_pos()  # consume '.'
+                index_or_params_tail.append(IndexOrParams(expr_list, dot=dot))
+                del dot, expr_list
+
+            left_expr_tail.append(LeftExprTail(qual_id_tail, index_or_params_tail))
+            del index_or_params_tail
+
+            # continue if this left expression tail contained a dotted "index or params" list
+            parse_tail = (len(index_or_params_tail) > 0) and index_or_params_tail[
+                -1
+            ].dot
+        return LeftExpr(qual_id, index_or_params, left_expr_tail)
 
     def _parse_value(self) -> Expr:
         """"""
@@ -1439,7 +1509,13 @@ class Parser:
 
     def _parse_call_stmt(self) -> GlobalStmt:
         """"""
-        return CallStmt()
+        if (
+            not self._try_token_type(TokenType.IDENTIFIER)
+            or self._get_token_code() != "call"
+        ):
+            raise ParserError("_parse_call_stmt() did not find 'Call' token")
+        self._advance_pos()  # consume 'Call'
+        return CallStmt(self._parse_left_expr())
 
     def _parse_subcall_stmt(self) -> GlobalStmt:
         """"""
