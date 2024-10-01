@@ -13,7 +13,17 @@ from .ast_types import *
 
 @attrs.define()
 class Parser:
-    """"""
+    """Identify symbols within a codeblock and construct an abstract syntax tree
+
+    This class should be used within a context manager
+
+    Attributes
+    ----------
+    codeblock : str
+    suppress_exc : bool
+        If True, `__exit__()` will suppress exceptions
+    output_file : IO
+    """
 
     codeblock: str
     suppress_exc: bool = attrs.field(default=True)
@@ -24,7 +34,12 @@ class Parser:
     _pos_tok: typing.Optional[Token] = attrs.field(default=None, repr=False, init=False)
 
     def __enter__(self) -> typing.Self:
-        """"""
+        """
+
+        Returns
+        -------
+        Self
+        """
         self._tkzr = iter(Tokenizer(self.codeblock))
         # preload first token
         self._pos_tok = next(
@@ -33,7 +48,19 @@ class Parser:
         return self
 
     def __exit__(self, exc_type, exc_val, tb) -> bool:
-        """"""
+        """
+
+        Parameters
+        ----------
+        exc_type
+        exc_val
+        tb
+
+        Returns
+        -------
+        `self.suppress_exc` : bool
+            True if exceptions will be suppressed
+        """
         if tb is not None:
             print("Parser exited with an exception!", file=self.output_file)
             print("Current token:", self._pos_tok, file=self.output_file)
@@ -121,7 +148,16 @@ class Parser:
         return None
 
     def _parse_extended_id(self) -> ExtendedID:
-        """"""
+        """
+
+        Returns
+        -------
+        ExtendedID
+
+        Raises
+        ------
+        ParserError
+        """
         if (safe_kw := self._try_safe_keyword_id()) is not None:
             self._advance_pos()  # consume safe keyword
             return ExtendedID(safe_kw)
@@ -202,7 +238,16 @@ class Parser:
         return None
 
     def _parse_qualified_id_tail(self) -> Token:
-        """"""
+        """
+
+        Returns
+        -------
+        Token
+
+        Raises
+        ------
+        ParserError
+        """
         if (kw_id := self._try_keyword_id()) is not None:
             self._advance_pos()  # consume keyword identifier
             return kw_id
@@ -218,7 +263,16 @@ class Parser:
         )
 
     def _parse_qualified_id(self) -> QualifiedID:
-        """"""
+        """
+
+        Returns
+        -------
+        QualifiedID
+
+        Raises
+        ------
+        ParserError
+        """
         if self._try_token_type(TokenType.IDENTIFIER_IDDOT) or self._try_token_type(
             TokenType.IDENTIFIER_DOTIDDOT
         ):
@@ -244,7 +298,12 @@ class Parser:
         )
 
     def _parse_exp_expr(self) -> Expr:
-        """"""
+        """
+
+        Returns
+        -------
+        Expr
+        """
         # exp expression expands to the right, use a stack
         expr_stack: typing.List[Expr] = [self._parse_value()]
 
@@ -261,7 +320,12 @@ class Parser:
         return expr_stack.pop()
 
     def _parse_unary_expr(self) -> Expr:
-        """"""
+        """
+
+        Returns
+        -------
+        Expr
+        """
         # unary expression expands to the right, use a stack
         sign_stack: typing.List[Token] = []
 
@@ -276,7 +340,12 @@ class Parser:
         return ret_expr
 
     def _parse_mult_expr(self) -> Expr:
-        """"""
+        """
+
+        Returns
+        -------
+        Expr
+        """
         # mult expression expands to the left, use a queue
         op_queue: typing.List[Token] = []
         expr_queue: typing.List[Expr] = [self._parse_unary_expr()]
@@ -295,7 +364,12 @@ class Parser:
         return expr_queue.pop()
 
     def _parse_int_div_expr(self) -> Expr:
-        """"""
+        """
+
+        Returns
+        -------
+        Expr
+        """
         # int div expression expands to the left, use a queue
         expr_queue: typing.List[Expr] = [self._parse_mult_expr()]
 
@@ -312,7 +386,12 @@ class Parser:
         return expr_queue.pop()
 
     def _parse_mod_expr(self) -> Expr:
-        """"""
+        """
+
+        Returns
+        -------
+        Expr
+        """
         # mod expression expands to the left, use a queue
         expr_queue: typing.List[Expr] = [self._parse_int_div_expr()]
 
@@ -332,7 +411,12 @@ class Parser:
         return expr_queue.pop()
 
     def _parse_add_expr(self) -> Expr:
-        """"""
+        """
+
+        Returns
+        -------
+        Expr
+        """
         # add expression expands to the left, use a queue
         op_queue: typing.List[Token] = []
         expr_queue: typing.List[Expr] = [self._parse_mod_expr()]
@@ -351,7 +435,12 @@ class Parser:
         return expr_queue.pop()
 
     def _parse_concat_expr(self) -> Expr:
-        """"""
+        """
+
+        Returns
+        -------
+        Expr
+        """
         # concat expression expands to the left, use a queue
         expr_queue: typing.List[Expr] = [self._parse_add_expr()]
 
@@ -368,7 +457,12 @@ class Parser:
         return expr_queue.pop()
 
     def _parse_compare_expr(self) -> Expr:
-        """"""
+        """
+
+        Returns
+        -------
+        Expr
+        """
         # compare expression expands to the left, use a queue
         cmp_queue: typing.List[CompareExprType] = []
         expr_queue: typing.List[Expr] = [self._parse_concat_expr()]
@@ -446,7 +540,12 @@ class Parser:
         return expr_queue.pop()
 
     def _parse_not_expr(self) -> Expr:
-        """"""
+        """
+
+        Returns
+        -------
+        Expr
+        """
         # optimization: "Not Not" is a no-op
         # only use NotExpr when not_counter is odd
         not_counter = 0
@@ -461,7 +560,12 @@ class Parser:
         return NotExpr(not_expr) if not_counter % 2 == 1 else not_expr
 
     def _parse_and_expr(self) -> Expr:
-        """"""
+        """
+
+        Returns
+        -------
+        Expr
+        """
         # and expression expands to the left, use a queue
         expr_queue: typing.List[Expr] = [self._parse_not_expr()]
 
@@ -481,7 +585,12 @@ class Parser:
         return expr_queue.pop()
 
     def _parse_or_expr(self) -> Expr:
-        """"""
+        """
+
+        Returns
+        -------
+        Expr
+        """
         # or expression expands to the left, use a queue
         expr_queue: typing.List[Expr] = [self._parse_and_expr()]
 
@@ -501,7 +610,12 @@ class Parser:
         return expr_queue.pop()
 
     def _parse_xor_expr(self) -> Expr:
-        """"""
+        """
+
+        Returns
+        -------
+        Expr
+        """
         # xor expression expands to the left, use a queue
         expr_queue: typing.List[Expr] = [self._parse_or_expr()]
 
@@ -521,7 +635,12 @@ class Parser:
         return expr_queue.pop()
 
     def _parse_eqv_expr(self) -> Expr:
-        """"""
+        """
+
+        Returns
+        -------
+        Expr
+        """
         # eqv expression expands to the left, use a queue
         expr_queue: typing.List[Expr] = [self._parse_xor_expr()]
 
@@ -541,7 +660,12 @@ class Parser:
         return expr_queue.pop()
 
     def _parse_imp_expr(self) -> Expr:
-        """"""
+        """
+
+        Returns
+        -------
+        Expr
+        """
         # imp expression expands to the left, use a queue
         expr_queue: typing.List[Expr] = [self._parse_eqv_expr()]
 
@@ -561,11 +685,25 @@ class Parser:
         return expr_queue.pop()
 
     def _parse_expr(self) -> Expr:
-        """"""
+        """
+
+        Returns
+        -------
+        Expr
+        """
         return self._parse_imp_expr()
 
     def _parse_const_expr(self) -> ConstExpr:
-        """"""
+        """
+
+        Returns
+        -------
+        ConstExpr
+
+        Raises
+        ------
+        ParserError
+        """
         ret_token = self._pos_tok
         if (
             self._try_token_type(TokenType.LITERAL_FLOAT)
@@ -595,7 +733,16 @@ class Parser:
         raise ParserError("Invalid token in const expression")
 
     def _parse_left_expr(self) -> LeftExpr:
-        """"""
+        """
+
+        Returns
+        -------
+        LeftExpr
+
+        Raises
+        ------
+        ParserError
+        """
         # attempt to parse qualified identifier
         try:
             qual_id = self._parse_qualified_id()
@@ -709,7 +856,16 @@ class Parser:
         return LeftExpr(qual_id, index_or_params, left_expr_tail)
 
     def _parse_value(self) -> Expr:
-        """"""
+        """
+
+        Returns
+        -------
+        Expr
+
+        Raises
+        ------
+        ParserError
+        """
         # value could be expression wrapped in parentheses
         if self._try_token_type(TokenType.SYMBOL) and self._get_token_code() == "(":
             self._advance_pos()  # consume '('
@@ -745,7 +901,16 @@ class Parser:
         raise ParserError("Invalid token in value expression")
 
     def _parse_option_explicit(self) -> GlobalStmt:
-        """"""
+        """
+
+        Returns
+        -------
+        GlobalStmt
+
+        Raises
+        ------
+        ParserError
+        """
         if (
             self._try_token_type(TokenType.IDENTIFIER)
             and self._get_token_code() == "option"
@@ -772,7 +937,16 @@ class Parser:
         return MemberDecl()
 
     def _parse_class_decl(self) -> GlobalStmt:
-        """"""
+        """
+
+        Returns
+        -------
+        GlobalStmt
+
+        Raises
+        ------
+        ParserError
+        """
         if (
             self._try_token_type(TokenType.IDENTIFIER)
             and self._get_token_code() == "class"
@@ -805,7 +979,7 @@ class Parser:
                 raise ParserError("Expected 'Class' after 'End' in class declaration")
             self._advance_pos()  # consume 'Class'
             if not self._try_token_type(TokenType.NEWLINE):
-                raise Parser("Missing newline after 'End Class'")
+                raise ParserError("Missing newline after 'End Class'")
             self._advance_pos()  # consume newline
             return ClassDecl(class_id, member_decl_list)
         raise ParserError("_parse_class_decl() did not find 'Class' token")
@@ -866,7 +1040,16 @@ class Parser:
         raise ParserError("Global declaration should start with an identifier")
 
     def _parse_var_decl(self) -> GlobalStmt:
-        """"""
+        """
+
+        Returns
+        -------
+        GlobalStmt
+
+        Raises
+        ------
+        ParserError
+        """
         if (
             not self._try_token_type(TokenType.IDENTIFIER)
             or self._get_token_code() != "dim"
@@ -895,7 +1078,8 @@ class Parser:
                         or self._try_token_type(TokenType.LITERAL_OCT)
                     ):
                         raise ParserError(
-                            "Invalid token type found in array rank list of variable name declaration"
+                            "Invalid token type found in array rank list "
+                            "of variable name declaration"
                         )
                     int_literals.append(self._pos_tok)
                     self._advance_pos()  # consume int literal
@@ -965,11 +1149,54 @@ class Parser:
         return ForStmt()
 
     def _parse_assign_stmt(self) -> GlobalStmt:
-        """"""
-        return AssignStmt()
+        """
+
+        Returns
+        -------
+        GlobalStmt
+
+        Raises
+        ------
+        ParserError
+        """
+        if (
+            self._try_token_type(TokenType.IDENTIFIER)
+            and self._get_token_code() == "set"
+        ):
+            # 'Set' is optional, don't throw if missing
+            self._advance_pos()  # consume 'Set'
+
+        # parse target expression
+        target_expr = self._parse_left_expr()
+
+        # check for '='
+        if not self._try_token_type(TokenType.SYMBOL) or self._get_token_code() != "=":
+            raise ParserError("Expected '=' in assignment statement")
+        self._advance_pos()  # consume '='
+
+        # check for 'New'
+        is_new = (
+            self._try_token_type(TokenType.IDENTIFIER)
+            and self._get_token_code() == "new"
+        )
+        if is_new:
+            self._advance_pos()  # consume 'New'
+
+        # parse assignment expression
+        assign_expr = self._parse_left_expr() if is_new else self._parse_expr()
+        return AssignStmt(target_expr, assign_expr, is_new=is_new)
 
     def _parse_call_stmt(self) -> GlobalStmt:
-        """"""
+        """
+
+        Returns
+        -------
+        GlobalStmt
+
+        Raises
+        ------
+        ParserError
+        """
         if (
             not self._try_token_type(TokenType.IDENTIFIER)
             or self._get_token_code() != "call"
@@ -1031,7 +1258,16 @@ class Parser:
         )
 
     def _parse_exit_stmt(self) -> GlobalStmt:
-        """"""
+        """
+
+        Returns
+        -------
+        GlobalStmt
+
+        Raises
+        ------
+        ParserError
+        """
         if (
             not self._try_token_type(TokenType.IDENTIFIER)
             or self._get_token_code() != "exit"
@@ -1054,11 +1290,35 @@ class Parser:
         )
 
     def _parse_erase_stmt(self) -> GlobalStmt:
-        """"""
-        return EraseStmt()
+        """
+
+        Returns
+        -------
+        GlobalStmt
+
+        Raises
+        ------
+        ParserError
+        """
+        if (
+            self._try_token_type(TokenType.IDENTIFIER)
+            and self._get_token_code() == "erase"
+        ):
+            self._advance_pos()  # consume 'Erase'
+            return EraseStmt(self._parse_extended_id())
+        raise ParserError("_parse_erase_stmt() could not find 'Erase' token")
 
     def _parse_inline_stmt(self) -> GlobalStmt:
-        """"""
+        """
+
+        Returns
+        -------
+        GlobalStmt
+
+        Raises
+        ------
+        ParserError
+        """
         if (
             self._try_token_type(TokenType.IDENTIFIER)
             or self._try_token_type(TokenType.IDENTIFIER_IDDOT)
@@ -1067,6 +1327,10 @@ class Parser:
         ):
             # AssignStmt and SubCallStmt could start with a dotted identifier
             match self._get_token_code():
+                case "set":
+                    # 'Set' is optional for AssignStmt
+                    # need to also handle assignment without leading 'Set'
+                    return self._parse_assign_stmt()
                 case "call":
                     return self._parse_call_stmt()
                 case "on":
@@ -1076,9 +1340,9 @@ class Parser:
                 case "erase":
                     return self._parse_erase_stmt()
 
-                # try assign statement
+                # TODO: assign statement without leading 'Set'
 
-                # try subcall statement
+                # TODO: subcall statement
             return InlineStmt()
         raise ParserError(
             "Inline statement should start with an identifier or dotted identifier"
@@ -1131,7 +1395,16 @@ class Parser:
         )
 
     def _parse_global_stmt(self) -> GlobalStmt:
-        """"""
+        """
+
+        Returns
+        -------
+        GlobalStmt
+
+        Raises
+        ------
+        ParserError
+        """
         if (
             self._try_token_type(TokenType.IDENTIFIER)
             or self._try_token_type(TokenType.IDENTIFIER_IDDOT)
@@ -1160,6 +1433,10 @@ class Parser:
         Returns
         -------
         Program
+
+        Raises
+        ------
+        RuntimeError
         """
         if self._tkzr is None:
             raise RuntimeError("Must use the Parser class within a runtime context!")
@@ -1170,7 +1447,7 @@ class Parser:
 
         global_stmts: typing.List[GlobalStmt] = []
         # don't catch any errors here!
-        # if this method is run inside of a context, they will be handled by __exit__()
+        # if this method is run inside of a context, errors will be handled by __exit__()
         while self._pos_tok is not None:
             global_stmts.append(self._parse_global_stmt())
         return Program(global_stmts)

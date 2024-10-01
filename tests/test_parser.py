@@ -65,6 +65,21 @@ from pyaspparsing.ast_types import *
             ),
         ),
         (
+            "Set a = 1\n",  # Set LeftExpr = Expr
+            AssignStmt(
+                LeftExpr(QualifiedID([Token.identifier(4, 5)])),
+                IntLiteral(Token.int_literal(8, 9)),
+            ),
+        ),
+        (
+            "Set a = New b\n",  # Set LeftExpr = New LeftExpr
+            AssignStmt(
+                LeftExpr(QualifiedID([Token.identifier(4, 5)])),
+                LeftExpr(QualifiedID([Token.identifier(12, 13)])),
+                is_new=True,
+            ),
+        ),
+        (
             "Call Hello.World()\n",  # call QualifiedID with a QualifiedIDTail
             CallStmt(
                 LeftExpr(
@@ -815,6 +830,7 @@ from pyaspparsing.ast_types import *
         ("Exit Function\n", ExitStmt(Token.identifier(5, 13))),
         ("Exit Property\n", ExitStmt(Token.identifier(5, 13))),
         ("Exit Sub\n", ExitStmt(Token.identifier(5, 8))),
+        ("Erase my_var\n", EraseStmt(ExtendedID(Token.identifier(6, 12)))),
     ],
 )
 def test_valid_global_stmt(stmt_code: str, stmt_type: GlobalStmt):
@@ -834,6 +850,18 @@ def test_valid_global_stmt(stmt_code: str, stmt_type: GlobalStmt):
         ("Dim myvar"),  # missing <NEWLINE>
         ("Dim myarray()"),  # missing <NEWLINE>
         ("Dim myarray("),  # missing ending ')' and <NEWLINE>
+        ("Set"),  # missing target expression
+        ("Set a"),  # missing '='
+        ("Set a ="),  # missing assignment expression
+        ("Set a = New"),  # missing assignment expression
+        ("Set a = b"),  # missing <NEWLINE>
+        ("Set a = New b"),  # missing <NEWLINE>
+        (
+            'Call HelloWorld(("Missing paren"'
+        ),  # missing ending ')' for value and for "index or params"
+        ('Call HelloWorld("Missing paren"'),  # missing ending ')' for "index or params"
+        ("Call Hello().World("),  # missing ending ')' for tail "index or params"
+        ("Call"),  # missing left expression
         ("On"),  # missing Error { Resume Next | Goto IntLiteral } <NEWLINE>
         ("On Error"),  # missing { Resume Next | GoTo IntLiteral } <NEWLINE>
         ("On Error Resume"),  # missing 'Next' <NEWLINE>
@@ -843,6 +871,8 @@ def test_valid_global_stmt(stmt_code: str, stmt_type: GlobalStmt):
         ("Exit"),  # missing exit type and <NEWLINE>
         ("Exit Do"),  # missing <NEWLINE>
         ("Exit Reality\n"),  # improper exit type
+        ("Erase my_var"),  # missing <NEWLINE>
+        ("Erase"),  # missing extended identifier
     ],
 )
 def test_invalid_global_stmt(stmt_code: str):

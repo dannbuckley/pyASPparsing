@@ -1,3 +1,5 @@
+"""ast_types module"""
+
 import enum
 import typing
 import attrs
@@ -79,6 +81,9 @@ class NotExpr(Expr):
 
 @enum.verify(enum.CONTINUOUS, enum.UNIQUE)
 class CompareExprType(enum.Enum):
+    """Enumeration of valid operators that can appear
+    in a comparison expresssion (CompareExpr)"""
+
     COMPARE_IS = 0
     COMPARE_ISNOT = 1
     COMPARE_GTEQ = 2
@@ -226,21 +231,21 @@ class Nothing(ConstExpr):
 
 @attrs.define(slots=False)
 class ExtendedID:
-    """"""
+    """Defined on grammar line 513"""
 
     id_token: Token
 
 
 @attrs.define(slots=False)
 class QualifiedID:
-    """"""
+    """Defined on grammar line 443"""
 
     id_tokens: typing.List[Token] = attrs.field(default=attrs.Factory(list))
 
 
 @attrs.define(slots=False)
 class IndexOrParams:
-    """"""
+    """Defined of grammar line 519"""
 
     expr_list: typing.List[typing.Optional[Expr]] = attrs.field(
         default=attrs.Factory(list)
@@ -250,7 +255,7 @@ class IndexOrParams:
 
 @attrs.define(slots=False)
 class LeftExprTail:
-    """"""
+    """Defined on grammar line 436"""
 
     qual_id_tail: QualifiedID
     index_or_params: typing.List[IndexOrParams] = attrs.field(
@@ -260,7 +265,7 @@ class LeftExprTail:
 
 @attrs.define(slots=False)
 class LeftExpr(Value):
-    """"""
+    """Defined on grammar line 430"""
 
     qual_id: QualifiedID
     index_or_params: typing.List[IndexOrParams] = attrs.field(
@@ -367,7 +372,8 @@ class ForStmt(BlockStmt):
 
     Two possible definitions:
 
-    'For' &lt'ExtendedID&gt; '=' &lt;Expr&gt; 'To' &lt;Expr&gt; [ 'Step' &lt;Expr&gt; ] &lt;NEWLINE&gt; <br />
+    'For' &lt'ExtendedID&gt; '=' &lt;Expr&gt; 'To' &lt;Expr&gt;
+    [ 'Step' &lt;Expr&gt; ] &lt;NEWLINE&gt; <br />
     &lt;BlockStmtList&gt; 'Next' &lt;NEWLINE&gt;
 
     'For 'Each' &lt;ExtendedID&gt; 'In' &lt;Expr&gt; &lt;NEWLINE&gt; <br />
@@ -390,6 +396,12 @@ class AssignStmt(InlineStmt):
 
     'Set' &lt;LeftExpr&gt; '=' { &lt;Expr&gt; | 'New' &lt;LeftExpr&gt; }
     """
+
+    # left side of '='
+    target_expr: Expr
+    # right side of '='
+    assign_expr: Expr
+    is_new: bool = attrs.field(default=False, kw_only=True)
 
 
 @attrs.define(slots=False)
@@ -436,6 +448,8 @@ class EraseStmt(InlineStmt):
 
     'Erase' &lt;ExtendedID&gt;
     """
+
+    extended_id: ExtendedID
 
 
 @attrs.define(slots=False)
@@ -509,7 +523,8 @@ class PropertyDecl(MemberDecl):
     """Defined on grammar line 347
 
     { 'Public' 'Default' | [ 'Public' | 'Private' ] } <br />
-    'Property' &lt;PropertyAccessType&gt; &lt;ExtendedID&gt; &lt;MethodArgList&gt; &lt;NEWLINE&gt; <br />
+    'Property' &lt;PropertyAccessType&gt; &lt;ExtendedID&gt; &lt;MethodArgList&gt;
+    &lt;NEWLINE&gt; <br />
     &lt;MethodStmtList&gt; 'End' 'Property' &lt;NEWLINE&gt;
     """
 
