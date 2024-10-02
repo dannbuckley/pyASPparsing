@@ -984,17 +984,188 @@ class Parser:
             return ClassDecl(class_id, member_decl_list)
         raise ParserError("_parse_class_decl() did not find 'Class' token")
 
-    def _parse_const_decl(self) -> GlobalStmt:
+    def _parse_const_decl(
+        self, access_mod: typing.Optional[AccessModifierType] = None
+    ) -> GlobalStmt:
         """"""
-        return ConstDecl()
+        if (
+            not self._try_token_type(TokenType.IDENTIFIER)
+            or self._get_token_code() != "const"
+        ):
+            raise ParserError("_parse_const_decl() did not find 'Const' token")
+        return ConstDecl(access_mod=access_mod)
 
-    def _parse_sub_decl(self) -> GlobalStmt:
+    def _parse_sub_decl(
+        self, access_mod: typing.Optional[AccessModifierType] = None
+    ) -> GlobalStmt:
         """"""
-        return SubDecl()
+        if (
+            not self._try_token_type(TokenType.IDENTIFIER)
+            or self._get_token_code() != "sub"
+        ):
+            raise ParserError("_parse_sub_decl() did not find 'Sub' token")
+        self._advance_pos() # consume 'Sub'
+        sub_id: ExtendedID = self._parse_extended_id()
+        method_arg_list: typing.List[Arg] = []
+        if self._try_token_type(TokenType.SYMBOL) and self._get_token_code() == "(":
+            self._advance_pos()  # consume '('
 
-    def _parse_function_decl(self) -> GlobalStmt:
+            while not (
+                self._try_token_type(TokenType.SYMBOL) and self._get_token_code() != ")"
+            ):
+                if self._try_token_type(
+                    TokenType.IDENTIFIER
+                ) and self._get_token_code() in ["byval", "byref"]:
+                    arg_modifier = self._pos_tok
+                    self._advance_pos()  # consume modifier
+                else:
+                    arg_modifier = None
+                arg_id = self._parse_extended_id()
+                has_paren = (
+                    self._try_token_type(TokenType.SYMBOL)
+                    and self._get_token_code() == "("
+                )
+                if has_paren:
+                    self._advance_pos()  # consume '('
+                    if (
+                        not self._try_token_type(TokenType.SYMBOL)
+                        or self._get_token_code() != ")"
+                    ):
+                        raise ParserError(
+                            "Expected ending ')' in argument definition for sub declaration"
+                        )
+                    self._advance_pos()  # consume ')'
+                method_arg_list.append(Arg(arg_id, arg_modifier, has_paren))
+
+                if (
+                    self._try_token_type(TokenType.SYMBOL)
+                    and self._get_token_code() == ","
+                ):
+                    self._advance_pos()  # consume ','
+
+            if (
+                not self._try_token_type(TokenType.SYMBOL)
+                or self._get_token_code() != ")"
+            ):
+                raise ParserError(
+                    "Expected ending ')' in method argument list of sub declaration"
+                )
+            self._advance_pos()  # consume ')'
+
+        method_stmt_list: typing.List[MethodStmt] = []
+        if self._try_token_type(TokenType.NEWLINE):
+            self._advance_pos()  # consume newline
+            while not (
+                self._try_token_type(TokenType.IDENTIFIER)
+                and self._get_token_code() == "end"
+            ):
+                method_stmt_list.append(self._parse_method_stmt())
+        else:
+            method_stmt_list.append(self._parse_inline_stmt())
+
+        if (
+            not self._try_token_type(TokenType.IDENTIFIER)
+            or self._get_token_code() != "end"
+        ):
+            raise ParserError("Expected 'End' in sub declaration")
+        self._advance_pos()  # consume 'End'
+        if (
+            not self._try_token_type(TokenType.IDENTIFIER)
+            or self._get_token_code() != "sub"
+        ):
+            raise ParserError("Expected 'Sub' after 'End' in sub declaration")
+        self._advance_pos()  # consume 'Sub'
+        if not self._try_token_type(TokenType.NEWLINE):
+            raise ParserError("Expected newline after sub declaration")
+        self._advance_pos()  # consume newline
+        return SubDecl(sub_id, method_arg_list, method_stmt_list, access_mod=access_mod)
+
+    def _parse_function_decl(
+        self, access_mod: typing.Optional[AccessModifierType] = None
+    ) -> GlobalStmt:
         """"""
-        return FunctionDecl()
+        if (
+            not self._try_token_type(TokenType.IDENTIFIER)
+            or self._get_token_code() != "function"
+        ):
+            raise ParserError("_parse_function_decl() did not find 'Function' token")
+        self._advance_pos() # consume 'Function'
+        function_id: ExtendedID = self._parse_extended_id()
+        method_arg_list: typing.List[Arg] = []
+        if self._try_token_type(TokenType.SYMBOL) and self._get_token_code() == "(":
+            self._advance_pos()  # consume '('
+
+            while not (
+                self._try_token_type(TokenType.SYMBOL) and self._get_token_code() != ")"
+            ):
+                if self._try_token_type(
+                    TokenType.IDENTIFIER
+                ) and self._get_token_code() in ["byval", "byref"]:
+                    arg_modifier = self._pos_tok
+                    self._advance_pos()  # consume modifier
+                else:
+                    arg_modifier = None
+                arg_id = self._parse_extended_id()
+                has_paren = (
+                    self._try_token_type(TokenType.SYMBOL)
+                    and self._get_token_code() == "("
+                )
+                if has_paren:
+                    self._advance_pos()  # consume '('
+                    if (
+                        not self._try_token_type(TokenType.SYMBOL)
+                        or self._get_token_code() != ")"
+                    ):
+                        raise ParserError(
+                            "Expected ending ')' in argument definition for function declaration"
+                        )
+                    self._advance_pos()  # consume ')'
+                method_arg_list.append(Arg(arg_id, arg_modifier, has_paren))
+
+                if (
+                    self._try_token_type(TokenType.SYMBOL)
+                    and self._get_token_code() == ","
+                ):
+                    self._advance_pos()  # consume ','
+
+            if (
+                not self._try_token_type(TokenType.SYMBOL)
+                or self._get_token_code() != ")"
+            ):
+                raise ParserError(
+                    "Expected ending ')' in method argument list of function declaration"
+                )
+            self._advance_pos()  # consume ')'
+
+        method_stmt_list: typing.List[MethodStmt] = []
+        if self._try_token_type(TokenType.NEWLINE):
+            self._advance_pos()  # consume newline
+            while not (
+                self._try_token_type(TokenType.IDENTIFIER)
+                and self._get_token_code() == "end"
+            ):
+                method_stmt_list.append(self._parse_method_stmt())
+        else:
+            method_stmt_list.append(self._parse_inline_stmt())
+
+        if (
+            not self._try_token_type(TokenType.IDENTIFIER)
+            or self._get_token_code() != "end"
+        ):
+            raise ParserError("Expected 'End' token in function declaration")
+        self._advance_pos()  # consume 'End'
+        if (
+            not self._try_token_type(TokenType.IDENTIFIER)
+            or self._get_token_code() != "function"
+        ):
+            raise ParserError("Expected 'Function' after 'End' in function declaration")
+        self._advance_pos()  # consume 'Function'
+        if not self._try_token_type(TokenType.NEWLINE):
+            raise ParserError("Expected newline after function declaration")
+        self._advance_pos()  # consume newline
+        return FunctionDecl(
+            function_id, method_arg_list, method_stmt_list, access_mod=access_mod
+        )
 
     def _parse_access_modifier(self) -> GlobalStmt:
         """Parse global statement that starts with an access modifier
@@ -1008,8 +1179,170 @@ class Parser:
         Returns
         -------
         GlobalStmt
+
+        Raises
+        ------
+        ParserError
         """
-        return GlobalStmt()
+        if self._try_token_type(TokenType.IDENTIFIER):
+            # identify access modifier
+            if self._get_token_code() == "public":
+                self._advance_pos()  # consume 'Public'
+                if (
+                    self._try_token_type(TokenType.IDENTIFIER)
+                    and self._get_token_code() == "default"
+                ):
+                    self._advance_pos()  # consume 'Default'
+                    access_mod = AccessModifierType.PUBLIC_DEFAULT
+                else:
+                    access_mod = AccessModifierType.PUBLIC
+            elif self._get_token_code() == "private":
+                self._advance_pos()  # consume 'Private'
+                access_mod = AccessModifierType.PRIVATE
+
+            if not self._try_token_type(TokenType.IDENTIFIER):
+                raise ParserError("Expected an identifier token after access modifier")
+
+            # check for other declaration types
+            match self._get_token_code():
+                case "const" if access_mod != AccessModifierType.PUBLIC_DEFAULT:
+                    # cannot use 'Default' with const declaration
+                    return self._parse_const_decl(access_mod)
+                case "const" if access_mod == AccessModifierType.PUBLIC_DEFAULT:
+                    raise ParserError(
+                        "'Public Default' access modifier cannot be used with const declaration"
+                    )
+                case "sub":
+                    return self._parse_sub_decl(access_mod)
+                case "function":
+                    return self._parse_function_decl(access_mod)
+
+            if access_mod == AccessModifierType.PUBLIC_DEFAULT:
+                raise ParserError(
+                    "'Public Default' access modifier cannot be used with field declaration"
+                )
+
+            # did not match token, parse as a field declaration
+            if not self._try_token_type(TokenType.IDENTIFIER):
+                raise ParserError("Expected field name identifier in field declaration")
+            field_id: FieldID = FieldID(self._pos_tok)
+            self._advance_pos()  # consume identifier
+
+            int_literals: typing.List[Token] = []
+            if self._try_token_type(TokenType.SYMBOL) and self._get_token_code() == "(":
+                self._advance_pos()  # consume '('
+                find_int_literal = (
+                    self._try_token_type(TokenType.LITERAL_INT)
+                    or self._try_token_type(TokenType.LITERAL_HEX)
+                    or self._try_token_type(TokenType.LITERAL_OCT)
+                )
+                while find_int_literal:
+                    if not (
+                        self._try_token_type(TokenType.LITERAL_INT)
+                        or self._try_token_type(TokenType.LITERAL_HEX)
+                        or self._try_token_type(TokenType.LITERAL_OCT)
+                    ):
+                        raise ParserError(
+                            "Invalid token type found in array rank list "
+                            "of field name declaration"
+                        )
+                    int_literals.append(self._pos_tok)
+                    self._advance_pos()  # consume int literal
+
+                    if (
+                        self._try_token_type(TokenType.SYMBOL)
+                        and self._get_token_code() == ","
+                    ):
+                        self._advance_pos()  # consume ','
+
+                    # last int literal is optional, check for ending ')'
+                    if (
+                        self._try_token_type(TokenType.SYMBOL)
+                        and self._get_token_code() == ")"
+                    ):
+                        find_int_literal = False
+                # should have an ending ')'
+                if (
+                    not self._try_token_type(TokenType.SYMBOL)
+                    or self._get_token_code() != ")"
+                ):
+                    raise ParserError(
+                        "Expected ending ')' for array rank list of field name declaration"
+                    )
+                self._advance_pos()  # consume ')'
+                del find_int_literal
+            field_name: FieldName = FieldName(field_id, int_literals)
+            del int_literals
+
+            other_vars: typing.List[VarName] = []
+            parse_var_name = self._try_token_type(TokenType.IDENTIFIER)
+            while parse_var_name:
+                var_id = self._parse_extended_id()
+                if (
+                    self._try_token_type(TokenType.SYMBOL)
+                    and self._get_token_code() == "("
+                ):
+                    self._advance_pos()  # consume '('
+                    find_int_literal = (
+                        self._try_token_type(TokenType.LITERAL_INT)
+                        or self._try_token_type(TokenType.LITERAL_HEX)
+                        or self._try_token_type(TokenType.LITERAL_OCT)
+                    )
+                    int_literals: typing.List[Token] = []
+                    while find_int_literal:
+                        if not (
+                            self._try_token_type(TokenType.LITERAL_INT)
+                            or self._try_token_type(TokenType.LITERAL_HEX)
+                            or self._try_token_type(TokenType.LITERAL_OCT)
+                        ):
+                            raise ParserError(
+                                "Invalid token type found in array rank list "
+                                "of variable name declaration (part of field declaration)"
+                            )
+                        int_literals.append(self._pos_tok)
+                        self._advance_pos()  # consume int literal
+
+                        if (
+                            self._try_token_type(TokenType.SYMBOL)
+                            and self._get_token_code() == ","
+                        ):
+                            self._advance_pos()  # consume ','
+
+                        # last int literal is optional, check for ending ')'
+                        if (
+                            self._try_token_type(TokenType.SYMBOL)
+                            and self._get_token_code() == ")"
+                        ):
+                            find_int_literal = False
+                    # should have and ending ')'
+                    if (
+                        not self._try_token_type(TokenType.SYMBOL)
+                        or self._get_token_code() != ")"
+                    ):
+                        raise ParserError(
+                            "Expected ending ')' for array rank list "
+                            "of variable name declaration (part of field declaration)"
+                        )
+                    self._advance_pos()  # consume ')'
+                    other_vars.append(VarName(var_id, int_literals))
+                    del find_int_literal, int_literals
+                else:
+                    other_vars.append(VarName(var_id))
+
+                # another variable name?
+                if (
+                    not self._try_token_type(TokenType.SYMBOL)
+                    or self._get_token_code() != ","
+                ):
+                    parse_var_name = False
+                else:
+                    self._advance_pos()  # consume ','
+
+            if not self._try_token_type(TokenType.NEWLINE):
+                raise ParserError("Expected newline after field declaration")
+            self._advance_pos()  # consume newline
+            return FieldDecl(field_name, other_vars, access_mod=access_mod)
+        raise ParserError("Expected a 'Public' or 'Private' access modifier token")
 
     def _parse_global_decl(self) -> GlobalStmt:
         """Parse a global declaration that lacks an access modifier
@@ -1393,6 +1726,30 @@ class Parser:
         raise ParserError(
             "Block statement should start with an identifier or dotted identifier"
         )
+
+    def _parse_method_stmt(self) -> MethodStmt:
+        """
+
+        Returns
+        -------
+        MethodStmt
+        """
+        if self._try_token_type(TokenType.IDENTIFIER) and self._get_token_code() in [
+            "const",
+            "public",
+            "private",
+        ]:
+            if self._get_token_code() == "public":
+                self._advance_pos()  # consume 'Public'
+                access_mod = AccessModifierType.PUBLIC
+            elif self._get_token_code() == "private":
+                self._advance_pos()  # consume 'Private'
+                access_mod = AccessModifierType.PRIVATE
+            else:
+                access_mod = None
+            return self._parse_const_decl(access_mod)
+        else:
+            return self._parse_block_stmt()
 
     def _parse_global_stmt(self) -> GlobalStmt:
         """

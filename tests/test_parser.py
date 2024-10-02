@@ -12,6 +12,122 @@ from pyaspparsing.ast_types import *
         ("Option Explicit\n", OptionExplicit()),
         ("Class MyClass\nEnd Class\n", ClassDecl(ExtendedID(Token.identifier(6, 13)))),
         (
+            "Private my_var\n",  # private field declaration
+            FieldDecl(
+                FieldName(FieldID(Token.identifier(8, 14))),
+                access_mod=AccessModifierType.PRIVATE,
+            ),
+        ),
+        (
+            "Public my_var\n",  # public field declaration
+            FieldDecl(
+                FieldName(FieldID(Token.identifier(7, 13))),
+                access_mod=AccessModifierType.PUBLIC,
+            ),
+        ),
+        (
+            "Sub my_subroutine\nEnd Sub\n",  # sub declaration
+            SubDecl(ExtendedID(Token.identifier(4, 17))),
+        ),
+        (
+            "Private Sub my_subroutine\nEnd Sub\n",  # private sub
+            SubDecl(
+                ExtendedID(Token.identifier(12, 25)),
+                access_mod=AccessModifierType.PRIVATE,
+            ),
+        ),
+        (
+            "Public Sub my_subroutine\nEnd Sub\n",  # public sub
+            SubDecl(
+                ExtendedID(Token.identifier(11, 24)),
+                access_mod=AccessModifierType.PUBLIC,
+            ),
+        ),
+        (
+            "Public Default Sub my_subroutine\nEnd Sub\n",  # public default sub
+            SubDecl(
+                ExtendedID(Token.identifier(19, 32)),
+                access_mod=AccessModifierType.PUBLIC_DEFAULT,
+            ),
+        ),
+        (
+            "Sub my_subroutine Set a = 1 End Sub\n",  # sub with inline statement
+            SubDecl(
+                ExtendedID(Token.identifier(4, 17)),
+                method_stmt_list=[
+                    AssignStmt(
+                        LeftExpr(QualifiedID([Token.identifier(22, 23)])),
+                        IntLiteral(Token.int_literal(26, 27)),
+                    )
+                ],
+            ),
+        ),
+        (
+            "Sub my_subroutine\nDim c, d\nEnd Sub\n",  # sub with statement list
+            SubDecl(
+                ExtendedID(Token.identifier(4, 17)),
+                method_stmt_list=[
+                    VarDecl(
+                        [
+                            VarName(ExtendedID(Token.identifier(22, 23))),
+                            VarName(ExtendedID(Token.identifier(25, 26))),
+                        ]
+                    )
+                ],
+            ),
+        ),
+        (
+            "Function my_function\nEnd Function\n",  # function declaration
+            FunctionDecl(ExtendedID(Token.identifier(9, 20))),
+        ),
+        (
+            "Private Function my_function\nEnd Function\n",  # private function
+            FunctionDecl(
+                ExtendedID(Token.identifier(17, 28)),
+                access_mod=AccessModifierType.PRIVATE,
+            ),
+        ),
+        (
+            "Public Function my_function\nEnd Function\n",  # public function
+            FunctionDecl(
+                ExtendedID(Token.identifier(16, 27)),
+                access_mod=AccessModifierType.PUBLIC,
+            ),
+        ),
+        (
+            "Public Default Function my_function\nEnd Function\n",  # public default function
+            FunctionDecl(
+                ExtendedID(Token.identifier(24, 35)),
+                access_mod=AccessModifierType.PUBLIC_DEFAULT,
+            ),
+        ),
+        (
+            "Function my_function Set a = 1 End Function\n",  # function with inline statement
+            FunctionDecl(
+                ExtendedID(Token.identifier(9, 20)),
+                method_stmt_list=[
+                    AssignStmt(
+                        LeftExpr(QualifiedID([Token.identifier(25, 26)])),
+                        IntLiteral(Token.int_literal(29, 30)),
+                    )
+                ],
+            ),
+        ),
+        (
+            "Function my_function\nDim a, b\nEnd Function\n",  # function with statement list
+            FunctionDecl(
+                ExtendedID(Token.identifier(9, 20)),
+                method_stmt_list=[
+                    VarDecl(
+                        [
+                            VarName(ExtendedID(Token.identifier(25, 26))),
+                            VarName(ExtendedID(Token.identifier(28, 29))),
+                        ]
+                    )
+                ],
+            ),
+        ),
+        (
             "Dim my_var\n",
             VarDecl([VarName(ExtendedID(Token.identifier(4, 10)))]),
         ),
