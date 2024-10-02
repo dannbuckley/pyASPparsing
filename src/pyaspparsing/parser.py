@@ -127,6 +127,84 @@ class Parser:
             return False
         return self._pos_tok.token_type == tok_type
 
+    def _assert_consume(
+        self,
+        tok_type: TokenType,
+        tok_code: typing.Optional[str] = None,
+        *,
+        casefold: bool = True,
+    ) -> None:
+        """Attempt to consume a specific token.
+        Raises on failure
+
+        Parameters
+        ----------
+        tok_type : TokenType
+        tok_code : str
+            Source code to use when comparing against current token
+        casefold : bool, default=True
+            Whether tok_code is casefolded. Passed to _get_token_code()
+
+        Raises
+        ------
+        AssertionError
+        """
+        # _try_token_type() is also an existence check, will return False if token is None
+        if tok_type is None:
+            raise ValueError("tok_type must be a valid TokenType")
+        if tok_code is None:
+            assert self._try_token_type(
+                tok_type
+            ), f"Expected token of type {repr(tok_type)} and value {repr(tok_code)}"
+        else:
+            assert (
+                self._try_token_type(tok_type)
+                and self._get_token_code(casefold) == tok_code
+            ), f"Expected token of type {repr(tok_type)} and value {repr(tok_code)}"
+        self._advance_pos()  # consume
+
+    def _try_consume(
+        self,
+        tok_type: TokenType,
+        tok_code: str,
+        *,
+        casefold: bool = True,
+        use_in: bool = False,
+    ) -> bool:
+        """Attempt to consume a specific optional token.
+        Does not raise on failure
+
+        Parameters
+        ----------
+        tok_type : TokenType
+        tok_code : str
+            Source code to use when comparing against current token
+        casefold : bool, default=True
+            Whether tok_code is casefolded. Passed to _get_token_code()
+        use_in : bool, default=False
+            If True, will use "_get_token_code() in tok_code";
+            otherwise "_get_token_code() == tok_code"
+
+        Returns
+        -------
+        bool
+            True if token was consumed
+        """
+        try:
+            curr_code: str = self._get_token_code(casefold)
+        except RuntimeError:
+            return False
+        if not (
+            self._try_token_type(tok_type)
+            and (
+                (not use_in and (curr_code == tok_code))
+                or (use_in and (curr_code in tok_code))
+            )
+        ):
+            return False
+        self._advance_pos()  # consume
+        return True
+
     def _try_safe_keyword_id(self) -> typing.Optional[Token]:
         """
 
@@ -308,8 +386,7 @@ class Parser:
         expr_stack: typing.List[Expr] = [self._parse_value()]
 
         # more than one term?
-        while self._try_token_type(TokenType.SYMBOL) and self._get_token_code() == "^":
-            self._advance_pos()  # consume '^'
+        while self._try_consume(TokenType.SYMBOL, "^"):
             expr_stack.append(self._parse_value())
 
         # combine terms into one expression
@@ -374,8 +451,7 @@ class Parser:
         expr_queue: typing.List[Expr] = [self._parse_mult_expr()]
 
         # more than one term?
-        while self._try_token_type(TokenType.SYMBOL) and self._get_token_code() == "\\":
-            self._advance_pos()  # consume operator
+        while self._try_consume(TokenType.SYMBOL, "\\"):
             expr_queue.append(self._parse_mult_expr())
 
         # combine terms into one expression
@@ -396,11 +472,7 @@ class Parser:
         expr_queue: typing.List[Expr] = [self._parse_int_div_expr()]
 
         # more than one term?
-        while (
-            self._try_token_type(TokenType.IDENTIFIER)
-            and self._get_token_code() == "mod"
-        ):
-            self._advance_pos()  # consume 'Mod'
+        while self._try_consume(TokenType.IDENTIFIER, "mod"):
             expr_queue.append(self._parse_int_div_expr())
 
         # combine terms into one expression
@@ -445,8 +517,7 @@ class Parser:
         expr_queue: typing.List[Expr] = [self._parse_add_expr()]
 
         # more than one term?
-        while self._try_token_type(TokenType.SYMBOL) and self._get_token_code() == "&":
-            self._advance_pos()  # consume '&'
+        while self._try_consume(TokenType.SYMBOL, "&"):
             expr_queue.append(self._parse_add_expr())
 
         # combine terms into one expression
@@ -549,12 +620,8 @@ class Parser:
         # optimization: "Not Not" is a no-op
         # only use NotExpr when not_counter is odd
         not_counter = 0
-        while (
-            self._try_token_type(TokenType.IDENTIFIER)
-            and self._get_token_code() == "not"
-        ):
+        while self._try_consume(TokenType.IDENTIFIER, "not"):
             not_counter += 1
-            self._advance_pos()  # consume 'Not'
 
         not_expr = self._parse_compare_expr()
         return NotExpr(not_expr) if not_counter % 2 == 1 else not_expr
@@ -570,11 +637,7 @@ class Parser:
         expr_queue: typing.List[Expr] = [self._parse_not_expr()]
 
         # more than one term
-        while (
-            self._try_token_type(TokenType.IDENTIFIER)
-            and self._get_token_code() == "and"
-        ):
-            self._advance_pos()  # consume 'And'
+        while self._try_consume(TokenType.IDENTIFIER, "and"):
             expr_queue.append(self._parse_not_expr())
 
         # combine terms into one expression
@@ -595,11 +658,7 @@ class Parser:
         expr_queue: typing.List[Expr] = [self._parse_and_expr()]
 
         # more than one term?
-        while (
-            self._try_token_type(TokenType.IDENTIFIER)
-            and self._get_token_code() == "or"
-        ):
-            self._advance_pos()  # consume 'Or'
+        while self._try_consume(TokenType.IDENTIFIER, "or"):
             expr_queue.append(self._parse_and_expr())
 
         # combine terms into one expression
@@ -620,11 +679,7 @@ class Parser:
         expr_queue: typing.List[Expr] = [self._parse_or_expr()]
 
         # more than one term?
-        while (
-            self._try_token_type(TokenType.IDENTIFIER)
-            and self._get_token_code() == "xor"
-        ):
-            self._advance_pos()  # consume 'Xor'
+        while self._try_consume(TokenType.IDENTIFIER, "xor"):
             expr_queue.append(self._parse_or_expr())
 
         # combine terms into one expression
@@ -645,11 +700,7 @@ class Parser:
         expr_queue: typing.List[Expr] = [self._parse_xor_expr()]
 
         # more than one term?
-        while (
-            self._try_token_type(TokenType.IDENTIFIER)
-            and self._get_token_code() == "eqv"
-        ):
-            self._advance_pos()  # consume 'Eqv'
+        while self._try_consume(TokenType.IDENTIFIER, "eqv"):
             expr_queue.append(self._parse_xor_expr())
 
         # combine terms into one expression
@@ -670,11 +721,7 @@ class Parser:
         expr_queue: typing.List[Expr] = [self._parse_eqv_expr()]
 
         # more than one term?
-        while (
-            self._try_token_type(TokenType.IDENTIFIER)
-            and self._get_token_code() == "imp"
-        ):
-            self._advance_pos()  # consume 'Imp'
+        while self._try_consume(TokenType.IDENTIFIER, "imp"):
             expr_queue.append(self._parse_eqv_expr())
 
         # combine terms into one expression
@@ -753,8 +800,7 @@ class Parser:
 
         # check for index or params list
         index_or_params: typing.List[IndexOrParams] = []
-        while self._try_token_type(TokenType.SYMBOL) and self._get_token_code() == "(":
-            self._advance_pos()  # consume '('
+        while self._try_consume(TokenType.SYMBOL, "("):
             expr_list: typing.List[typing.Optional[Expr]] = []
             found_expr: bool = False  # helper variable for parsing commas
             while not (
@@ -776,14 +822,10 @@ class Parser:
                     found_expr = True
             del found_expr
 
-            if (
-                not self._try_token_type(TokenType.SYMBOL)
-                or self._get_token_code() != ")"
-            ):
-                raise ParserError(
-                    "Expected closing ')' for index or params list in left expression"
-                )
-            self._advance_pos()  # consume ')'
+            try:
+                self._assert_consume(TokenType.SYMBOL, ")")
+            except AssertionError as ex:
+                raise ParserError("An error occurred in _parse_left_expr()") from ex
 
             dot = self._try_token_type(
                 TokenType.IDENTIFIER_DOTID
@@ -805,10 +847,7 @@ class Parser:
 
             # check for index or params list
             index_or_params_tail: typing.List[IndexOrParams] = []
-            while (
-                self._try_token_type(TokenType.SYMBOL) and self._get_token_code() == "("
-            ):
-                self._advance_pos()  # consume '('
+            while self._try_consume(TokenType.SYMBOL, "("):
                 expr_list: typing.List[Expr] = []
                 found_expr: bool = False  # helper variable for parsing commas
                 while not (
@@ -831,14 +870,10 @@ class Parser:
                         found_expr = True
                 del found_expr
 
-                if (
-                    not self._try_token_type(TokenType.SYMBOL)
-                    or self._get_token_code() != ")"
-                ):
-                    raise ParserError(
-                        "Expected closing ')' for index or params list in left expression tail"
-                    )
-                self._advance_pos()  # consume ')'
+                try:
+                    self._assert_consume(TokenType.SYMBOL, ")")
+                except AssertionError as ex:
+                    raise ParserError("An error occurred in _parse_left_expr()") from ex
 
                 dot = self._try_token_type(
                     TokenType.IDENTIFIER_DOTID
@@ -870,12 +905,10 @@ class Parser:
         if self._try_token_type(TokenType.SYMBOL) and self._get_token_code() == "(":
             self._advance_pos()  # consume '('
             ret_expr = self._parse_expr()
-            if (
-                not self._try_token_type(TokenType.SYMBOL)
-                or self._get_token_code() != ")"
-            ):
-                raise ParserError("Expected ')' after value expression")
-            self._advance_pos()  # consume ')'
+            try:
+                self._assert_consume(TokenType.SYMBOL, ")")
+            except AssertionError as ex:
+                raise ParserError("An error occurred in _parse_value()") from ex
             return ret_expr
 
         # try const expression
@@ -911,26 +944,13 @@ class Parser:
         ------
         ParserError
         """
-        if (
-            self._try_token_type(TokenType.IDENTIFIER)
-            and self._get_token_code() == "option"
-        ):
-            self._advance_pos()  # consume "option"
-
-            # should have 'Explicit' token
-            if (
-                not self._try_token_type(TokenType.IDENTIFIER)
-                or self._get_token_code() != "explicit"
-            ):
-                raise ParserError("Missing 'Explicit' after 'Option'")
-            self._advance_pos()  # consume "explicit"
-
-            # should be terminated by newline
-            if not self._try_token_type(TokenType.NEWLINE):
-                raise ParserError("Missing newline after 'Option Explicit'")
-            self._advance_pos()  # consume newline
+        try:
+            self._assert_consume(TokenType.IDENTIFIER, "option")
+            self._assert_consume(TokenType.IDENTIFIER, "explicit")
+            self._assert_consume(TokenType.NEWLINE)
             return OptionExplicit()
-        raise ParserError("_parse_option_explicit() did not find 'Option' token")
+        except AssertionError as ex:
+            raise ParserError("An error occurred in _parse_option_explicit()") from ex
 
     def _parse_member_decl(self) -> MemberDecl:
         """"""
@@ -998,174 +1018,115 @@ class Parser:
     def _parse_sub_decl(
         self, access_mod: typing.Optional[AccessModifierType] = None
     ) -> GlobalStmt:
-        """"""
-        if (
-            not self._try_token_type(TokenType.IDENTIFIER)
-            or self._get_token_code() != "sub"
-        ):
-            raise ParserError("_parse_sub_decl() did not find 'Sub' token")
-        self._advance_pos() # consume 'Sub'
-        sub_id: ExtendedID = self._parse_extended_id()
-        method_arg_list: typing.List[Arg] = []
-        if self._try_token_type(TokenType.SYMBOL) and self._get_token_code() == "(":
-            self._advance_pos()  # consume '('
+        """
 
-            while not (
-                self._try_token_type(TokenType.SYMBOL) and self._get_token_code() != ")"
-            ):
-                if self._try_token_type(
-                    TokenType.IDENTIFIER
-                ) and self._get_token_code() in ["byval", "byref"]:
-                    arg_modifier = self._pos_tok
-                    self._advance_pos()  # consume modifier
-                else:
-                    arg_modifier = None
-                arg_id = self._parse_extended_id()
-                has_paren = (
-                    self._try_token_type(TokenType.SYMBOL)
-                    and self._get_token_code() == "("
-                )
-                if has_paren:
-                    self._advance_pos()  # consume '('
-                    if (
-                        not self._try_token_type(TokenType.SYMBOL)
-                        or self._get_token_code() != ")"
-                    ):
-                        raise ParserError(
-                            "Expected ending ')' in argument definition for sub declaration"
-                        )
-                    self._advance_pos()  # consume ')'
-                method_arg_list.append(Arg(arg_id, arg_modifier, has_paren))
+        Returns
+        -------
+        GlobalStmt
 
-                if (
+        Raises
+        ------
+        ParserError
+        """
+        try:
+            self._assert_consume(TokenType.IDENTIFIER, "sub")
+            sub_id: ExtendedID = self._parse_extended_id()
+            method_arg_list: typing.List[Arg] = []
+            if self._try_consume(TokenType.SYMBOL, "("):
+                while not (
                     self._try_token_type(TokenType.SYMBOL)
-                    and self._get_token_code() == ","
+                    and self._get_token_code() == ")"
                 ):
-                    self._advance_pos()  # consume ','
+                    if self._try_token_type(
+                        TokenType.IDENTIFIER
+                    ) and self._get_token_code() in ["byval", "byref"]:
+                        arg_modifier = self._pos_tok
+                        self._advance_pos()  # consume modifier
+                    else:
+                        arg_modifier = None
+                    arg_id = self._parse_extended_id()
+                    has_paren = self._try_consume(TokenType.SYMBOL, "(")
+                    if has_paren:
+                        self._assert_consume(TokenType.SYMBOL, ")")
+                    method_arg_list.append(
+                        Arg(arg_id, arg_modifier=arg_modifier, has_paren=has_paren)
+                    )
 
-            if (
-                not self._try_token_type(TokenType.SYMBOL)
-                or self._get_token_code() != ")"
-            ):
-                raise ParserError(
-                    "Expected ending ')' in method argument list of sub declaration"
-                )
-            self._advance_pos()  # consume ')'
+                    self._try_consume(TokenType.SYMBOL, ",")
 
-        method_stmt_list: typing.List[MethodStmt] = []
-        if self._try_token_type(TokenType.NEWLINE):
-            self._advance_pos()  # consume newline
-            while not (
-                self._try_token_type(TokenType.IDENTIFIER)
-                and self._get_token_code() == "end"
-            ):
-                method_stmt_list.append(self._parse_method_stmt())
-        else:
-            method_stmt_list.append(self._parse_inline_stmt())
+                self._assert_consume(TokenType.SYMBOL, ")")
 
-        if (
-            not self._try_token_type(TokenType.IDENTIFIER)
-            or self._get_token_code() != "end"
-        ):
-            raise ParserError("Expected 'End' in sub declaration")
-        self._advance_pos()  # consume 'End'
-        if (
-            not self._try_token_type(TokenType.IDENTIFIER)
-            or self._get_token_code() != "sub"
-        ):
-            raise ParserError("Expected 'Sub' after 'End' in sub declaration")
-        self._advance_pos()  # consume 'Sub'
-        if not self._try_token_type(TokenType.NEWLINE):
-            raise ParserError("Expected newline after sub declaration")
-        self._advance_pos()  # consume newline
-        return SubDecl(sub_id, method_arg_list, method_stmt_list, access_mod=access_mod)
+            method_stmt_list: typing.List[MethodStmt] = []
+            if self._try_token_type(TokenType.NEWLINE):
+                self._advance_pos()  # consume newline
+                while not (
+                    self._try_token_type(TokenType.IDENTIFIER)
+                    and self._get_token_code() == "end"
+                ):
+                    method_stmt_list.append(self._parse_method_stmt())
+            else:
+                method_stmt_list.append(self._parse_inline_stmt())
+
+            self._assert_consume(TokenType.IDENTIFIER, "end")
+            self._assert_consume(TokenType.IDENTIFIER, "sub")
+            self._assert_consume(TokenType.NEWLINE)
+            return SubDecl(
+                sub_id, method_arg_list, method_stmt_list, access_mod=access_mod
+            )
+        except AssertionError as ex:
+            raise ParserError("An error occurred in _parse_sub_decl()") from ex
 
     def _parse_function_decl(
         self, access_mod: typing.Optional[AccessModifierType] = None
     ) -> GlobalStmt:
         """"""
-        if (
-            not self._try_token_type(TokenType.IDENTIFIER)
-            or self._get_token_code() != "function"
-        ):
-            raise ParserError("_parse_function_decl() did not find 'Function' token")
-        self._advance_pos() # consume 'Function'
-        function_id: ExtendedID = self._parse_extended_id()
-        method_arg_list: typing.List[Arg] = []
-        if self._try_token_type(TokenType.SYMBOL) and self._get_token_code() == "(":
-            self._advance_pos()  # consume '('
-
-            while not (
-                self._try_token_type(TokenType.SYMBOL) and self._get_token_code() != ")"
-            ):
-                if self._try_token_type(
-                    TokenType.IDENTIFIER
-                ) and self._get_token_code() in ["byval", "byref"]:
-                    arg_modifier = self._pos_tok
-                    self._advance_pos()  # consume modifier
-                else:
-                    arg_modifier = None
-                arg_id = self._parse_extended_id()
-                has_paren = (
+        try:
+            self._assert_consume(TokenType.IDENTIFIER, "function")
+            function_id: ExtendedID = self._parse_extended_id()
+            method_arg_list: typing.List[Arg] = []
+            if self._try_consume(TokenType.SYMBOL, "("):
+                while not (
                     self._try_token_type(TokenType.SYMBOL)
-                    and self._get_token_code() == "("
-                )
-                if has_paren:
-                    self._advance_pos()  # consume '('
-                    if (
-                        not self._try_token_type(TokenType.SYMBOL)
-                        or self._get_token_code() != ")"
-                    ):
-                        raise ParserError(
-                            "Expected ending ')' in argument definition for function declaration"
-                        )
-                    self._advance_pos()  # consume ')'
-                method_arg_list.append(Arg(arg_id, arg_modifier, has_paren))
-
-                if (
-                    self._try_token_type(TokenType.SYMBOL)
-                    and self._get_token_code() == ","
+                    and self._get_token_code() == ")"
                 ):
-                    self._advance_pos()  # consume ','
+                    if self._try_token_type(
+                        TokenType.IDENTIFIER
+                    ) and self._get_token_code() in ["byval", "byref"]:
+                        arg_modifier = self._pos_tok
+                        self._advance_pos()  # consume modifier
+                    else:
+                        arg_modifier = None
+                    arg_id = self._parse_extended_id()
+                    has_paren = self._try_consume(TokenType.SYMBOL, "(")
+                    if has_paren:
+                        self._assert_consume(TokenType.SYMBOL, ")")
+                    method_arg_list.append(
+                        Arg(arg_id, arg_modifier=arg_modifier, has_paren=has_paren)
+                    )
 
-            if (
-                not self._try_token_type(TokenType.SYMBOL)
-                or self._get_token_code() != ")"
-            ):
-                raise ParserError(
-                    "Expected ending ')' in method argument list of function declaration"
-                )
-            self._advance_pos()  # consume ')'
+                    self._try_consume(TokenType.SYMBOL, ",")
 
-        method_stmt_list: typing.List[MethodStmt] = []
-        if self._try_token_type(TokenType.NEWLINE):
-            self._advance_pos()  # consume newline
-            while not (
-                self._try_token_type(TokenType.IDENTIFIER)
-                and self._get_token_code() == "end"
-            ):
-                method_stmt_list.append(self._parse_method_stmt())
-        else:
-            method_stmt_list.append(self._parse_inline_stmt())
+                self._assert_consume(TokenType.SYMBOL, ")")
 
-        if (
-            not self._try_token_type(TokenType.IDENTIFIER)
-            or self._get_token_code() != "end"
-        ):
-            raise ParserError("Expected 'End' token in function declaration")
-        self._advance_pos()  # consume 'End'
-        if (
-            not self._try_token_type(TokenType.IDENTIFIER)
-            or self._get_token_code() != "function"
-        ):
-            raise ParserError("Expected 'Function' after 'End' in function declaration")
-        self._advance_pos()  # consume 'Function'
-        if not self._try_token_type(TokenType.NEWLINE):
-            raise ParserError("Expected newline after function declaration")
-        self._advance_pos()  # consume newline
-        return FunctionDecl(
-            function_id, method_arg_list, method_stmt_list, access_mod=access_mod
-        )
+            method_stmt_list: typing.List[MethodStmt] = []
+            if self._try_token_type(TokenType.NEWLINE):
+                self._advance_pos()  # consume newline
+                while not (
+                    self._try_token_type(TokenType.IDENTIFIER)
+                    and self._get_token_code() == "end"
+                ):
+                    method_stmt_list.append(self._parse_method_stmt())
+            else:
+                method_stmt_list.append(self._parse_inline_stmt())
+
+            self._assert_consume(TokenType.IDENTIFIER, "end")
+            self._assert_consume(TokenType.IDENTIFIER, "function")
+            self._assert_consume(TokenType.NEWLINE)
+            return FunctionDecl(
+                function_id, method_arg_list, method_stmt_list, access_mod=access_mod
+            )
+        except AssertionError as ex:
+            raise ParserError("An error occurred in _parse_function_decl()") from ex
 
     def _parse_access_modifier(self) -> GlobalStmt:
         """Parse global statement that starts with an access modifier
@@ -1383,79 +1344,62 @@ class Parser:
         ------
         ParserError
         """
-        if (
-            not self._try_token_type(TokenType.IDENTIFIER)
-            or self._get_token_code() != "dim"
-        ):
-            raise ParserError("Expected 'Dim' in variable declaration")
-        self._advance_pos()  # consume 'Dim'
-
-        var_name: typing.List[VarName] = []
-        parse_var_name = True
-        while parse_var_name:
-            var_id = self._parse_extended_id()
-            if self._try_token_type(TokenType.SYMBOL) and self._get_token_code() == "(":
-                # parse array rank list
-                self._advance_pos()  # consume '('
-                # first int literal is also optional
-                find_int_literal = (
-                    self._try_token_type(TokenType.LITERAL_INT)
-                    or self._try_token_type(TokenType.LITERAL_HEX)
-                    or self._try_token_type(TokenType.LITERAL_OCT)
-                )
-                int_literals: typing.List[Token] = []
-                while find_int_literal:
-                    if not (
+        try:
+            self._assert_consume(TokenType.IDENTIFIER, "dim")
+            var_name: typing.List[VarName] = []
+            parse_var_name = True
+            while parse_var_name:
+                var_id = self._parse_extended_id()
+                if self._try_consume(TokenType.SYMBOL, "("):
+                    # parse array rank list
+                    # first int literal is also optional
+                    find_int_literal = (
                         self._try_token_type(TokenType.LITERAL_INT)
                         or self._try_token_type(TokenType.LITERAL_HEX)
                         or self._try_token_type(TokenType.LITERAL_OCT)
-                    ):
-                        raise ParserError(
-                            "Invalid token type found in array rank list "
-                            "of variable name declaration"
-                        )
-                    int_literals.append(self._pos_tok)
-                    self._advance_pos()  # consume int literal
+                    )
+                    int_literals: typing.List[Token] = []
+                    while find_int_literal:
+                        if not (
+                            self._try_token_type(TokenType.LITERAL_INT)
+                            or self._try_token_type(TokenType.LITERAL_HEX)
+                            or self._try_token_type(TokenType.LITERAL_OCT)
+                        ):
+                            raise ParserError(
+                                "Invalid token type found in array rank list "
+                                "of variable name declaration"
+                            )
+                        int_literals.append(self._pos_tok)
+                        self._advance_pos()  # consume int literal
 
-                    if (
-                        self._try_token_type(TokenType.SYMBOL)
-                        and self._get_token_code() == ","
-                    ):
-                        self._advance_pos()  # consume ','
+                        self._try_consume(TokenType.SYMBOL, ",")
 
-                    # last int literal is optional, check for ending ')'
-                    if (
-                        self._try_token_type(TokenType.SYMBOL)
-                        and self._get_token_code() == ")"
-                    ):
-                        find_int_literal = False
-                # should have an ending ')'
+                        # last int literal is optional, check for ending ')'
+                        if (
+                            self._try_token_type(TokenType.SYMBOL)
+                            and self._get_token_code() == ")"
+                        ):
+                            find_int_literal = False
+                    # should have an ending ')'
+                    self._assert_consume(TokenType.SYMBOL, ")")
+                    var_name.append(VarName(var_id, int_literals))
+                    del find_int_literal, int_literals
+                else:
+                    var_name.append(VarName(var_id))
+
+                # another variable name?
                 if (
                     not self._try_token_type(TokenType.SYMBOL)
-                    or self._get_token_code() != ")"
+                    or self._get_token_code() != ","
                 ):
-                    raise ParserError(
-                        "Expected ending ')' for array rank list of variable name declaration"
-                    )
-                self._advance_pos()  # consume ')'
-                var_name.append(VarName(var_id, int_literals))
-                del find_int_literal, int_literals
-            else:
-                var_name.append(VarName(var_id))
+                    parse_var_name = False
+                else:
+                    self._advance_pos()  # consume ','
 
-            # another variable name?
-            if (
-                not self._try_token_type(TokenType.SYMBOL)
-                or self._get_token_code() != ","
-            ):
-                parse_var_name = False
-            else:
-                self._advance_pos()  # consume ','
-
-        if not self._try_token_type(TokenType.NEWLINE):
-            raise ParserError("Variable declaration should be terminated by a newline")
-        self._advance_pos()  # consume newline
-        return VarDecl(var_name)
+            self._assert_consume(TokenType.NEWLINE)
+            return VarDecl(var_name)
+        except AssertionError as ex:
+            raise ParserError("An error occurred in _parse_var_decl()") from ex
 
     def _parse_redim_stmt(self) -> GlobalStmt:
         """"""
@@ -1492,28 +1436,18 @@ class Parser:
         ------
         ParserError
         """
-        if (
-            self._try_token_type(TokenType.IDENTIFIER)
-            and self._get_token_code() == "set"
-        ):
-            # 'Set' is optional, don't throw if missing
-            self._advance_pos()  # consume 'Set'
-
-        # parse target expression
+        # 'Set' is optional, don't throw if missing
+        self._try_consume(TokenType.IDENTIFIER, "set")
         target_expr = self._parse_left_expr()
 
         # check for '='
-        if not self._try_token_type(TokenType.SYMBOL) or self._get_token_code() != "=":
-            raise ParserError("Expected '=' in assignment statement")
-        self._advance_pos()  # consume '='
+        try:
+            self._assert_consume(TokenType.SYMBOL, "=")
+        except AssertionError as ex:
+            raise ParserError("An error occurred in _parse_assign_stmt()") from ex
 
         # check for 'New'
-        is_new = (
-            self._try_token_type(TokenType.IDENTIFIER)
-            and self._get_token_code() == "new"
-        )
-        if is_new:
-            self._advance_pos()  # consume 'New'
+        is_new = self._try_consume(TokenType.IDENTIFIER, "new")
 
         # parse assignment expression
         assign_expr = self._parse_left_expr() if is_new else self._parse_expr()
@@ -1530,13 +1464,11 @@ class Parser:
         ------
         ParserError
         """
-        if (
-            not self._try_token_type(TokenType.IDENTIFIER)
-            or self._get_token_code() != "call"
-        ):
-            raise ParserError("_parse_call_stmt() did not find 'Call' token")
-        self._advance_pos()  # consume 'Call'
-        return CallStmt(self._parse_left_expr())
+        try:
+            self._assert_consume(TokenType.IDENTIFIER, "call")
+            return CallStmt(self._parse_left_expr())
+        except AssertionError as ex:
+            raise ParserError("An error occurred in _parse_call_stmt()") from ex
 
     def _parse_subcall_stmt(self) -> GlobalStmt:
         """"""
@@ -1553,32 +1485,17 @@ class Parser:
         ------
         ParserError
         """
-        if (
-            not self._try_token_type(TokenType.IDENTIFIER)
-            or self._get_token_code() != "on"
-        ):
-            raise ParserError("Expected 'On' in error statement")
-        self._advance_pos()  # consume 'On'
+        try:
+            self._assert_consume(TokenType.IDENTIFIER, "on")
+            self._assert_consume(TokenType.IDENTIFIER, "error")
 
-        if (
-            not self._try_token_type(TokenType.IDENTIFIER)
-            or self._get_token_code() != "error"
-        ):
-            raise ParserError("Expected 'Error' after 'On' keyword")
-        self._advance_pos()  # consume 'Error'
-
-        if self._try_token_type(TokenType.IDENTIFIER):
-            if self._get_token_code() == "resume":
-                self._advance_pos()  # consume 'Return'
-                if (
-                    not self._try_token_type(TokenType.IDENTIFIER)
-                    or self._get_token_code() != "next"
-                ):
-                    raise ParserError("Expected 'Next' after 'On Error Resume'")
-                self._advance_pos()  # consume 'Next'
+            # check for 'Resume'
+            if self._try_consume(TokenType.IDENTIFIER, "resume"):
+                self._assert_consume(TokenType.IDENTIFIER, "next")
                 return ErrorStmt(resume_next=True)
-            if self._get_token_code() == "goto":
-                self._advance_pos()  # consume 'GoTo'
+
+            # check for 'GoTo'
+            if self._try_consume(TokenType.IDENTIFIER, "goto"):
                 if not self._try_token_type(TokenType.LITERAL_INT):
                     raise ParserError(
                         "Expected an integer literal after 'On Error GoTo'"
@@ -1586,9 +1503,12 @@ class Parser:
                 goto_spec = self._pos_tok
                 self._advance_pos()  # consume int literal
                 return ErrorStmt(goto_spec=goto_spec)
-        raise ParserError(
-            "Expected either 'Resume Next' or 'GoTo <int>' after 'On Error'"
-        )
+
+            raise ParserError(
+                "Expected either 'Resume Next' or 'GoTo <int>' after 'On Error'"
+            )
+        except AssertionError as ex:
+            raise ParserError("An error occurred in _parse_error_stmt()") from ex
 
     def _parse_exit_stmt(self) -> GlobalStmt:
         """
@@ -1633,13 +1553,11 @@ class Parser:
         ------
         ParserError
         """
-        if (
-            self._try_token_type(TokenType.IDENTIFIER)
-            and self._get_token_code() == "erase"
-        ):
-            self._advance_pos()  # consume 'Erase'
+        try:
+            self._assert_consume(TokenType.IDENTIFIER, "erase")
             return EraseStmt(self._parse_extended_id())
-        raise ParserError("_parse_erase_stmt() could not find 'Erase' token")
+        except AssertionError as ex:
+            raise ParserError("An error occurred in _parse_erase_stmt()") from ex
 
     def _parse_inline_stmt(self) -> GlobalStmt:
         """

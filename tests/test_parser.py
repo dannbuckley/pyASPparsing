@@ -30,6 +30,58 @@ from pyaspparsing.ast_types import *
             SubDecl(ExtendedID(Token.identifier(4, 17))),
         ),
         (
+            "Sub my_subroutine()\nEnd Sub\n",  # sub declaration with parentheses
+            SubDecl(ExtendedID(Token.identifier(4, 17))),
+        ),
+        (
+            "Sub my_subroutine(first)\nEnd Sub\n",  # sub declaration with arg
+            SubDecl(
+                ExtendedID(Token.identifier(4, 17)),
+                [Arg(ExtendedID(Token.identifier(18, 23)))],
+            ),
+        ),
+        (
+            "Sub my_subroutine(first())\nEnd Sub\n",  # sub declaration with paren arg
+            SubDecl(
+                ExtendedID(Token.identifier(4, 17)),
+                [Arg(ExtendedID(Token.identifier(18, 23)), has_paren=True)],
+            ),
+        ),
+        (
+            "Sub my_subroutine(ByVal first)\nEnd Sub\n",  # sub declaration with byval arg
+            SubDecl(
+                ExtendedID(Token.identifier(4, 17)),
+                [
+                    Arg(
+                        ExtendedID(Token.identifier(24, 29)),
+                        arg_modifier=Token.identifier(18, 23),
+                    )
+                ],
+            ),
+        ),
+        (
+            "Sub my_subroutine(ByRef first)\nEnd Sub\n",  # sub declaration with byref arg
+            SubDecl(
+                ExtendedID(Token.identifier(4, 17)),
+                [
+                    Arg(
+                        ExtendedID(Token.identifier(24, 29)),
+                        arg_modifier=Token.identifier(18, 23),
+                    )
+                ],
+            ),
+        ),
+        (
+            "Sub my_subroutine(first, second)\nEnd Sub\n",  # sub declaration with multiple args
+            SubDecl(
+                ExtendedID(Token.identifier(4, 17)),
+                [
+                    Arg(ExtendedID(Token.identifier(18, 23))),
+                    Arg(ExtendedID(Token.identifier(25, 31))),
+                ],
+            ),
+        ),
+        (
             "Private Sub my_subroutine\nEnd Sub\n",  # private sub
             SubDecl(
                 ExtendedID(Token.identifier(12, 25)),
@@ -79,6 +131,58 @@ from pyaspparsing.ast_types import *
         (
             "Function my_function\nEnd Function\n",  # function declaration
             FunctionDecl(ExtendedID(Token.identifier(9, 20))),
+        ),
+        (
+            "Function my_function()\nEnd Function\n",  # function declaration with parentheses
+            FunctionDecl(ExtendedID(Token.identifier(9, 20))),
+        ),
+        (
+            "Function my_function(first)\nEnd Function\n",  # function declaration with arg
+            FunctionDecl(
+                ExtendedID(Token.identifier(9, 20)),
+                [Arg(ExtendedID(Token.identifier(21, 26)))],
+            ),
+        ),
+        (
+            "Function my_function(first())\nEnd Function\n",  # function declaration with paren arg
+            FunctionDecl(
+                ExtendedID(Token.identifier(9, 20)),
+                [Arg(ExtendedID(Token.identifier(21, 26)), has_paren=True)],
+            ),
+        ),
+        (
+            "Function my_function(ByVal first)\nEnd Function\n",  # function declaration with byval arg
+            FunctionDecl(
+                ExtendedID(Token.identifier(9, 20)),
+                [
+                    Arg(
+                        ExtendedID(Token.identifier(27, 32)),
+                        arg_modifier=Token.identifier(21, 26),
+                    )
+                ],
+            ),
+        ),
+        (
+            "Function my_function(ByRef first)\nEnd Function\n",  # function declaration with byref arg
+            FunctionDecl(
+                ExtendedID(Token.identifier(9, 20)),
+                [
+                    Arg(
+                        ExtendedID(Token.identifier(27, 32)),
+                        arg_modifier=Token.identifier(21, 26),
+                    )
+                ],
+            ),
+        ),
+        (
+            "Function my_function(first, second)\nEnd Function\n",  # function declaration with multiple args
+            FunctionDecl(
+                ExtendedID(Token.identifier(9, 20)),
+                [
+                    Arg(ExtendedID(Token.identifier(21, 26))),
+                    Arg(ExtendedID(Token.identifier(28, 34))),
+                ],
+            ),
         ),
         (
             "Private Function my_function\nEnd Function\n",  # private function
