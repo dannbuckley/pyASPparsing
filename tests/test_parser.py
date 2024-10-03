@@ -26,6 +26,202 @@ from pyaspparsing.ast_types import *
             ),
         ),
         (
+            "Public my_var(1)\n",  # public field declaration with array rank list
+            FieldDecl(
+                FieldName(
+                    FieldID(Token.identifier(7, 13)), [Token.int_literal(14, 15)]
+                ),
+                access_mod=AccessModifierType.PUBLIC,
+            ),
+        ),
+        (
+            "Public my_var(1, 2)\n",  # public field declaration with array rank list
+            FieldDecl(
+                FieldName(
+                    FieldID(Token.identifier(7, 13)),
+                    [Token.int_literal(14, 15), Token.int_literal(17, 18)],
+                ),
+                access_mod=AccessModifierType.PUBLIC,
+            ),
+        ),
+        (
+            "Public my_var, my_other_var\n",  # public field declaration with other var
+            FieldDecl(
+                FieldName(FieldID(Token.identifier(7, 13))),
+                [VarName(ExtendedID(Token.identifier(15, 27)))],
+                access_mod=AccessModifierType.PUBLIC,
+            ),
+        ),
+        (
+            "Public my_var, my_other_var, yet_another\n",  # public field declaration with multiple other var
+            FieldDecl(
+                FieldName(FieldID(Token.identifier(7, 13))),
+                [
+                    VarName(ExtendedID(Token.identifier(15, 27))),
+                    VarName(ExtendedID(Token.identifier(29, 40))),
+                ],
+                access_mod=AccessModifierType.PUBLIC,
+            ),
+        ),
+        (
+            "Public my_var, my_other_var(1)\n",  # public field declaration with other var
+            FieldDecl(
+                FieldName(FieldID(Token.identifier(7, 13))),
+                [
+                    VarName(
+                        ExtendedID(Token.identifier(15, 27)),
+                        [Token.int_literal(28, 29)],
+                    )
+                ],
+                access_mod=AccessModifierType.PUBLIC,
+            ),
+        ),
+        (
+            "Public my_var, my_other_var(1, 2)\n",  # public field declaration with other var
+            FieldDecl(
+                FieldName(FieldID(Token.identifier(7, 13))),
+                [
+                    VarName(
+                        ExtendedID(Token.identifier(15, 27)),
+                        [Token.int_literal(28, 29), Token.int_literal(31, 32)],
+                    )
+                ],
+                access_mod=AccessModifierType.PUBLIC,
+            ),
+        ),
+        (
+            "Const a = 1\n",  # const declaration
+            ConstDecl(
+                [
+                    ConstListItem(
+                        ExtendedID(Token.identifier(6, 7)),
+                        IntLiteral(Token.int_literal(10, 11)),
+                    )
+                ]
+            ),
+        ),
+        (
+            "Const a = (1)\n",  # const declaration with paren ConstExprDef
+            ConstDecl(
+                [
+                    ConstListItem(
+                        ExtendedID(Token.identifier(6, 7)),
+                        IntLiteral(Token.int_literal(11, 12)),
+                    )
+                ]
+            ),
+        ),
+        (
+            "Const a = ((1))\n",  # const declaration with nested paren ConstExprDef
+            ConstDecl(
+                [
+                    ConstListItem(
+                        ExtendedID(Token.identifier(6, 7)),
+                        IntLiteral(Token.int_literal(12, 13)),
+                    )
+                ]
+            ),
+        ),
+        (
+            "Const a = -1\n",  # const declaration with sign ConstExprDef
+            ConstDecl(
+                [
+                    ConstListItem(
+                        ExtendedID(Token.identifier(6, 7)),
+                        UnaryExpr(
+                            Token.symbol(10, 11), IntLiteral(Token.int_literal(11, 12))
+                        ),
+                    )
+                ]
+            ),
+        ),
+        (
+            "Const a = +-1\n",  # const declaration with multiple sign ConstExprDef
+            ConstDecl(
+                [
+                    ConstListItem(
+                        ExtendedID(Token.identifier(6, 7)),
+                        UnaryExpr(
+                            Token.symbol(10, 11),
+                            UnaryExpr(
+                                Token.symbol(11, 12),
+                                IntLiteral(Token.int_literal(12, 13)),
+                            ),
+                        ),
+                    )
+                ]
+            ),
+        ),
+        (
+            "Const a = -(1)\n",  # const declaration with sign paren ConstExprDef
+            ConstDecl(
+                [
+                    ConstListItem(
+                        ExtendedID(Token.identifier(6, 7)),
+                        UnaryExpr(
+                            Token.symbol(10, 11), IntLiteral(Token.int_literal(12, 13))
+                        ),
+                    )
+                ]
+            ),
+        ),
+        (
+            "Const a = +(-(1))\n",  # const declaration with multiple sign nested paren ConstExprDef
+            ConstDecl(
+                [
+                    ConstListItem(
+                        ExtendedID(Token.identifier(6, 7)),
+                        UnaryExpr(
+                            Token.symbol(10, 11),
+                            UnaryExpr(
+                                Token.symbol(12, 13),
+                                IntLiteral(Token.int_literal(14, 15)),
+                            ),
+                        ),
+                    )
+                ]
+            ),
+        ),
+        (
+            "Const a = 1, b = 2\n",  # const declaration with multiple items
+            ConstDecl(
+                [
+                    ConstListItem(
+                        ExtendedID(Token.identifier(6, 7)),
+                        IntLiteral(Token.int_literal(10, 11)),
+                    ),
+                    ConstListItem(
+                        ExtendedID(Token.identifier(13, 14)),
+                        IntLiteral(Token.int_literal(17, 18)),
+                    ),
+                ]
+            ),
+        ),
+        (
+            "Public Const a = 1\n",  # public const declaration
+            ConstDecl(
+                [
+                    ConstListItem(
+                        ExtendedID(Token.identifier(13, 14)),
+                        IntLiteral(Token.int_literal(17, 18)),
+                    )
+                ],
+                access_mod=AccessModifierType.PUBLIC,
+            ),
+        ),
+        (
+            "Private Const a = 1\n",  # private const declaration
+            ConstDecl(
+                [
+                    ConstListItem(
+                        ExtendedID(Token.identifier(14, 15)),
+                        IntLiteral(Token.int_literal(18, 19)),
+                    )
+                ],
+                access_mod=AccessModifierType.PRIVATE,
+            ),
+        ),
+        (
             "Sub my_subroutine\nEnd Sub\n",  # sub declaration
             SubDecl(ExtendedID(Token.identifier(4, 17))),
         ),
@@ -127,6 +323,59 @@ from pyaspparsing.ast_types import *
                     )
                 ],
             ),
+        ),
+        (
+            # const declaration as method statement
+            "Sub my_subroutine\nConst a = 42\nEnd Sub\n",
+            SubDecl(
+                ExtendedID(Token.identifier(4, 17)),
+                method_stmt_list=[
+                    ConstDecl(
+                        [
+                            ConstListItem(
+                                ExtendedID(Token.identifier(24, 25)),
+                                IntLiteral(Token.int_literal(28, 30))
+                            )
+                        ]
+                    )
+                ]
+            )
+        ),
+        (
+            # public const declaration as method statement
+            "Sub my_subroutine\nPublic Const a = 42\nEnd Sub\n",
+            SubDecl(
+                ExtendedID(Token.identifier(4, 17)),
+                method_stmt_list=[
+                    ConstDecl(
+                        [
+                            ConstListItem(
+                                ExtendedID(Token.identifier(31, 32)),
+                                IntLiteral(Token.int_literal(35, 37))
+                            )
+                        ],
+                        access_mod=AccessModifierType.PUBLIC
+                    )
+                ]
+            )
+        ),
+        (
+            # private const declaration as method statement
+            "Sub my_subroutine\nPrivate Const a = 42\nEnd Sub\n",
+            SubDecl(
+                ExtendedID(Token.identifier(4, 17)),
+                method_stmt_list=[
+                    ConstDecl(
+                        [
+                            ConstListItem(
+                                ExtendedID(Token.identifier(32, 33)),
+                                IntLiteral(Token.int_literal(36, 38))
+                            )
+                        ],
+                        access_mod=AccessModifierType.PRIVATE
+                    )
+                ]
+            )
         ),
         (
             "Function my_function\nEnd Function\n",  # function declaration
@@ -304,6 +553,48 @@ from pyaspparsing.ast_types import *
                 LeftExpr(QualifiedID([Token.identifier(4, 5)])),
                 LeftExpr(QualifiedID([Token.identifier(12, 13)])),
                 is_new=True,
+            ),
+        ),
+        (
+            "Set a(1,, 3) = 42\n",  # LeftExpr with omitted expr in index or params list
+            AssignStmt(
+                LeftExpr(
+                    QualifiedID([Token.identifier(4, 5)]),
+                    [
+                        IndexOrParams(
+                            [
+                                IntLiteral(Token.int_literal(6, 7)),
+                                None,
+                                IntLiteral(Token.int_literal(10, 11)),
+                            ]
+                        )
+                    ],
+                ),
+                IntLiteral(Token.int_literal(15, 17)),
+            ),
+        ),
+        (
+            "Set a().b(1,, 3) = 42\n",  # LeftExpr with omitted expr in tail index or params list
+            AssignStmt(
+                LeftExpr(
+                    QualifiedID([Token.identifier(4, 5)]),
+                    [IndexOrParams(dot=True)],
+                    [
+                        LeftExprTail(
+                            QualifiedID([Token.identifier(7, 9, dot_start=True)]),
+                            [
+                                IndexOrParams(
+                                    [
+                                        IntLiteral(Token.int_literal(10, 11)),
+                                        None,
+                                        IntLiteral(Token.int_literal(14, 15))
+                                    ]
+                                )
+                            ]
+                        )
+                    ]
+                ),
+                IntLiteral(Token.int_literal(19, 21)),
             ),
         ),
         (
