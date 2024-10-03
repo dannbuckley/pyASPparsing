@@ -47,7 +47,7 @@ class Parser:
         )  # use next(..., None) instead of handling StopIteration
         return self
 
-    def __exit__(self, exc_type, exc_val, tb) -> bool:
+    def __exit__(self, exc_type, exc_val: BaseException, tb) -> bool:
         """
 
         Parameters
@@ -71,6 +71,18 @@ class Parser:
             )
             print("Exception type:", exc_type, file=self.output_file)
             print("Exception value:", str(exc_val), file=self.output_file)
+            caused_by = exc_val.__cause__
+            while caused_by is not None:
+                print("Caused by:", file=self.output_file)
+                print(
+                    "\tException type:",
+                    repr(type(exc_val.__cause__)),
+                    file=self.output_file,
+                )
+                print(
+                    "\tException value:", str(exc_val.__cause__), file=self.output_file
+                )
+                caused_by = caused_by.__cause__
             print("Traceback:", file=self.output_file)
             traceback.print_tb(tb, file=self.output_file)
         self._pos_tok = None
@@ -1112,7 +1124,9 @@ class Parser:
                 ):
                     method_stmt_list.append(self._parse_method_stmt())
             else:
-                method_stmt_list.append(self._parse_inline_stmt())
+                method_stmt_list.append(
+                    self._parse_inline_stmt(TokenType.IDENTIFIER, "end")
+                )
 
             self._assert_consume(TokenType.IDENTIFIER, "end")
             self._assert_consume(TokenType.IDENTIFIER, "sub")
@@ -1164,7 +1178,9 @@ class Parser:
                 ):
                     method_stmt_list.append(self._parse_method_stmt())
             else:
-                method_stmt_list.append(self._parse_inline_stmt())
+                method_stmt_list.append(
+                    self._parse_inline_stmt(TokenType.IDENTIFIER, "end")
+                )
 
             self._assert_consume(TokenType.IDENTIFIER, "end")
             self._assert_consume(TokenType.IDENTIFIER, "function")
@@ -1579,8 +1595,22 @@ class Parser:
         except AssertionError as ex:
             raise ParserError("An error occurred in _parse_erase_stmt()") from ex
 
-    def _parse_inline_stmt(self) -> GlobalStmt:
-        """
+    def _parse_inline_stmt(
+        self,
+        terminal_type: TokenType,
+        terminal_code: typing.Optional[str] = None,
+        terminal_casefold: bool = True,
+    ) -> GlobalStmt:
+        """If inline statement is a subcall statement, uses the given terminal token type
+        to determine the where the statement ends
+
+        Does not consume the terminal token
+
+        Parameters
+        ----------
+        terminal_type : TokenType
+        terminal_code : str | None, default=None
+        terminal_casefold : bool, default=True
 
         Returns
         -------
@@ -1621,17 +1651,77 @@ class Parser:
 
             # must be a subcall statement
             try:
-                if len(left_expr.index_or_params) == 0:
-                    pass
-                if (
-                    len(left_expr.index_or_params) == 1
-                    and left_expr.index_or_params[0].dot == False
-                    and len(left_expr.tail) == 0
-                ):
-                    assert len(left_expr.index_or_params[0].expr_list) in [
-                        0,
-                        1,
-                    ], "If left expression in a subcall statement has one index or params list, that list must contain either zero or one expressions"
+
+                def _check_terminal() -> bool:
+                    """Check for the terminal token
+
+                    Returns
+                    -------
+                    bool
+                        True if the current token is the terminal token
+                    """
+                    nonlocal self, terminal_type, terminal_code, terminal_casefold
+                    return self._try_token_type(terminal_type) and (
+                        (terminal_code is None)
+                        or (
+                            (terminal_code is not None)
+                            and (
+                                self._get_token_code(terminal_casefold) == terminal_code
+                            )
+                        )
+                    )
+
+                # left_expr = <QualifiedID>
+                # or (
+                #   left_expr = <QualifiedID> <IndexOrParamsList> '.' <LeftExprTail>
+                #   or
+                #   left_expr = <QualifiedID> <IndexOrParamsListDot> <LeftExprTail>
+                # )
+                sub_safe_expr = None
+                if len(left_expr.index_or_params) == 0 or len(left_expr.tail) >= 1:
+                    # try to parse sub safe expression
+                    if not (
+                        _check_terminal()
+                        or (
+                            self._try_token_type(TokenType.SYMBOL)
+                            and (self._get_token_code() == ",")
+                        )
+                    ):
+                        sub_safe_expr = self._parse_expr(True)
+                else:
+                    # left_expr = <QualifiedID> <IndexOrParamsList>
+                    # make sure it matches:
+                    #   <QualifiedID> '(' [ <Expr> ] ')'
+                    assert (
+                        len(left_expr.index_or_params) == 1
+                        and 0 <= len(left_expr.index_or_params[0].expr_list) <= 1
+                        and left_expr.index_or_params[0].dot == False
+                        and len(left_expr.tail)
+                        == 0  # redundant check, but just in case
+                    ), "Expected left expression to have the form: <QualifiedID> '(' [ <Expr> ] ')'"
+
+                # try to parse comma expression list
+                comma_expr_list: typing.List[typing.Optional[Expr]] = []
+                found_expr: bool = (
+                    True  # fix: prevents erroneous None on first iteration
+                )
+                while not _check_terminal():
+                    if self._try_consume(TokenType.SYMBOL, ","):
+                        # was the previous entry not empty?
+                        if found_expr:
+                            found_expr = False
+                        else:
+                            comma_expr_list.append(None)
+                    else:
+                        # interpret as expression
+                        comma_expr_list.append(
+                            self._parse_expr()
+                        )  # don't need sub_safe here
+                        found_expr = True
+                # DON'T CONSUME TERMINAL, LEAVE FOR CALLER
+                del found_expr
+
+                return SubCallStmt(left_expr, sub_safe_expr, comma_expr_list)
             except AssertionError as ex:
                 raise ParserError("An error occurred in _parse_inline_stmt()") from ex
         raise ParserError(
@@ -1673,7 +1763,7 @@ class Parser:
                     return self._parse_for_stmt()
 
             # try to parse as inline statement
-            ret_inline = self._parse_inline_stmt()
+            ret_inline = self._parse_inline_stmt(TokenType.NEWLINE)
             try:
                 self._assert_consume(TokenType.NEWLINE)
             except AssertionError as ex:
