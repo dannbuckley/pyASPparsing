@@ -46,15 +46,20 @@ def test_comment_newline(comment_delim: str, newline: str):
         ("Normal_Identifier1", TokenType.IDENTIFIER),  # normal identifier
         ("[_$% :-) @]", TokenType.IDENTIFIER),  # escaped identifier
         ('"This is a valid string"', TokenType.LITERAL_STRING),
+        ('"This is also a ""valid"" string"', TokenType.LITERAL_STRING), # escaped quote
         (".", TokenType.SYMBOL),  # dot symbol
         ("&", TokenType.SYMBOL),  # concatenation operator
         ("(", TokenType.SYMBOL), # should be returned at the very end of __next__()
         ("&H7f", TokenType.LITERAL_HEX),  # lowercase hex
         ("&HAB", TokenType.LITERAL_HEX),  # uppercase hex
+        ("&HFA&", TokenType.LITERAL_HEX), # hex with optional ending '&'
         ("&123", TokenType.LITERAL_OCT),
+        ("&777&", TokenType.LITERAL_OCT), # oct with optional ending '&'
         ("1000", TokenType.LITERAL_INT),
         ("1000.0", TokenType.LITERAL_FLOAT),  # only decimal point
+        ("1000.01", TokenType.LITERAL_FLOAT),  # only decimal point
         ("1E3", TokenType.LITERAL_FLOAT),  # only scientific notation
+        ("1E10", TokenType.LITERAL_FLOAT),  # only scientific notation
         ("1.0E3", TokenType.LITERAL_FLOAT),  # both decimal and scientific notation
         ("1.0E+3", TokenType.LITERAL_FLOAT),  # scientific notation with +/-
         (".01", TokenType.LITERAL_FLOAT),  # no leading digits
@@ -101,7 +106,7 @@ def test_invalid_token(codeblock: str):
 
 
 def test_line_continuation():
-    codeblock = '"Hello, " & _\n" world!"'
+    codeblock = '"Hello, " &  _  \r\n" world!"'
     test_code = Tokenizer(codeblock)
     exp_tok = [
         TokenType.LITERAL_STRING,
