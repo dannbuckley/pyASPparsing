@@ -375,19 +375,22 @@ class Parser:
             "for the qualified identifier symbol"
         )
 
-    def _parse_exp_expr(self) -> Expr:
+    def _parse_exp_expr(self, sub_safe: bool = False) -> Expr:
         """
+        Parameters
+        ----------
+        sub_safe : bool, default=False
 
         Returns
         -------
         Expr
         """
         # exp expression expands to the right, use a stack
-        expr_stack: typing.List[Expr] = [self._parse_value()]
+        expr_stack: typing.List[Expr] = [self._parse_value(sub_safe)]
 
         # more than one term?
         while self._try_consume(TokenType.SYMBOL, "^"):
-            expr_stack.append(self._parse_value())
+            expr_stack.append(self._parse_value(sub_safe))
 
         # combine terms into one expression
         while len(expr_stack) > 1:
@@ -396,8 +399,11 @@ class Parser:
             expr_stack.append(ExpExpr(expr_left, expr_right))
         return expr_stack.pop()
 
-    def _parse_unary_expr(self) -> Expr:
+    def _parse_unary_expr(self, sub_safe: bool = False) -> Expr:
         """
+        Parameters
+        ----------
+        sub_safe : bool, default=False
 
         Returns
         -------
@@ -411,13 +417,16 @@ class Parser:
             self._advance_pos()  # consume sign
 
         # combine signs into one expression
-        ret_expr: Expr = self._parse_exp_expr()
+        ret_expr: Expr = self._parse_exp_expr(sub_safe)
         while len(sign_stack) > 0:
             ret_expr = UnaryExpr(sign_stack.pop(), ret_expr)
         return ret_expr
 
-    def _parse_mult_expr(self) -> Expr:
+    def _parse_mult_expr(self, sub_safe: bool = False) -> Expr:
         """
+        Parameters
+        ----------
+        sub_safe : bool, default=False
 
         Returns
         -------
@@ -425,13 +434,13 @@ class Parser:
         """
         # mult expression expands to the left, use a queue
         op_queue: typing.List[Token] = []
-        expr_queue: typing.List[Expr] = [self._parse_unary_expr()]
+        expr_queue: typing.List[Expr] = [self._parse_unary_expr(sub_safe)]
 
         # more than one term?
         while self._try_token_type(TokenType.SYMBOL) and self._get_token_code() in "*/":
             op_queue.append(self._pos_tok)
             self._advance_pos()  # consume operator
-            expr_queue.append(self._parse_unary_expr())
+            expr_queue.append(self._parse_unary_expr(sub_safe))
 
         # combine terms into one expression
         while len(expr_queue) > 1:
@@ -440,19 +449,22 @@ class Parser:
             expr_queue.insert(0, MultExpr(op_queue.pop(0), expr_left, expr_right))
         return expr_queue.pop()
 
-    def _parse_int_div_expr(self) -> Expr:
+    def _parse_int_div_expr(self, sub_safe: bool = False) -> Expr:
         """
+        Parameters
+        ----------
+        sub_safe : bool, default=False
 
         Returns
         -------
         Expr
         """
         # int div expression expands to the left, use a queue
-        expr_queue: typing.List[Expr] = [self._parse_mult_expr()]
+        expr_queue: typing.List[Expr] = [self._parse_mult_expr(sub_safe)]
 
         # more than one term?
         while self._try_consume(TokenType.SYMBOL, "\\"):
-            expr_queue.append(self._parse_mult_expr())
+            expr_queue.append(self._parse_mult_expr(sub_safe))
 
         # combine terms into one expression
         while len(expr_queue) > 1:
@@ -461,19 +473,22 @@ class Parser:
             expr_queue.insert(0, IntDivExpr(expr_left, expr_right))
         return expr_queue.pop()
 
-    def _parse_mod_expr(self) -> Expr:
+    def _parse_mod_expr(self, sub_safe: bool = False) -> Expr:
         """
+        Parameters
+        ----------
+        sub_safe : bool, default=False
 
         Returns
         -------
         Expr
         """
         # mod expression expands to the left, use a queue
-        expr_queue: typing.List[Expr] = [self._parse_int_div_expr()]
+        expr_queue: typing.List[Expr] = [self._parse_int_div_expr(sub_safe)]
 
         # more than one term?
         while self._try_consume(TokenType.IDENTIFIER, "mod"):
-            expr_queue.append(self._parse_int_div_expr())
+            expr_queue.append(self._parse_int_div_expr(sub_safe))
 
         # combine terms into one expression
         while len(expr_queue) > 1:
@@ -482,8 +497,11 @@ class Parser:
             expr_queue.insert(0, ModExpr(expr_left, expr_right))
         return expr_queue.pop()
 
-    def _parse_add_expr(self) -> Expr:
+    def _parse_add_expr(self, sub_safe: bool = False) -> Expr:
         """
+        Parameters
+        ----------
+        sub_safe : bool, default=False
 
         Returns
         -------
@@ -491,13 +509,13 @@ class Parser:
         """
         # add expression expands to the left, use a queue
         op_queue: typing.List[Token] = []
-        expr_queue: typing.List[Expr] = [self._parse_mod_expr()]
+        expr_queue: typing.List[Expr] = [self._parse_mod_expr(sub_safe)]
 
         # more than one term?
         while self._try_token_type(TokenType.SYMBOL) and self._get_token_code() in "+-":
             op_queue.append(self._pos_tok)
             self._advance_pos()  # consume operator
-            expr_queue.append(self._parse_mod_expr())
+            expr_queue.append(self._parse_mod_expr(sub_safe))
 
         # combine terms into one expression
         while len(expr_queue) > 1:
@@ -506,19 +524,22 @@ class Parser:
             expr_queue.insert(0, AddExpr(op_queue.pop(0), expr_left, expr_right))
         return expr_queue.pop()
 
-    def _parse_concat_expr(self) -> Expr:
+    def _parse_concat_expr(self, sub_safe: bool = False) -> Expr:
         """
+        Parameters
+        ----------
+        sub_safe : bool, default=False
 
         Returns
         -------
         Expr
         """
         # concat expression expands to the left, use a queue
-        expr_queue: typing.List[Expr] = [self._parse_add_expr()]
+        expr_queue: typing.List[Expr] = [self._parse_add_expr(sub_safe)]
 
         # more than one term?
         while self._try_consume(TokenType.SYMBOL, "&"):
-            expr_queue.append(self._parse_add_expr())
+            expr_queue.append(self._parse_add_expr(sub_safe))
 
         # combine terms into one expression
         while len(expr_queue) > 1:
@@ -527,8 +548,11 @@ class Parser:
             expr_queue.insert(0, ConcatExpr(expr_left, expr_right))
         return expr_queue.pop()
 
-    def _parse_compare_expr(self) -> Expr:
+    def _parse_compare_expr(self, sub_safe: bool = False) -> Expr:
         """
+        Parameters
+        ----------
+        sub_safe : bool, default=False
 
         Returns
         -------
@@ -536,7 +560,7 @@ class Parser:
         """
         # compare expression expands to the left, use a queue
         cmp_queue: typing.List[CompareExprType] = []
-        expr_queue: typing.List[Expr] = [self._parse_concat_expr()]
+        expr_queue: typing.List[Expr] = [self._parse_concat_expr(sub_safe)]
 
         # more than one term?
         while (
@@ -601,7 +625,7 @@ class Parser:
                         cmp_queue.append(CompareExprType.COMPARE_EQLT)
                     else:
                         cmp_queue.append(CompareExprType.COMPARE_EQ)
-            expr_queue.append(self._parse_concat_expr())
+            expr_queue.append(self._parse_concat_expr(sub_safe))
 
         # combine terms into one expression
         while len(expr_queue) > 1:
@@ -610,8 +634,11 @@ class Parser:
             expr_queue.insert(0, CompareExpr(cmp_queue.pop(0), expr_left, expr_right))
         return expr_queue.pop()
 
-    def _parse_not_expr(self) -> Expr:
+    def _parse_not_expr(self, sub_safe: bool = False) -> Expr:
         """
+        Parameters
+        ----------
+        sub_safe : bool, default=False
 
         Returns
         -------
@@ -623,22 +650,25 @@ class Parser:
         while self._try_consume(TokenType.IDENTIFIER, "not"):
             not_counter += 1
 
-        not_expr = self._parse_compare_expr()
+        not_expr = self._parse_compare_expr(sub_safe)
         return NotExpr(not_expr) if not_counter % 2 == 1 else not_expr
 
-    def _parse_and_expr(self) -> Expr:
+    def _parse_and_expr(self, sub_safe: bool = False) -> Expr:
         """
+        Parameters
+        ----------
+        sub_safe : bool, default=False
 
         Returns
         -------
         Expr
         """
         # and expression expands to the left, use a queue
-        expr_queue: typing.List[Expr] = [self._parse_not_expr()]
+        expr_queue: typing.List[Expr] = [self._parse_not_expr(sub_safe)]
 
         # more than one term
         while self._try_consume(TokenType.IDENTIFIER, "and"):
-            expr_queue.append(self._parse_not_expr())
+            expr_queue.append(self._parse_not_expr(sub_safe))
 
         # combine terms into one expression
         while len(expr_queue) > 1:
@@ -647,19 +677,22 @@ class Parser:
             expr_queue.insert(0, AndExpr(expr_left, expr_right))
         return expr_queue.pop()
 
-    def _parse_or_expr(self) -> Expr:
+    def _parse_or_expr(self, sub_safe: bool = False) -> Expr:
         """
+        Parameters
+        ----------
+        sub_safe : bool, default=False
 
         Returns
         -------
         Expr
         """
         # or expression expands to the left, use a queue
-        expr_queue: typing.List[Expr] = [self._parse_and_expr()]
+        expr_queue: typing.List[Expr] = [self._parse_and_expr(sub_safe)]
 
         # more than one term?
         while self._try_consume(TokenType.IDENTIFIER, "or"):
-            expr_queue.append(self._parse_and_expr())
+            expr_queue.append(self._parse_and_expr(sub_safe))
 
         # combine terms into one expression
         while len(expr_queue) > 1:
@@ -668,19 +701,22 @@ class Parser:
             expr_queue.insert(0, OrExpr(expr_left, expr_right))
         return expr_queue.pop()
 
-    def _parse_xor_expr(self) -> Expr:
+    def _parse_xor_expr(self, sub_safe: bool = False) -> Expr:
         """
+        Parameters
+        ----------
+        sub_safe : bool, default=False
 
         Returns
         -------
         Expr
         """
         # xor expression expands to the left, use a queue
-        expr_queue: typing.List[Expr] = [self._parse_or_expr()]
+        expr_queue: typing.List[Expr] = [self._parse_or_expr(sub_safe)]
 
         # more than one term?
         while self._try_consume(TokenType.IDENTIFIER, "xor"):
-            expr_queue.append(self._parse_or_expr())
+            expr_queue.append(self._parse_or_expr(sub_safe))
 
         # combine terms into one expression
         while len(expr_queue) > 1:
@@ -689,19 +725,22 @@ class Parser:
             expr_queue.insert(0, XorExpr(expr_left, expr_right))
         return expr_queue.pop()
 
-    def _parse_eqv_expr(self) -> Expr:
+    def _parse_eqv_expr(self, sub_safe: bool = False) -> Expr:
         """
+        Parameters
+        ----------
+        sub_safe : bool, default=False
 
         Returns
         -------
         Expr
         """
         # eqv expression expands to the left, use a queue
-        expr_queue: typing.List[Expr] = [self._parse_xor_expr()]
+        expr_queue: typing.List[Expr] = [self._parse_xor_expr(sub_safe)]
 
         # more than one term?
         while self._try_consume(TokenType.IDENTIFIER, "eqv"):
-            expr_queue.append(self._parse_xor_expr())
+            expr_queue.append(self._parse_xor_expr(sub_safe))
 
         # combine terms into one expression
         while len(expr_queue) > 1:
@@ -710,19 +749,22 @@ class Parser:
             expr_queue.insert(0, EqvExpr(expr_left, expr_right))
         return expr_queue.pop()
 
-    def _parse_imp_expr(self) -> Expr:
+    def _parse_imp_expr(self, sub_safe: bool = False) -> Expr:
         """
+        Parameters
+        ----------
+        sub_safe : bool, default=False
 
         Returns
         -------
         Expr
         """
         # imp expression expands to the left, use a queue
-        expr_queue: typing.List[Expr] = [self._parse_eqv_expr()]
+        expr_queue: typing.List[Expr] = [self._parse_eqv_expr(sub_safe)]
 
         # more than one term?
         while self._try_consume(TokenType.IDENTIFIER, "imp"):
-            expr_queue.append(self._parse_eqv_expr())
+            expr_queue.append(self._parse_eqv_expr(sub_safe))
 
         # combine terms into one expression
         while len(expr_queue) > 1:
@@ -731,14 +773,14 @@ class Parser:
             expr_queue.insert(0, ImpExpr(expr_left, expr_right))
         return expr_queue.pop()
 
-    def _parse_expr(self) -> Expr:
+    def _parse_expr(self, sub_safe: bool = False) -> Expr:
         """
 
         Returns
         -------
         Expr
         """
-        return self._parse_imp_expr()
+        return self._parse_imp_expr(sub_safe)
 
     def _parse_const_expr(self) -> ConstExpr:
         """
@@ -890,8 +932,12 @@ class Parser:
             del index_or_params_tail
         return LeftExpr(qual_id, index_or_params, left_expr_tail)
 
-    def _parse_value(self) -> Expr:
+    def _parse_value(self, sub_safe: bool = False) -> Expr:
         """
+        Parameters
+        ----------
+        sub_safe : bool, default=False
+            If True, disallow expressions that are wrapped in parentheses
 
         Returns
         -------
@@ -901,15 +947,16 @@ class Parser:
         ------
         ParserError
         """
-        # value could be expression wrapped in parentheses
-        if self._try_token_type(TokenType.SYMBOL) and self._get_token_code() == "(":
-            self._advance_pos()  # consume '('
-            ret_expr = self._parse_expr()
-            try:
-                self._assert_consume(TokenType.SYMBOL, ")")
-            except AssertionError as ex:
-                raise ParserError("An error occurred in _parse_value()") from ex
-            return ret_expr
+        if not sub_safe:
+            # value could be expression wrapped in parentheses
+            if self._try_token_type(TokenType.SYMBOL) and self._get_token_code() == "(":
+                self._advance_pos()  # consume '('
+                ret_expr = self._parse_expr()
+                try:
+                    self._assert_consume(TokenType.SYMBOL, ")")
+                except AssertionError as ex:
+                    raise ParserError("An error occurred in _parse_value()") from ex
+                return ret_expr
 
         # try const expression
         if (
@@ -1564,10 +1611,29 @@ class Parser:
                 case "erase":
                     return self._parse_erase_stmt()
 
-                # TODO: assign statement without leading 'Set'
+            # no leading keyword, try parsing a left expression
+            left_expr: LeftExpr = self._parse_left_expr()
 
-                # TODO: subcall statement
-            return InlineStmt()
+            # assign statement?
+            if self._try_consume(TokenType.SYMBOL, "="):
+                assign_expr = self._parse_expr()
+                return AssignStmt(left_expr, assign_expr)
+
+            # must be a subcall statement
+            try:
+                if len(left_expr.index_or_params) == 0:
+                    pass
+                if (
+                    len(left_expr.index_or_params) == 1
+                    and left_expr.index_or_params[0].dot == False
+                    and len(left_expr.tail) == 0
+                ):
+                    assert len(left_expr.index_or_params[0].expr_list) in [
+                        0,
+                        1,
+                    ], "If left expression in a subcall statement has one index or params list, that list must contain either zero or one expressions"
+            except AssertionError as ex:
+                raise ParserError("An error occurred in _parse_inline_stmt()") from ex
         raise ParserError(
             "Inline statement should start with an identifier or dotted identifier"
         )

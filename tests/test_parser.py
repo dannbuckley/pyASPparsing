@@ -285,6 +285,13 @@ from pyaspparsing.ast_types import *
             ),
         ),
         (
+            "a = 1\n",  # LeftExpr = Expr
+            AssignStmt(
+                LeftExpr(QualifiedID([Token.identifier(0, 1)])),
+                IntLiteral(Token.int_literal(4, 5)),
+            ),
+        ),
+        (
             "Set a = 1\n",  # Set LeftExpr = Expr
             AssignStmt(
                 LeftExpr(QualifiedID([Token.identifier(4, 5)])),

@@ -436,6 +436,10 @@ class CallStmt(InlineStmt):
 class SubCallStmt(InlineStmt):
     """Defined on grammar line 414"""
 
+    left_expr: Expr
+    sub_safe_expr: typing.Optional[Expr] = attrs.field(default=None)
+    comma_expr_list: typing.List[typing.Optional[Expr]] = attrs.field(default=attrs.Factory(list))
+
 
 @attrs.define(slots=False)
 class ErrorStmt(InlineStmt):
