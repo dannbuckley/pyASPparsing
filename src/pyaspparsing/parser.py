@@ -1030,8 +1030,58 @@ class Parser:
             raise ParserError("An error occurred in _parse_option_explicit()") from ex
 
     def _parse_member_decl(self) -> MemberDecl:
-        """"""
-        return MemberDecl()
+        """
+        Could be one of:
+        - FieldDecl
+        - VarDecl
+        - ConstDecl
+        - SubDecl
+        - FunctionDecl
+        - PropertyDecl
+        """
+        try:
+            if (
+                self._try_token_type(TokenType.IDENTIFIER)
+                and self._get_token_code() == "dim"
+            ):
+                return self._parse_var_decl()
+
+            # identify access modifier
+            access_mod: typing.Optional[AccessModifierType] = None
+            if self._try_consume(TokenType.IDENTIFIER, "public"):
+                if self._try_consume(TokenType.IDENTIFIER, "default"):
+                    access_mod = AccessModifierType.PUBLIC_DEFAULT
+                else:
+                    access_mod = AccessModifierType.PUBLIC
+            elif self._try_consume(TokenType.IDENTIFIER, "private"):
+                access_mod = AccessModifierType.PRIVATE
+
+            # must have identifier after access modifier
+            assert self._try_token_type(
+                TokenType.IDENTIFIER
+            ), "Member declaration must start with an identifier token"
+
+            # check for other declaration types
+            match self._get_token_code():
+                case "const":
+                    assert (
+                        access_mod != AccessModifierType.PUBLIC_DEFAULT
+                    ), "'Public Default' access modifier cannot be used with const declaration"
+                    return self._parse_const_decl(access_mod)
+                case "sub":
+                    return self._parse_sub_decl(access_mod)
+                case "function":
+                    return self._parse_function_decl(access_mod)
+                case "property":
+                    return self._parse_property_decl(access_mod)
+
+            # assume this is a field declaration
+            assert (
+                access_mod is not None
+            ), "Expected access modifier in field declaration"
+            return self._parse_field_decl(access_mod)
+        except AssertionError as ex:
+            raise ParserError("An error occurred in _parse_member_decl()") from ex
 
     def _parse_class_decl(self) -> GlobalStmt:
         """
@@ -1044,42 +1094,25 @@ class Parser:
         ------
         ParserError
         """
-        if (
-            self._try_token_type(TokenType.IDENTIFIER)
-            and self._get_token_code() == "class"
-        ):
-            self._advance_pos()  # consume 'Class'
-            # should have an extended identifier
+        try:
+            self._assert_consume(TokenType.IDENTIFIER, "class")
             class_id = self._parse_extended_id()
-            if not self._try_token_type(TokenType.NEWLINE):
-                raise ParserError("Missing newline after class identifier")
-            self._advance_pos()  # consume newline
+            self._assert_consume(TokenType.NEWLINE)
 
             # member declaration list could be empty
             member_decl_list: typing.List[MemberDecl] = []
-            while (
+            while not (
                 self._try_token_type(TokenType.IDENTIFIER)
-                and self._get_token_code() != "end"
+                and self._get_token_code() == "end"
             ):
                 member_decl_list.append(self._parse_member_decl())
 
-            if (
-                not self._try_token_type(TokenType.IDENTIFIER)
-                or self._get_token_code() != "end"
-            ):
-                raise ParserError("Expected 'End' after class member declaration list")
-            self._advance_pos()  # consume 'End'
-            if (
-                not self._try_token_type(TokenType.IDENTIFIER)
-                or self._get_token_code() != "class"
-            ):
-                raise ParserError("Expected 'Class' after 'End' in class declaration")
-            self._advance_pos()  # consume 'Class'
-            if not self._try_token_type(TokenType.NEWLINE):
-                raise ParserError("Missing newline after 'End Class'")
-            self._advance_pos()  # consume newline
+            self._assert_consume(TokenType.IDENTIFIER, "end")
+            self._assert_consume(TokenType.IDENTIFIER, "class")
+            self._assert_consume(TokenType.NEWLINE)
             return ClassDecl(class_id, member_decl_list)
-        raise ParserError("_parse_class_decl() did not find 'Class' token")
+        except AssertionError as ex:
+            raise ParserError("An error occurred in _parse_class_decl()") from ex
 
     def _parse_field_decl(self, access_mod: AccessModifierType) -> GlobalStmt:
         """
