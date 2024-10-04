@@ -1698,9 +1698,99 @@ class Parser:
         except AssertionError as ex:
             raise ParserError("An error occurred in _parse_call_stmt()") from ex
 
-    def _parse_subcall_stmt(self) -> GlobalStmt:
-        """"""
-        return SubCallStmt()
+    def _parse_subcall_stmt(
+        self,
+        left_expr: LeftExpr,
+        terminal_type: TokenType,
+        terminal_code: typing.Optional[str] = None,
+        terminal_casefold: bool = True,
+    ) -> GlobalStmt:
+        """
+
+        Parameters
+        ----------
+        left_expr : LeftExpr
+        terminal_type : TokenType
+        terminal_code : str | None, default=None,
+        terminal_casefold : bool, default=True
+
+        Returns
+        -------
+        GlobalStmt
+
+        Raises
+        ------
+        ParserError
+        """
+        try:
+
+            def _check_terminal() -> bool:
+                """Check for the terminal token
+
+                Returns
+                -------
+                bool
+                    True if the current token is the terminal token
+                """
+                nonlocal self, terminal_type, terminal_code, terminal_casefold
+                return self._try_token_type(terminal_type) and (
+                    (terminal_code is None)
+                    or (
+                        (terminal_code is not None)
+                        and (self._get_token_code(terminal_casefold) == terminal_code)
+                    )
+                )
+
+            sub_safe_expr = None
+            if len(left_expr.index_or_params) == 0 or len(left_expr.tail) >= 1:
+                # left_expr = <QualifiedID>
+                # or (
+                #   left_expr = <QualifiedID> <IndexOrParamsList> '.' <LeftExprTail>
+                #   or
+                #   left_expr = <QualifiedID> <IndexOrParamsListDot> <LeftExprTail>
+                # )
+                # try to parse sub safe expression
+                if not (
+                    _check_terminal()
+                    or (
+                        self._try_token_type(TokenType.SYMBOL)
+                        and (self._get_token_code() == ",")
+                    )
+                ):
+                    sub_safe_expr = self._parse_expr(True)
+            else:
+                # left_expr = <QualifiedID> <IndexOrParamsList>
+                # make sure it matches:
+                #   <QualifiedID> '(' [ <Expr> ] ')'
+                assert (
+                    len(left_expr.index_or_params) == 1
+                    and 0 <= len(left_expr.index_or_params[0].expr_list) <= 1
+                    and left_expr.index_or_params[0].dot == False
+                    and len(left_expr.tail) == 0  # redundant check, but just in case
+                ), "Expected left expression to have the form: <QualifiedID> '(' [ <Expr> ] ')'"
+
+            # try to parse comma expression list
+            comma_expr_list: typing.List[typing.Optional[Expr]] = []
+            found_expr: bool = True  # fix: prevents erroneous None on first iteration
+            while not _check_terminal():
+                if self._try_consume(TokenType.SYMBOL, ","):
+                    # was the previous entry not empty?
+                    if found_expr:
+                        found_expr = False
+                    else:
+                        comma_expr_list.append(None)
+                else:
+                    # interpret as expression
+                    comma_expr_list.append(
+                        self._parse_expr()
+                    )  # don't need sub_safe here
+                    found_expr = True
+            # DON'T CONSUME TERMINAL, LEAVE FOR CALLER
+            del found_expr
+
+            return SubCallStmt(left_expr, sub_safe_expr, comma_expr_list)
+        except AssertionError as ex:
+            raise ParserError("An error occurred in _parse_inline_stmt()") from ex
 
     def _parse_error_stmt(self) -> GlobalStmt:
         """
@@ -1749,26 +1839,23 @@ class Parser:
         ------
         ParserError
         """
-        if (
-            not self._try_token_type(TokenType.IDENTIFIER)
-            or self._get_token_code() != "exit"
-        ):
-            raise ParserError("Expected 'Exit' in exit statement")
-        self._advance_pos()  # consume 'Exit'
-
-        if self._try_token_type(TokenType.IDENTIFIER):
-            if self._get_token_code() in ["do", "for", "function", "property", "sub"]:
-                exit_tok = self._pos_tok
-                self._advance_pos()  # consume exit type token
-                return ExitStmt(exit_tok)
-            raise ParserError(
-                "Invalid identifier found after 'Exit'; "
-                "expected one of 'Do', 'For', 'Function', 'Property', or 'Sub'"
-            )
-        raise ParserError(
-            "Expected one of 'Do', 'For', 'Function', "
-            "'Property', or 'Sub' after 'Exit'"
-        )
+        try:
+            self._assert_consume(TokenType.IDENTIFIER, "exit")
+            # get exit type
+            assert self._try_token_type(
+                TokenType.IDENTIFIER
+            ) and self._get_token_code() in [
+                "do",
+                "for",
+                "function",
+                "property",
+                "sub",
+            ], "Expected one of the following after 'Exit': 'Do', 'For', 'Function', 'Property', or 'Sub'"
+            exit_tok = self._pos_tok
+            self._advance_pos()  # consume exit type token
+            return ExitStmt(exit_tok)
+        except AssertionError as ex:
+            raise ParserError("An error occurred in _parse_exit_stmt()") from ex
 
     def _parse_erase_stmt(self) -> GlobalStmt:
         """
@@ -1842,80 +1929,9 @@ class Parser:
                 return AssignStmt(left_expr, assign_expr)
 
             # must be a subcall statement
-            try:
-
-                def _check_terminal() -> bool:
-                    """Check for the terminal token
-
-                    Returns
-                    -------
-                    bool
-                        True if the current token is the terminal token
-                    """
-                    nonlocal self, terminal_type, terminal_code, terminal_casefold
-                    return self._try_token_type(terminal_type) and (
-                        (terminal_code is None)
-                        or (
-                            (terminal_code is not None)
-                            and (
-                                self._get_token_code(terminal_casefold) == terminal_code
-                            )
-                        )
-                    )
-
-                sub_safe_expr = None
-                if len(left_expr.index_or_params) == 0 or len(left_expr.tail) >= 1:
-                    # left_expr = <QualifiedID>
-                    # or (
-                    #   left_expr = <QualifiedID> <IndexOrParamsList> '.' <LeftExprTail>
-                    #   or
-                    #   left_expr = <QualifiedID> <IndexOrParamsListDot> <LeftExprTail>
-                    # )
-                    # try to parse sub safe expression
-                    if not (
-                        _check_terminal()
-                        or (
-                            self._try_token_type(TokenType.SYMBOL)
-                            and (self._get_token_code() == ",")
-                        )
-                    ):
-                        sub_safe_expr = self._parse_expr(True)
-                else:
-                    # left_expr = <QualifiedID> <IndexOrParamsList>
-                    # make sure it matches:
-                    #   <QualifiedID> '(' [ <Expr> ] ')'
-                    assert (
-                        len(left_expr.index_or_params) == 1
-                        and 0 <= len(left_expr.index_or_params[0].expr_list) <= 1
-                        and left_expr.index_or_params[0].dot == False
-                        and len(left_expr.tail)
-                        == 0  # redundant check, but just in case
-                    ), "Expected left expression to have the form: <QualifiedID> '(' [ <Expr> ] ')'"
-
-                # try to parse comma expression list
-                comma_expr_list: typing.List[typing.Optional[Expr]] = []
-                found_expr: bool = (
-                    True  # fix: prevents erroneous None on first iteration
-                )
-                while not _check_terminal():
-                    if self._try_consume(TokenType.SYMBOL, ","):
-                        # was the previous entry not empty?
-                        if found_expr:
-                            found_expr = False
-                        else:
-                            comma_expr_list.append(None)
-                    else:
-                        # interpret as expression
-                        comma_expr_list.append(
-                            self._parse_expr()
-                        )  # don't need sub_safe here
-                        found_expr = True
-                # DON'T CONSUME TERMINAL, LEAVE FOR CALLER
-                del found_expr
-
-                return SubCallStmt(left_expr, sub_safe_expr, comma_expr_list)
-            except AssertionError as ex:
-                raise ParserError("An error occurred in _parse_inline_stmt()") from ex
+            return self._parse_subcall_stmt(
+                left_expr, terminal_type, terminal_code, terminal_casefold
+            )
         raise ParserError(
             "Inline statement should start with an identifier or dotted identifier"
         )
