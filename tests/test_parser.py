@@ -1191,6 +1191,85 @@ from pyaspparsing.ast_types import *
             ),
         ),
         (
+            # empty while loop
+            "While True\nWEnd\n",
+            LoopStmt(
+                loop_type=Token.identifier(0, 5),
+                loop_expr=BoolLiteral(Token.identifier(6, 10))
+            )
+        ),
+        (
+            # while loop
+            "While True\nSet a = a + 1\nWEnd\n",
+            LoopStmt(
+                [
+                    AssignStmt(
+                        LeftExpr(QualifiedID([Token.identifier(15, 16)])),
+                        AddExpr(
+                            Token.symbol(21, 22),
+                            LeftExpr(QualifiedID([Token.identifier(19, 20)])),
+                            IntLiteral(Token.int_literal(23, 24))
+                        )
+                    )
+                ],
+                loop_type=Token.identifier(0, 5),
+                loop_expr=BoolLiteral(Token.identifier(6, 10))
+            )
+        ),
+        (
+            # empty do loop
+            "Do\nLoop\n",
+            LoopStmt()
+        ),
+        (
+            # do loop
+            "Do\nSet a = a + 1\nLoop\n",
+            LoopStmt(
+                [
+                    AssignStmt(
+                        LeftExpr(QualifiedID([Token.identifier(7, 8)])),
+                        AddExpr(
+                            Token.symbol(13, 14),
+                            LeftExpr(QualifiedID([Token.identifier(11, 12)])),
+                            IntLiteral(Token.int_literal(15, 16))
+                        )
+                    )
+                ]
+            )
+        ),
+        (
+            # empty do while loop - beginning
+            "Do While True\nLoop\n",
+            LoopStmt(
+                loop_type=Token.identifier(3, 8),
+                loop_expr=BoolLiteral(Token.identifier(9, 13))
+            )
+        ),
+        (
+            # empty do until loop - beginning
+            "Do Until True\nLoop\n",
+            LoopStmt(
+                loop_type=Token.identifier(3, 8),
+                loop_expr=BoolLiteral(Token.identifier(9, 13))
+            )
+        ),
+        (
+            # empty do while loop - end
+            "Do\nLoop While True\n",
+            LoopStmt(
+                loop_type=Token.identifier(8, 13),
+                loop_expr=BoolLiteral(Token.identifier(14, 18))
+            )
+        ),
+        (
+            # empty do until loop - end
+            "Do\nLoop Until True\n",
+            LoopStmt(
+                loop_type=Token.identifier(8, 13),
+                loop_expr=BoolLiteral(Token.identifier(14, 18))
+            )
+        ),
+        (
             "a = 1\n",  # LeftExpr = Expr
             AssignStmt(
                 LeftExpr(QualifiedID([Token.identifier(0, 1)])),

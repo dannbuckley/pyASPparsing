@@ -1842,7 +1842,71 @@ class Parser:
 
     def _parse_loop_stmt(self) -> GlobalStmt:
         """"""
-        return LoopStmt()
+        try:
+            assert self._try_token_type(
+                TokenType.IDENTIFIER
+            ) and self._get_token_code() in [
+                "do",
+                "while",
+            ], "Loop statement must start with 'Do' or 'While'"
+            block_stmt_list: typing.List[BlockStmt] = []
+            if self._get_token_code() == "while":
+                # loop type is 'While'
+                loop_type: Token = self._pos_tok
+                self._advance_pos()  # consume loop type
+                loop_expr: Expr = self._parse_expr()
+                self._assert_consume(TokenType.NEWLINE)
+                while not (
+                    self._try_token_type(TokenType.IDENTIFIER)
+                    and self._get_token_code() == "wend"
+                ):
+                    block_stmt_list.append(self._parse_block_stmt())
+                self._assert_consume(TokenType.IDENTIFIER, "wend")
+                self._assert_consume(TokenType.NEWLINE)
+                return LoopStmt(
+                    block_stmt_list, loop_type=loop_type, loop_expr=loop_expr
+                )
+
+            # must be 'Do' loop
+            self._assert_consume(TokenType.IDENTIFIER, "do")
+            loop_type: typing.Optional[Token] = None
+            loop_expr: typing.Optional[Expr] = None
+
+            def _check_for_loop_type() -> bool:
+                nonlocal self, loop_type, loop_expr
+                if not self._try_token_type(TokenType.NEWLINE):
+                    assert self._try_token_type(
+                        TokenType.IDENTIFIER
+                    ) and self._get_token_code() in [
+                        "while",
+                        "until",
+                    ], "Loop type must be either 'While' or 'Until'"
+                    loop_type = self._pos_tok
+                    self._advance_pos()  # consume loop type
+                    loop_expr = self._parse_expr()
+                    return True
+                return False
+
+            # check if loop type is at the beginning
+            found_loop_type = _check_for_loop_type()
+            self._assert_consume(TokenType.NEWLINE)
+
+            # block statement list
+            while not (
+                self._try_token_type(TokenType.IDENTIFIER)
+                and self._get_token_code() == "loop"
+            ):
+                block_stmt_list.append(self._parse_block_stmt())
+            self._assert_consume(TokenType.IDENTIFIER, "loop")
+
+            # check if loop type is at the end
+            if not found_loop_type:
+                _check_for_loop_type()
+            self._assert_consume(TokenType.NEWLINE)
+
+            return LoopStmt(block_stmt_list, loop_type=loop_type, loop_expr=loop_expr)
+        except AssertionError as ex:
+            raise ParserError("An error occurred in _parse_loop_stmt()") from ex
 
     def _parse_for_stmt(self) -> GlobalStmt:
         """"""
