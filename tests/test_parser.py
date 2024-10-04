@@ -838,11 +838,229 @@ from pyaspparsing.ast_types import *
                         ExtendedID(Token.identifier(6, 14)),
                         [
                             IntLiteral(Token.int_literal(15, 17)),
-                            IntLiteral(Token.int_literal(19, 21))
-                        ]
+                            IntLiteral(Token.int_literal(19, 21)),
+                        ],
                     )
                 ]
-            )
+            ),
+        ),
+        (
+            # if statement (BlockStmtList), empty block list
+            "If 1 = 1 Then\nEnd If\n",
+            IfStmt(
+                CompareExpr(
+                    CompareExprType.COMPARE_EQ,
+                    IntLiteral(Token.int_literal(3, 4)),
+                    IntLiteral(Token.int_literal(7, 8)),
+                )
+            ),
+        ),
+        (
+            # if statement (BlockStmtList), one block statement
+            "If 1 = 1 Then\nDim my_var\nEnd If\n",
+            IfStmt(
+                CompareExpr(
+                    CompareExprType.COMPARE_EQ,
+                    IntLiteral(Token.int_literal(3, 4)),
+                    IntLiteral(Token.int_literal(7, 8)),
+                ),
+                [VarDecl([VarName(ExtendedID(Token.identifier(18, 24)))])],
+            ),
+        ),
+        (
+            # if statement (BlockStmtList), empty elseif (BlockStmtList)
+            "If 1 = 2 Then\nElseIf 1 = 1 Then\nEnd If\n",
+            IfStmt(
+                CompareExpr(
+                    CompareExprType.COMPARE_EQ,
+                    IntLiteral(Token.int_literal(3, 4)),
+                    IntLiteral(Token.int_literal(7, 8)),
+                ),
+                else_stmt_list=[
+                    ElseStmt(
+                        [],
+                        elif_expr=CompareExpr(
+                            CompareExprType.COMPARE_EQ,
+                            IntLiteral(Token.int_literal(21, 22)),
+                            IntLiteral(Token.int_literal(25, 26)),
+                        ),
+                    )
+                ],
+            ),
+        ),
+        (
+            # if statement (BlockStmtList), elseif with block statement
+            "If 1 = 2 Then\nElseIf 1 = 1 Then\nDim my_var\nEnd If\n",
+            IfStmt(
+                CompareExpr(
+                    CompareExprType.COMPARE_EQ,
+                    IntLiteral(Token.int_literal(3, 4)),
+                    IntLiteral(Token.int_literal(7, 8)),
+                ),
+                else_stmt_list=[
+                    ElseStmt(
+                        [VarDecl([VarName(ExtendedID(Token.identifier(36, 42)))])],
+                        elif_expr=CompareExpr(
+                            CompareExprType.COMPARE_EQ,
+                            IntLiteral(Token.int_literal(21, 22)),
+                            IntLiteral(Token.int_literal(25, 26)),
+                        ),
+                    )
+                ],
+            ),
+        ),
+        (
+            # if statement (BlockStmtList), elseif with inline statement
+            'If 1 = 2 Then\nElseIf 1 = 1 Then Response.Write("Hello, world!")\nEnd If\n',
+            IfStmt(
+                CompareExpr(
+                    CompareExprType.COMPARE_EQ,
+                    IntLiteral(Token.int_literal(3, 4)),
+                    IntLiteral(Token.int_literal(7, 8)),
+                ),
+                else_stmt_list=[
+                    ElseStmt(
+                        [
+                            SubCallStmt(
+                                LeftExpr(
+                                    QualifiedID(
+                                        [
+                                            Token.identifier(32, 41, dot_end=True),
+                                            Token.identifier(41, 46),
+                                        ]
+                                    ),
+                                    [
+                                        IndexOrParams(
+                                            [ConstExpr(Token.string_literal(47, 62))]
+                                        )
+                                    ],
+                                )
+                            )
+                        ],
+                        elif_expr=CompareExpr(
+                            CompareExprType.COMPARE_EQ,
+                            IntLiteral(Token.int_literal(21, 22)),
+                            IntLiteral(Token.int_literal(25, 26)),
+                        ),
+                    )
+                ],
+            ),
+        ),
+        (
+            # if statement (BlockStmtList), empty else (BlockStmtList)
+            "If 1 = 2 Then\nElse\nEnd If\n",
+            IfStmt(
+                CompareExpr(
+                    CompareExprType.COMPARE_EQ,
+                    IntLiteral(Token.int_literal(3, 4)),
+                    IntLiteral(Token.int_literal(7, 8)),
+                ),
+                else_stmt_list=[ElseStmt(is_else=True)],
+            ),
+        ),
+        (
+            # if statement (BlockStmtList), else with block statement
+            "If 1 = 2 Then\nElse\nDim my_var\nEnd If\n",
+            IfStmt(
+                CompareExpr(
+                    CompareExprType.COMPARE_EQ,
+                    IntLiteral(Token.int_literal(3, 4)),
+                    IntLiteral(Token.int_literal(7, 8)),
+                ),
+                else_stmt_list=[ElseStmt(
+                    [
+                        VarDecl([VarName(ExtendedID(Token.identifier(23, 29)))])
+                    ],
+                    is_else=True
+                )],
+            ),
+        ),
+        (
+            # if statement (BlockStmtList), else with inline statement
+            'If 1 = 2 Then\nElse Response.Write("Hello, world!")\nEnd If\n',
+            IfStmt(
+                CompareExpr(
+                    CompareExprType.COMPARE_EQ,
+                    IntLiteral(Token.int_literal(3, 4)),
+                    IntLiteral(Token.int_literal(7, 8)),
+                ),
+                else_stmt_list=[ElseStmt(
+                    [
+                        SubCallStmt(
+                            LeftExpr(
+                                QualifiedID([
+                                    Token.identifier(19, 28, dot_end=True),
+                                    Token.identifier(28, 33)
+                                ]),
+                                [IndexOrParams([ConstExpr(Token.string_literal(34, 49))])]
+                            )
+                        )
+                    ],
+                    is_else=True
+                )],
+            ),
+        ),
+        (
+            # if statement (InlineStmt), empty until newline
+            "If 1 = 1 Then a = 1\n",
+            IfStmt(
+                CompareExpr(
+                    CompareExprType.COMPARE_EQ,
+                    IntLiteral(Token.int_literal(3, 4)),
+                    IntLiteral(Token.int_literal(7, 8)),
+                ),
+                [
+                    AssignStmt(
+                        LeftExpr(QualifiedID([Token.identifier(14, 15)])),
+                        IntLiteral(Token.int_literal(18, 19))
+                    )
+                ]
+            ),
+        ),
+        (
+            # if statement (InlineStmt), else
+            "If 1 = 2 Then a = 1 Else a = 2\n",
+            IfStmt(
+                CompareExpr(
+                    CompareExprType.COMPARE_EQ,
+                    IntLiteral(Token.int_literal(3, 4)),
+                    IntLiteral(Token.int_literal(7, 8)),
+                ),
+                [
+                    AssignStmt(
+                        LeftExpr(QualifiedID([Token.identifier(14, 15)])),
+                        IntLiteral(Token.int_literal(18, 19))
+                    )
+                ],
+                [
+                    ElseStmt(
+                        [
+                            AssignStmt(
+                                LeftExpr(QualifiedID([Token.identifier(25, 26)])),
+                                IntLiteral(Token.int_literal(29, 30))
+                            )
+                        ],
+                        is_else=True
+                    )
+                ]
+            ),
+        ),
+        (
+            # if statement (InlineStmt), end if
+            "If 1 = 1 Then a = 1 End If\n",
+            IfStmt(
+                CompareExpr(
+                    CompareExprType.COMPARE_EQ,
+                    IntLiteral(Token.int_literal(3, 4)),
+                    IntLiteral(Token.int_literal(7, 8)),
+                ),
+                [
+                    AssignStmt(
+                        LeftExpr(QualifiedID([Token.identifier(14, 15)])),
+                        IntLiteral(Token.int_literal(18, 19))
+                    )
+                ]
+            ),
         ),
         (
             "a = 1\n",  # LeftExpr = Expr

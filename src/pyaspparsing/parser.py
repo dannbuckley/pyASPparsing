@@ -1631,7 +1631,7 @@ class Parser:
 
     def _parse_redim_stmt(self) -> GlobalStmt:
         """
-        
+
         Returns
         -------
         GlobalStmt
@@ -1664,7 +1664,116 @@ class Parser:
 
     def _parse_if_stmt(self) -> GlobalStmt:
         """"""
-        return IfStmt()
+        try:
+            self._assert_consume(TokenType.IDENTIFIER, "if")
+            if_expr = self._parse_expr()
+            self._assert_consume(TokenType.IDENTIFIER, "then")
+
+            block_stmt_list: typing.List[BlockStmt] = []
+            else_stmt_list: typing.List[ElseStmt] = []
+            if self._try_token_type(TokenType.NEWLINE):
+                self._advance_pos()  # consume newline
+                # block statement list
+                while not (
+                    self._try_token_type(TokenType.IDENTIFIER)
+                    and self._get_token_code() in ["elseif", "else", "end"]
+                ):
+                    block_stmt_list.append(self._parse_block_stmt())
+                # check for 'ElseIf' statements
+                if (
+                    self._try_token_type(TokenType.IDENTIFIER)
+                    and self._get_token_code() == "elseif"
+                ):
+                    while not (
+                        self._try_token_type(TokenType.IDENTIFIER)
+                        and self._get_token_code() in ["else", "end"]
+                    ):
+                        elif_stmt_list: typing.List[BlockStmt] = []
+                        self._assert_consume(TokenType.IDENTIFIER, "elseif")
+                        elif_expr: Expr = self._parse_expr()
+                        self._assert_consume(TokenType.IDENTIFIER, "then")
+                        if self._try_token_type(TokenType.NEWLINE):
+                            self._advance_pos()  # consume newline
+                            # block statement list
+                            while not (
+                                self._try_token_type(TokenType.IDENTIFIER)
+                                and self._get_token_code() in ["elseif", "else", "end"]
+                            ):
+                                elif_stmt_list.append(self._parse_block_stmt())
+                        else:
+                            # inline statement
+                            elif_stmt_list.append(
+                                self._parse_inline_stmt(TokenType.NEWLINE)
+                            )
+                            self._assert_consume(TokenType.NEWLINE)
+                        else_stmt_list.append(
+                            ElseStmt(elif_stmt_list, elif_expr=elif_expr)
+                        )
+                        del elif_expr, elif_stmt_list
+                # check for 'Else' statement
+                if self._try_consume(TokenType.IDENTIFIER, "else"):
+                    else_block_list: typing.List[BlockStmt] = []
+                    if self._try_token_type(TokenType.NEWLINE):
+                        self._advance_pos()  # consume newline
+                        # block statement list
+                        while not (
+                            self._try_token_type(TokenType.IDENTIFIER)
+                            and self._get_token_code() == "end"
+                        ):
+                            else_block_list.append(self._parse_block_stmt())
+                    else:
+                        # inline statement
+                        else_block_list.append(
+                            self._parse_inline_stmt(TokenType.NEWLINE)
+                        )
+                        self._assert_consume(TokenType.NEWLINE)
+                    else_stmt_list.append(ElseStmt(else_block_list, is_else=True))
+                    del else_block_list
+                # finish if statement
+                self._assert_consume(TokenType.IDENTIFIER, "end")
+                self._assert_consume(TokenType.IDENTIFIER, "if")
+                self._assert_consume(TokenType.NEWLINE)
+            else:
+                # inline statement
+                block_stmt_list.append(
+                    self._parse_inline_stmt(
+                        terminal_pairs=[
+                            (
+                                TokenType.IDENTIFIER,
+                                "else",
+                            ),  # optional 'Else' <InlineStmt>
+                            (TokenType.IDENTIFIER, "end"),  # optional 'End' 'If'
+                            (TokenType.NEWLINE),  # if statement terminator
+                        ]
+                    )
+                )
+                # check for 'Else' statement
+                if self._try_consume(TokenType.IDENTIFIER, "else"):
+                    else_stmt_list.append(
+                        ElseStmt(
+                            [
+                                self._parse_inline_stmt(
+                                    terminal_pairs=[
+                                        (
+                                            TokenType.IDENTIFIER,
+                                            "end",
+                                        ),  # optional 'End' 'If'
+                                        (TokenType.NEWLINE),  # if statement terminator
+                                    ]
+                                )
+                            ],
+                            is_else=True,
+                        )
+                    )
+                # check for 'End' 'If'
+                if self._try_consume(TokenType.IDENTIFIER, "end"):
+                    self._assert_consume(TokenType.IDENTIFIER, "if")
+                # finish if statement
+                self._assert_consume(TokenType.NEWLINE)
+
+            return IfStmt(if_expr, block_stmt_list, else_stmt_list)
+        except AssertionError as ex:
+            raise ParserError("An error occurred in _parse_if_stmt()") from ex
 
     def _parse_with_stmt(self) -> GlobalStmt:
         """"""
@@ -1730,9 +1839,11 @@ class Parser:
     def _parse_subcall_stmt(
         self,
         left_expr: LeftExpr,
-        terminal_type: TokenType,
+        terminal_type: typing.Optional[TokenType] = None,
         terminal_code: typing.Optional[str] = None,
         terminal_casefold: bool = True,
+        *,
+        terminal_pairs: typing.List[typing.Tuple[TokenType, typing.Optional[str]]] = [],
     ) -> GlobalStmt:
         """
 
@@ -1742,6 +1853,9 @@ class Parser:
         terminal_type : TokenType
         terminal_code : str | None, default=None,
         terminal_casefold : bool, default=True
+        terminal_pairs : List[Tuple[TokenType, str | None]] = []
+            If len(terminal_pairs) > 0, will compare against the contents of terminal_pairs
+            instead of using terminal_type and terminal_code
 
         Returns
         -------
@@ -1752,6 +1866,9 @@ class Parser:
         ParserError
         """
         try:
+            assert (len(terminal_pairs) > 0) or (
+                terminal_type is not None
+            ), "Expected at least one terminal type or type/code pair"
 
             def _check_terminal() -> bool:
                 """Check for the terminal token
@@ -1761,13 +1878,21 @@ class Parser:
                 bool
                     True if the current token is the terminal token
                 """
-                nonlocal self, terminal_type, terminal_code, terminal_casefold
+                nonlocal self, terminal_type, terminal_code, terminal_casefold, terminal_pairs
+                if len(terminal_pairs) > 0:
+                    return any(
+                        map(
+                            lambda tpair: self._try_token_type(tpair[0])
+                            and (
+                                (tpair[1] is None)
+                                or (self._get_token_code(terminal_casefold) == tpair[1])
+                            ),
+                            terminal_pairs,
+                        )
+                    )
                 return self._try_token_type(terminal_type) and (
                     (terminal_code is None)
-                    or (
-                        (terminal_code is not None)
-                        and (self._get_token_code(terminal_casefold) == terminal_code)
-                    )
+                    or (self._get_token_code(terminal_casefold) == terminal_code)
                 )
 
             sub_safe_expr = None
@@ -1905,9 +2030,11 @@ class Parser:
 
     def _parse_inline_stmt(
         self,
-        terminal_type: TokenType,
+        terminal_type: typing.Optional[TokenType] = None,
         terminal_code: typing.Optional[str] = None,
         terminal_casefold: bool = True,
+        *,
+        terminal_pairs: typing.List[typing.Tuple[TokenType, typing.Optional[str]]] = [],
     ) -> GlobalStmt:
         """If inline statement is a subcall statement, uses the given terminal token type
         to determine the where the statement ends
@@ -1959,7 +2086,11 @@ class Parser:
 
             # must be a subcall statement
             return self._parse_subcall_stmt(
-                left_expr, terminal_type, terminal_code, terminal_casefold
+                left_expr,
+                terminal_type,
+                terminal_code,
+                terminal_casefold,
+                terminal_pairs=terminal_pairs,
             )
         raise ParserError(
             "Inline statement should start with an identifier or dotted identifier"

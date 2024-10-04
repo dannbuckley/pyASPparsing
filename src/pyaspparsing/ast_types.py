@@ -347,6 +347,26 @@ class RedimStmt(BlockStmt):
 
 
 @attrs.define(slots=False)
+class ElseStmt:
+    """Defined on grammar line 552
+
+    Two possible definitions:
+
+    'ElseIf' &lt;Expr&gt; 'Then'
+    { &lt;NEWLINE&gt; &lt;BlockStmtList&gt; | &lt;InLineStmt&gt; &lt;NEWLINE&gt; }
+    &lt;ElseStmtList&gt;
+
+    'Else'
+    { &lt;InlineStmt&gt; &lt;NEWLINE&gt; | &lt;NEWLINE&gt; &lt;BlockStmtList&gt; }
+    """
+
+    stmt_list: typing.List[BlockStmt] = attrs.field(default=attrs.Factory(list))
+    elif_expr: typing.Optional[Expr] = attrs.field(default=None, kw_only=True)
+    # use bool flag instead of doing a "elif_expr is None" check
+    is_else: bool = attrs.field(default=False, kw_only=True)
+
+
+@attrs.define(slots=False)
 class IfStmt(BlockStmt):
     """Defined on grammar line 549
 
@@ -359,6 +379,10 @@ class IfStmt(BlockStmt):
     [ 'Else' &lt;InlineStmt&gt; ] [ 'End' 'If' ] &lt;NEWLINE&gt;
     """
 
+    if_expr: Expr
+    block_stmt_list: typing.List[BlockStmt] = attrs.field(default=attrs.Factory(list))
+    else_stmt_list: typing.List[ElseStmt] = attrs.field(default=attrs.Factory(list))
+
 
 @attrs.define(slots=False)
 class WithStmt(BlockStmt):
@@ -368,6 +392,27 @@ class WithStmt(BlockStmt):
     &lt;BlockStmtList&gt; 'End' 'With' &lt;NEWLINE&gt;
     """
 
+    with_expr: Expr
+    block_stmt_list: typing.List[BlockStmt] = attrs.field(default=attrs.Factory(list))
+
+
+@attrs.define(slots=False)
+class CaseStmt:
+    """Defined on grammar line 590
+
+    Two possible definitions:
+
+    'Case' &lt;ExprList&gt; [ &lt;NEWLINE&gt; ] <br />
+    &lt;BlockStmtList&gt; &lt;CaseStmtList&gt;
+
+    'Case' 'Else' [ &lt;NEWLINE&gt; ] <br />
+    &lt;BlockStmtList&gt;
+    """
+
+    block_stmt_list: typing.List[BlockStmt] = attrs.field(default=attrs.Factory(list))
+    case_expr_list: typing.List[Expr] = attrs.field(default=attrs.Factory(list))
+    is_else: bool = attrs.field(default=False, kw_only=True)
+
 
 @attrs.define(slots=False)
 class SelectStmt(BlockStmt):
@@ -376,6 +421,9 @@ class SelectStmt(BlockStmt):
     'Select' 'Case' &lt;Expr&gt; &lt;NEWLINE&gt; <br />
     &lt;CaseStmtList&gt; 'End' 'Select' &lt;NEWLINE&gt;
     """
+
+    select_case_expr: Expr
+    case_stmt_list: typing.List[CaseStmt] = attrs.field(default=attrs.Factory(list))
 
 
 @attrs.define(slots=False)
@@ -397,6 +445,11 @@ class LoopStmt(BlockStmt):
     &lt;BlockStmtList&gt; 'WEnd' &lt;NEWLINE&gt;
     """
 
+    block_stmt_list: typing.List[BlockStmt] = attrs.field(default=attrs.Factory(list))
+    # 'While' or 'Until'
+    loop_type: typing.Optional[Token] = attrs.field(default=None, kw_only=True)
+    loop_expr: typing.Optional[Expr] = attrs.field(default=None, kw_only=True)
+
 
 @attrs.define(slots=False)
 class ForStmt(BlockStmt):
@@ -411,6 +464,39 @@ class ForStmt(BlockStmt):
     'For 'Each' &lt;ExtendedID&gt; 'In' &lt;Expr&gt; &lt;NEWLINE&gt; <br />
     &lt;BlockStmtList&gt; 'Next' &lt;NEWLINE&gt;
     """
+
+    target_id: ExtendedID
+    block_stmt_list: typing.List[BlockStmt] = attrs.field(default=attrs.Factory(list))
+
+    # 'For' target_id '=' eq_expr 'To' to_expr [ 'Step' step_expr ]
+    eq_expr: typing.Optional[Expr] = attrs.field(default=None, kw_only=True)
+    to_expr: typing.Optional[Expr] = attrs.field(default=None, kw_only=True)
+    step_expr: typing.Optional[Expr] = attrs.field(default=None, kw_only=True)
+
+    # 'For' 'Each' target_id 'In' each_in_expr
+    each_in_expr: typing.Optional[Expr] = attrs.field(default=None, kw_only=True)
+
+    def __attrs_post_init__(self):
+        """Verify that the for statement is either
+        a '=' 'To' type or an 'Each' 'In' type, but not both
+
+        Raises
+        ------
+        AssertionError
+        """
+        assert (
+            (self.each_in_expr is None)
+            and (
+                self.eq_expr is not None
+                and self.to_expr is not None
+                # step_expr is optional
+            )
+        ) or (
+            (self.each_in_expr is not None)
+            and (
+                self.eq_expr is None and self.to_expr is None and self.step_expr is None
+            )
+        ), "For statement can only be a '=' 'To' type or an 'Each' 'In' type, but not both"
 
 
 @attrs.define(slots=False)
