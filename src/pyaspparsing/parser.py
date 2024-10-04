@@ -1910,7 +1910,51 @@ class Parser:
 
     def _parse_for_stmt(self) -> GlobalStmt:
         """"""
-        return ForStmt()
+        try:
+            self._assert_consume(TokenType.IDENTIFIER, "for")
+
+            # 'For' target_id '=' eq_expr 'To' to_expr [ 'Step' step_expr ]
+            eq_expr: typing.Optional[Expr] = None
+            to_expr: typing.Optional[Expr] = None
+            step_expr: typing.Optional[Expr] = None
+            # 'For' 'Each' target_id 'In' each_in_expr
+            each_in_expr: typing.Optional[Expr] = None
+
+            # check for loop type
+            for_each: bool = self._try_consume(TokenType.IDENTIFIER, "each")
+            target_id: ExtendedID = self._parse_extended_id()
+            # parse expressions based on for loop type
+            if for_each:
+                self._assert_consume(TokenType.IDENTIFIER, "in")
+                each_in_expr = self._parse_expr()
+            else:
+                self._assert_consume(TokenType.SYMBOL, "=")
+                eq_expr = self._parse_expr()
+                self._assert_consume(TokenType.IDENTIFIER, "to")
+                to_expr = self._parse_expr()
+                if self._try_consume(TokenType.IDENTIFIER, "step"):
+                    step_expr = self._parse_expr()
+            self._assert_consume(TokenType.NEWLINE)
+            # parse block statement list
+            block_stmt_list: typing.List[BlockStmt] = []
+            while not (
+                self._try_token_type(TokenType.IDENTIFIER)
+                and self._get_token_code() == "next"
+            ):
+                block_stmt_list.append(self._parse_block_stmt())
+            # finish for statement
+            self._assert_consume(TokenType.IDENTIFIER, "next")
+            self._assert_consume(TokenType.NEWLINE)
+            return ForStmt(
+                target_id,
+                block_stmt_list,
+                eq_expr=eq_expr,
+                to_expr=to_expr,
+                step_expr=step_expr,
+                each_in_expr=each_in_expr,
+            )
+        except AssertionError as ex:
+            raise ParserError("An error occurred in _parse_for_stmt()") from ex
 
     def _parse_assign_stmt(self) -> GlobalStmt:
         """

@@ -831,6 +831,19 @@ from pyaspparsing.ast_types import *
             ),
         ),
         (
+            "ReDim my_array(10)\n",
+            RedimStmt(
+                [
+                    RedimDecl(
+                        ExtendedID(Token.identifier(6, 14)),
+                        [
+                            IntLiteral(Token.int_literal(15, 17)),
+                        ],
+                    )
+                ]
+            ),
+        ),
+        (
             "ReDim my_array(10, 10)\n",
             RedimStmt(
                 [
@@ -842,6 +855,21 @@ from pyaspparsing.ast_types import *
                         ],
                     )
                 ]
+            ),
+        ),
+        (
+            "ReDim Preserve my_array(10, 10)\n",
+            RedimStmt(
+                [
+                    RedimDecl(
+                        ExtendedID(Token.identifier(15, 23)),
+                        [
+                            IntLiteral(Token.int_literal(24, 26)),
+                            IntLiteral(Token.int_literal(28, 30)),
+                        ],
+                    )
+                ],
+                preserve=True,
             ),
         ),
         (
@@ -1195,8 +1223,8 @@ from pyaspparsing.ast_types import *
             "While True\nWEnd\n",
             LoopStmt(
                 loop_type=Token.identifier(0, 5),
-                loop_expr=BoolLiteral(Token.identifier(6, 10))
-            )
+                loop_expr=BoolLiteral(Token.identifier(6, 10)),
+            ),
         ),
         (
             # while loop
@@ -1208,18 +1236,18 @@ from pyaspparsing.ast_types import *
                         AddExpr(
                             Token.symbol(21, 22),
                             LeftExpr(QualifiedID([Token.identifier(19, 20)])),
-                            IntLiteral(Token.int_literal(23, 24))
-                        )
+                            IntLiteral(Token.int_literal(23, 24)),
+                        ),
                     )
                 ],
                 loop_type=Token.identifier(0, 5),
-                loop_expr=BoolLiteral(Token.identifier(6, 10))
-            )
+                loop_expr=BoolLiteral(Token.identifier(6, 10)),
+            ),
         ),
         (
             # empty do loop
             "Do\nLoop\n",
-            LoopStmt()
+            LoopStmt(),
         ),
         (
             # do loop
@@ -1231,43 +1259,85 @@ from pyaspparsing.ast_types import *
                         AddExpr(
                             Token.symbol(13, 14),
                             LeftExpr(QualifiedID([Token.identifier(11, 12)])),
-                            IntLiteral(Token.int_literal(15, 16))
-                        )
+                            IntLiteral(Token.int_literal(15, 16)),
+                        ),
                     )
                 ]
-            )
+            ),
         ),
         (
             # empty do while loop - beginning
             "Do While True\nLoop\n",
             LoopStmt(
                 loop_type=Token.identifier(3, 8),
-                loop_expr=BoolLiteral(Token.identifier(9, 13))
-            )
+                loop_expr=BoolLiteral(Token.identifier(9, 13)),
+            ),
         ),
         (
             # empty do until loop - beginning
             "Do Until True\nLoop\n",
             LoopStmt(
                 loop_type=Token.identifier(3, 8),
-                loop_expr=BoolLiteral(Token.identifier(9, 13))
-            )
+                loop_expr=BoolLiteral(Token.identifier(9, 13)),
+            ),
         ),
         (
             # empty do while loop - end
             "Do\nLoop While True\n",
             LoopStmt(
                 loop_type=Token.identifier(8, 13),
-                loop_expr=BoolLiteral(Token.identifier(14, 18))
-            )
+                loop_expr=BoolLiteral(Token.identifier(14, 18)),
+            ),
         ),
         (
             # empty do until loop - end
             "Do\nLoop Until True\n",
             LoopStmt(
                 loop_type=Token.identifier(8, 13),
-                loop_expr=BoolLiteral(Token.identifier(14, 18))
-            )
+                loop_expr=BoolLiteral(Token.identifier(14, 18)),
+            ),
+        ),
+        (
+            # empty '=' 'To' type for loop without step
+            "For target = 0 To 5\nNext\n",
+            ForStmt(
+                ExtendedID(Token.identifier(4, 10)),
+                eq_expr=IntLiteral(Token.int_literal(13, 14)),
+                to_expr=IntLiteral(Token.int_literal(18, 19)),
+            ),
+        ),
+        (
+            # empty '=' 'To' type for loop with step
+            "For target = 0 To 5 Step 2\nNext\n",
+            ForStmt(
+                ExtendedID(Token.identifier(4, 10)),
+                eq_expr=IntLiteral(Token.int_literal(13, 14)),
+                to_expr=IntLiteral(Token.int_literal(18, 19)),
+                step_expr=IntLiteral(Token.int_literal(25, 26)),
+            ),
+        ),
+        (
+            # empty 'Each' 'In' type for loop
+            "For Each target In array\nNext\n",
+            ForStmt(
+                ExtendedID(Token.identifier(9, 15)),
+                each_in_expr=LeftExpr(QualifiedID([Token.identifier(19, 24)])),
+            ),
+        ),
+        (
+            # '=' 'To' for loop
+            "For target = 0 To 5\nSet a = target\nNext\n",
+            ForStmt(
+                ExtendedID(Token.identifier(4, 10)),
+                [
+                    AssignStmt(
+                        LeftExpr(QualifiedID([Token.identifier(24, 25)])),
+                        LeftExpr(QualifiedID([Token.identifier(28, 34)])),
+                    )
+                ],
+                eq_expr=IntLiteral(Token.int_literal(13, 14)),
+                to_expr=IntLiteral(Token.int_literal(18, 19)),
+            ),
         ),
         (
             "a = 1\n",  # LeftExpr = Expr
