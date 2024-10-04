@@ -967,12 +967,12 @@ from pyaspparsing.ast_types import *
                     IntLiteral(Token.int_literal(3, 4)),
                     IntLiteral(Token.int_literal(7, 8)),
                 ),
-                else_stmt_list=[ElseStmt(
-                    [
-                        VarDecl([VarName(ExtendedID(Token.identifier(23, 29)))])
-                    ],
-                    is_else=True
-                )],
+                else_stmt_list=[
+                    ElseStmt(
+                        [VarDecl([VarName(ExtendedID(Token.identifier(23, 29)))])],
+                        is_else=True,
+                    )
+                ],
             ),
         ),
         (
@@ -984,20 +984,28 @@ from pyaspparsing.ast_types import *
                     IntLiteral(Token.int_literal(3, 4)),
                     IntLiteral(Token.int_literal(7, 8)),
                 ),
-                else_stmt_list=[ElseStmt(
-                    [
-                        SubCallStmt(
-                            LeftExpr(
-                                QualifiedID([
-                                    Token.identifier(19, 28, dot_end=True),
-                                    Token.identifier(28, 33)
-                                ]),
-                                [IndexOrParams([ConstExpr(Token.string_literal(34, 49))])]
+                else_stmt_list=[
+                    ElseStmt(
+                        [
+                            SubCallStmt(
+                                LeftExpr(
+                                    QualifiedID(
+                                        [
+                                            Token.identifier(19, 28, dot_end=True),
+                                            Token.identifier(28, 33),
+                                        ]
+                                    ),
+                                    [
+                                        IndexOrParams(
+                                            [ConstExpr(Token.string_literal(34, 49))]
+                                        )
+                                    ],
+                                )
                             )
-                        )
-                    ],
-                    is_else=True
-                )],
+                        ],
+                        is_else=True,
+                    )
+                ],
             ),
         ),
         (
@@ -1012,9 +1020,9 @@ from pyaspparsing.ast_types import *
                 [
                     AssignStmt(
                         LeftExpr(QualifiedID([Token.identifier(14, 15)])),
-                        IntLiteral(Token.int_literal(18, 19))
+                        IntLiteral(Token.int_literal(18, 19)),
                     )
-                ]
+                ],
             ),
         ),
         (
@@ -1029,7 +1037,7 @@ from pyaspparsing.ast_types import *
                 [
                     AssignStmt(
                         LeftExpr(QualifiedID([Token.identifier(14, 15)])),
-                        IntLiteral(Token.int_literal(18, 19))
+                        IntLiteral(Token.int_literal(18, 19)),
                     )
                 ],
                 [
@@ -1037,12 +1045,12 @@ from pyaspparsing.ast_types import *
                         [
                             AssignStmt(
                                 LeftExpr(QualifiedID([Token.identifier(25, 26)])),
-                                IntLiteral(Token.int_literal(29, 30))
+                                IntLiteral(Token.int_literal(29, 30)),
                             )
                         ],
-                        is_else=True
+                        is_else=True,
                     )
-                ]
+                ],
             ),
         ),
         (
@@ -1057,17 +1065,15 @@ from pyaspparsing.ast_types import *
                 [
                     AssignStmt(
                         LeftExpr(QualifiedID([Token.identifier(14, 15)])),
-                        IntLiteral(Token.int_literal(18, 19))
+                        IntLiteral(Token.int_literal(18, 19)),
                     )
-                ]
+                ],
             ),
         ),
         (
             # empty with statement
             "With my_var\nEnd With\n",
-            WithStmt(
-                LeftExpr(QualifiedID([Token.identifier(5, 11)]))
-            )
+            WithStmt(LeftExpr(QualifiedID([Token.identifier(5, 11)]))),
         ),
         (
             # with statement, one assignment statement
@@ -1076,11 +1082,113 @@ from pyaspparsing.ast_types import *
                 LeftExpr(QualifiedID([Token.identifier(5, 11)])),
                 [
                     AssignStmt(
-                        LeftExpr(QualifiedID([Token.identifier(12, 17, dot_start=True)])),
-                        ConstExpr(Token.string_literal(20, 36))
+                        LeftExpr(
+                            QualifiedID([Token.identifier(12, 17, dot_start=True)])
+                        ),
+                        ConstExpr(Token.string_literal(20, 36)),
                     )
-                ]
-            )
+                ],
+            ),
+        ),
+        (
+            # select statement, empty case list
+            "Select Case a\nEnd Select\n",
+            SelectStmt(LeftExpr(QualifiedID([Token.identifier(12, 13)]))),
+        ),
+        (
+            # select statement, one empty case without newline
+            "Select Case a\nCase 1 End Select\n",
+            SelectStmt(
+                LeftExpr(QualifiedID([Token.identifier(12, 13)])),
+                [CaseStmt(case_expr_list=[IntLiteral(Token.int_literal(19, 20))])],
+            ),
+        ),
+        (
+            # select statement, one empty case with newline
+            "Select Case a\nCase 1\nEnd Select\n",
+            SelectStmt(
+                LeftExpr(QualifiedID([Token.identifier(12, 13)])),
+                [CaseStmt(case_expr_list=[IntLiteral(Token.int_literal(19, 20))])],
+            ),
+        ),
+        (
+            # select statement, one case without newline
+            "Select Case a\nCase 1 Dim my_var\nEnd Select\n",
+            SelectStmt(
+                LeftExpr(QualifiedID([Token.identifier(12, 13)])),
+                [
+                    CaseStmt(
+                        [VarDecl([VarName(ExtendedID(Token.identifier(25, 31)))])],
+                        [IntLiteral(Token.int_literal(19, 20))],
+                    )
+                ],
+            ),
+        ),
+        (
+            # select statement, one case without newline
+            "Select Case a\nCase 1\nDim my_var\nEnd Select\n",
+            SelectStmt(
+                LeftExpr(QualifiedID([Token.identifier(12, 13)])),
+                [
+                    CaseStmt(
+                        [VarDecl([VarName(ExtendedID(Token.identifier(25, 31)))])],
+                        [IntLiteral(Token.int_literal(19, 20))],
+                    )
+                ],
+            ),
+        ),
+        (
+            # select statement, empty case else without newline
+            "Select Case a\nCase Else End Select\n",
+            SelectStmt(
+                LeftExpr(QualifiedID([Token.identifier(12, 13)])),
+                [CaseStmt(is_else=True)],
+            ),
+        ),
+        (
+            # select statement, empty case else with newline
+            "Select Case a\nCase Else\nEnd Select\n",
+            SelectStmt(
+                LeftExpr(QualifiedID([Token.identifier(12, 13)])),
+                [CaseStmt(is_else=True)],
+            ),
+        ),
+        (
+            # select statement, one empty case and empty case else
+            "Select Case a\nCase 1 Case Else End Select\n",
+            SelectStmt(
+                LeftExpr(QualifiedID([Token.identifier(12, 13)])),
+                [
+                    CaseStmt(case_expr_list=[IntLiteral(Token.int_literal(19, 20))]),
+                    CaseStmt(is_else=True),
+                ],
+            ),
+        ),
+        (
+            # select statement, case else without newline
+            "Select Case a\nCase Else Dim my_var\nEnd Select\n",
+            SelectStmt(
+                LeftExpr(QualifiedID([Token.identifier(12, 13)])),
+                [
+                    CaseStmt(
+                        [VarDecl([VarName(ExtendedID(Token.identifier(28, 34)))])],
+                        is_else=True,
+                    )
+                ],
+            ),
+        ),
+        (
+            # select statement, case else with newline
+            "Select Case a\nCase Else\nDim my_var\nEnd Select\n",
+            SelectStmt(
+                LeftExpr(QualifiedID([Token.identifier(12, 13)])),
+                [
+                    CaseStmt(
+                        [VarDecl([VarName(ExtendedID(Token.identifier(28, 34)))])],
+                        is_else=True,
+                    )
+                ],
+            ),
         ),
         (
             "a = 1\n",  # LeftExpr = Expr

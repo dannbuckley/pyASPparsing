@@ -1796,7 +1796,49 @@ class Parser:
 
     def _parse_select_stmt(self) -> GlobalStmt:
         """"""
-        return SelectStmt()
+        try:
+            self._assert_consume(TokenType.IDENTIFIER, "select")
+            self._assert_consume(TokenType.IDENTIFIER, "case")
+            select_case_expr = self._parse_expr()
+            self._assert_consume(TokenType.NEWLINE)
+            case_stmt_list: typing.List[CaseStmt] = []
+            while not (
+                self._try_token_type(TokenType.IDENTIFIER)
+                and self._get_token_code() == "end"
+            ):
+                self._assert_consume(TokenType.IDENTIFIER, "case")
+                is_else: bool = self._try_consume(TokenType.IDENTIFIER, "else")
+                case_expr_list: typing.List[Expr] = []
+                if not is_else:
+                    # parse expression list
+                    parse_case_expr: bool = True
+                    while parse_case_expr:
+                        case_expr_list.append(self._parse_expr())
+                        parse_case_expr = self._try_consume(TokenType.SYMBOL, ",")
+                    del parse_case_expr
+                # check for optional newline
+                if self._try_token_type(TokenType.NEWLINE):
+                    self._advance_pos()  # consume newline
+                # check for block statements
+                block_stmt_list: typing.List[BlockStmt] = []
+                while not (
+                    self._try_token_type(TokenType.IDENTIFIER)
+                    and self._get_token_code() in ["case", "end"]
+                ):
+                    block_stmt_list.append(self._parse_block_stmt())
+                case_stmt_list.append(
+                    CaseStmt(block_stmt_list, case_expr_list, is_else=is_else)
+                )
+                del is_else, case_expr_list, block_stmt_list
+                if case_stmt_list[-1].is_else:
+                    # 'Case' 'Else' must be the last case statement
+                    break
+            self._assert_consume(TokenType.IDENTIFIER, "end")
+            self._assert_consume(TokenType.IDENTIFIER, "select")
+            self._assert_consume(TokenType.NEWLINE)
+            return SelectStmt(select_case_expr, case_stmt_list)
+        except AssertionError as ex:
+            raise ParserError("An error occurred in _parse_select_stmt()") from ex
 
     def _parse_loop_stmt(self) -> GlobalStmt:
         """"""
