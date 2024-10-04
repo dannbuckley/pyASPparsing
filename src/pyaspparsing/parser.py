@@ -1777,7 +1777,22 @@ class Parser:
 
     def _parse_with_stmt(self) -> GlobalStmt:
         """"""
-        return WithStmt()
+        try:
+            self._assert_consume(TokenType.IDENTIFIER, "with")
+            with_expr = self._parse_expr()
+            self._assert_consume(TokenType.NEWLINE)
+            block_stmt_list: typing.List[BlockStmt] = []
+            while not (
+                self._try_token_type(TokenType.IDENTIFIER)
+                and self._get_token_code() == "end"
+            ):
+                block_stmt_list.append(self._parse_block_stmt())
+            self._assert_consume(TokenType.IDENTIFIER, "end")
+            self._assert_consume(TokenType.IDENTIFIER, "with")
+            self._assert_consume(TokenType.NEWLINE)
+            return WithStmt(with_expr, block_stmt_list)
+        except AssertionError as ex:
+            raise ParserError("An error occurred in _parse_with_stmt()") from ex
 
     def _parse_select_stmt(self) -> GlobalStmt:
         """"""

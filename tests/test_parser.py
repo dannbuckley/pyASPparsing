@@ -1063,6 +1063,26 @@ from pyaspparsing.ast_types import *
             ),
         ),
         (
+            # empty with statement
+            "With my_var\nEnd With\n",
+            WithStmt(
+                LeftExpr(QualifiedID([Token.identifier(5, 11)]))
+            )
+        ),
+        (
+            # with statement, one assignment statement
+            'With my_var\n.Name = "This is a name"\nEnd With\n',
+            WithStmt(
+                LeftExpr(QualifiedID([Token.identifier(5, 11)])),
+                [
+                    AssignStmt(
+                        LeftExpr(QualifiedID([Token.identifier(12, 17, dot_start=True)])),
+                        ConstExpr(Token.string_literal(20, 36))
+                    )
+                ]
+            )
+        ),
+        (
             "a = 1\n",  # LeftExpr = Expr
             AssignStmt(
                 LeftExpr(QualifiedID([Token.identifier(0, 1)])),
