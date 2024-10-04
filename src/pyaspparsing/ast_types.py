@@ -325,11 +325,25 @@ class BlockStmt(GlobalStmt, MethodStmt):
 
 
 @attrs.define(slots=False)
+class RedimDecl:
+    """Defined on grammar line 545
+
+    &lt;ExtendedID&gt; '(' &lt;ExprList&gt; ')'
+    """
+
+    extended_id: ExtendedID
+    expr_list: typing.List[Expr] = attrs.field(default=attrs.Factory(list))
+
+
+@attrs.define(slots=False)
 class RedimStmt(BlockStmt):
     """Defined on grammar line 539
 
     'Redim' [ 'Preserve' ] &lt;RedimDeclList&gt; &lt;NEWLINE&gt;
     """
+
+    redim_decl_list: typing.List[RedimDecl] = attrs.field(default=attrs.Factory(list))
+    preserve: bool = attrs.field(default=False, kw_only=True)
 
 
 @attrs.define(slots=False)
@@ -438,7 +452,9 @@ class SubCallStmt(InlineStmt):
 
     left_expr: Expr
     sub_safe_expr: typing.Optional[Expr] = attrs.field(default=None)
-    comma_expr_list: typing.List[typing.Optional[Expr]] = attrs.field(default=attrs.Factory(list))
+    comma_expr_list: typing.List[typing.Optional[Expr]] = attrs.field(
+        default=attrs.Factory(list)
+    )
 
 
 @attrs.define(slots=False)

@@ -831,6 +831,20 @@ from pyaspparsing.ast_types import *
             ),
         ),
         (
+            "ReDim my_array(10, 10)\n",
+            RedimStmt(
+                [
+                    RedimDecl(
+                        ExtendedID(Token.identifier(6, 14)),
+                        [
+                            IntLiteral(Token.int_literal(15, 17)),
+                            IntLiteral(Token.int_literal(19, 21))
+                        ]
+                    )
+                ]
+            )
+        ),
+        (
             "a = 1\n",  # LeftExpr = Expr
             AssignStmt(
                 LeftExpr(QualifiedID([Token.identifier(0, 1)])),

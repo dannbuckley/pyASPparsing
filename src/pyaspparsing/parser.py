@@ -1630,8 +1630,37 @@ class Parser:
             raise ParserError("An error occurred in _parse_var_decl()") from ex
 
     def _parse_redim_stmt(self) -> GlobalStmt:
-        """"""
-        return RedimStmt()
+        """
+        
+        Returns
+        -------
+        GlobalStmt
+
+        Raises
+        ------
+        ParserError
+        """
+        try:
+            self._assert_consume(TokenType.IDENTIFIER, "redim")
+            preserve = self._try_consume(TokenType.IDENTIFIER, "preserve")
+            redim_decl_list: typing.List[RedimDecl] = []
+            while not self._try_token_type(TokenType.NEWLINE):
+                redim_id = self._parse_extended_id()
+                self._assert_consume(TokenType.SYMBOL, "(")
+                redim_expr: typing.List[Expr] = []
+                while not (
+                    self._try_token_type(TokenType.SYMBOL)
+                    and self._get_token_code() == ")"
+                ):
+                    redim_expr.append(self._parse_expr())
+                    self._try_consume(TokenType.SYMBOL, ",")
+                self._assert_consume(TokenType.SYMBOL, ")")
+                redim_decl_list.append(RedimDecl(redim_id, redim_expr))
+                self._try_consume(TokenType.SYMBOL, ",")
+            self._assert_consume(TokenType.NEWLINE)
+            return RedimStmt(redim_decl_list, preserve=preserve)
+        except AssertionError as ex:
+            raise ParserError("An error occurred in _parse_redim_stmt()") from ex
 
     def _parse_if_stmt(self) -> GlobalStmt:
         """"""
