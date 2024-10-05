@@ -2,7 +2,7 @@ from contextlib import ExitStack
 import typing
 import pytest
 from pyaspparsing import ParserError
-from pyaspparsing.parser import *
+from pyaspparsing.ast.parser import *
 from pyaspparsing.ast.ast_types import *
 
 

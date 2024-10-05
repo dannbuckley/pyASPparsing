@@ -1,7 +1,6 @@
 import pytest
 from pyaspparsing import TokenizerError
-# from pyaspparsing.tokenizer import *
-from pyaspparsing.ast.token_types import *
+from pyaspparsing.ast.tokenizer.token_types import *
 from pyaspparsing.ast.tokenizer import Tokenizer
 
 
@@ -48,15 +47,18 @@ def test_comment_newline(comment_delim: str, newline: str):
         ("Normal_Identifier1", TokenType.IDENTIFIER),  # normal identifier
         ("[_$% :-) @]", TokenType.IDENTIFIER),  # escaped identifier
         ('"This is a valid string"', TokenType.LITERAL_STRING),
-        ('"This is also a ""valid"" string"', TokenType.LITERAL_STRING), # escaped quote
+        (
+            '"This is also a ""valid"" string"',
+            TokenType.LITERAL_STRING,
+        ),  # escaped quote
         (".", TokenType.SYMBOL),  # dot symbol
         ("&", TokenType.SYMBOL),  # concatenation operator
-        ("(", TokenType.SYMBOL), # should be returned at the very end of __next__()
+        ("(", TokenType.SYMBOL),  # should be returned at the very end of __next__()
         ("&H7f", TokenType.LITERAL_HEX),  # lowercase hex
         ("&HAB", TokenType.LITERAL_HEX),  # uppercase hex
-        ("&HFA&", TokenType.LITERAL_HEX), # hex with optional ending '&'
+        ("&HFA&", TokenType.LITERAL_HEX),  # hex with optional ending '&'
         ("&123", TokenType.LITERAL_OCT),
-        ("&777&", TokenType.LITERAL_OCT), # oct with optional ending '&'
+        ("&777&", TokenType.LITERAL_OCT),  # oct with optional ending '&'
         ("1000", TokenType.LITERAL_INT),
         ("1000.0", TokenType.LITERAL_FLOAT),  # only decimal point
         ("1000.01", TokenType.LITERAL_FLOAT),  # only decimal point

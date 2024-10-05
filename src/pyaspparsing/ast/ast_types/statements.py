@@ -4,7 +4,7 @@ import typing
 
 import attrs
 
-from ..token_types import Token
+from ..tokenizer.token_types import Token
 from .base import GlobalStmt, Expr, ExtendedID, BlockStmt, InlineStmt
 from .expressions import LeftExpr
 

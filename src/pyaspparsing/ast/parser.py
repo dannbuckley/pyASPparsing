@@ -6,11 +6,11 @@ import typing
 
 import attrs
 
-from . import ParserError
+from .. import ParserError
 
-from .ast.token_types import TokenType, Token
-from .ast.tokenizer import Tokenizer
-from .ast.ast_types import *
+from .tokenizer.token_types import TokenType, Token
+from .tokenizer import Tokenizer
+from .ast_types import *
 
 
 @attrs.define()
@@ -2327,8 +2327,8 @@ class Parser:
             else:
                 access_mod = None
             return self._parse_const_decl(access_mod)
-        else:
-            return self._parse_block_stmt()
+        # assume block statement
+        return self._parse_block_stmt()
 
     def _parse_global_stmt(self) -> GlobalStmt:
         """
