@@ -1,6 +1,8 @@
 import pytest
 from pyaspparsing import TokenizerError
-from pyaspparsing.tokenizer import *
+# from pyaspparsing.tokenizer import *
+from pyaspparsing.ast.token_types import *
+from pyaspparsing.ast.tokenizer import Tokenizer
 
 
 def test_empty_code():

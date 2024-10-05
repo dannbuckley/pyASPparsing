@@ -6,9 +6,11 @@ import typing
 
 import attrs
 
-from . import ParserError, TokenizerError
-from .tokenizer import TokenType, Token, Tokenizer
-from .ast_types import *
+from . import ParserError
+
+from .ast.token_types import TokenType, Token
+from .ast.tokenizer import Tokenizer
+from .ast.ast_types import *
 
 
 @attrs.define()

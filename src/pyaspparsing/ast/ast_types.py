@@ -3,7 +3,8 @@
 import enum
 import typing
 import attrs
-from .tokenizer import Token
+
+from .token_types import Token
 
 
 @enum.verify(enum.CONTINUOUS, enum.UNIQUE)

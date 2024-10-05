@@ -3,7 +3,7 @@ import typing
 import pytest
 from pyaspparsing import ParserError
 from pyaspparsing.parser import *
-from pyaspparsing.ast_types import *
+from pyaspparsing.ast.ast_types import *
 
 
 @pytest.mark.parametrize(
