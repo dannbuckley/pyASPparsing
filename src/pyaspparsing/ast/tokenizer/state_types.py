@@ -50,14 +50,20 @@ def token_generator() -> TokenGen:
     """
     # start state
     slice_start: int = yield
+    assert isinstance(slice_start, int)
     # construct state
     token_type: TokenType = yield
+    assert isinstance(token_type, TokenType)
     # end state
     slice_end: int = yield
+    assert isinstance(slice_end, int)
     debug_info: bool = yield
+    assert isinstance(debug_info, bool)
     if debug_info:
         line_no: int = yield
+        assert isinstance(line_no, int)
         line_start: int = yield
+        assert isinstance(line_start, int)
     return Token(
         token_type,
         slice(slice_start, slice_end),

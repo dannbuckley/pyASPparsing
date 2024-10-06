@@ -238,6 +238,7 @@ def state_start_dot(*args):
     elif sargs.cwrap.validate_type(CharacterType.DIGIT):
         pass
     else:
+        # return as symbol
         sargs.state_stack.enter_state(TokenizerState.CONSTRUCT_SYMBOL)
     sargs.state_stack.leave_state()
 
@@ -246,48 +247,92 @@ def state_start_dot(*args):
 def state_start_amp(*args):
     """"""
     sargs = StateArgs(*args)
+    sargs.cwrap.advance_pos()  # consume '&'
+    if sargs.cwrap.try_next(next_char="H"):
+        sargs.state_stack.enter_state(TokenizerState.START_HEX)
+    elif sargs.cwrap.validate_type(CharacterType.OCT_DIGIT):
+        sargs.state_stack.enter_state(TokenizerState.START_OCT)
+    else:
+        # return as symbol
+        sargs.state_stack.enter_state(TokenizerState.CONSTRUCT_SYMBOL)
+    sargs.state_stack.leave_state()
 
 
 @create_state(TokenizerState.START_HEX)
 def state_start_hex(*args):
     """"""
     sargs = StateArgs(*args)
+    # leading 'H' already consumed by START_AMP
+    sargs.state_stack.leave_state()
+    sargs.state_stack.enter_multiple(
+        [
+            TokenizerState.PROCESS_HEX,
+            TokenizerState.CHECK_END_AMP,
+            TokenizerState.CONSTRUCT_HEX,
+        ]
+    )
 
 
 @create_state(TokenizerState.START_OCT)
 def state_start_oct(*args):
     """"""
     sargs = StateArgs(*args)
+    sargs.state_stack.leave_state()
+    sargs.state_stack.enter_multiple(
+        [
+            TokenizerState.PROCESS_OCT,
+            TokenizerState.CHECK_END_AMP,
+            TokenizerState.CONSTRUCT_OCT,
+        ]
+    )
 
 
 @create_state(TokenizerState.PROCESS_HEX)
 def state_process_hex(*args):
     """"""
     sargs = StateArgs(*args)
+    # need at least one hex digit
+    if sargs.cwrap.assert_next(next_type=CharacterType.HEX_DIGIT):
+        # not at end of codeblock
+        while sargs.cwrap.try_next(next_type=CharacterType.HEX_DIGIT):
+            pass
+    sargs.state_stack.leave_state()
 
 
 @create_state(TokenizerState.PROCESS_OCT)
 def state_process_oct(*args):
     """"""
     sargs = StateArgs(*args)
+    # need at least one oct digit
+    if sargs.cwrap.assert_next(next_type=CharacterType.OCT_DIGIT):
+        # not at end of codeblock
+        while sargs.cwrap.try_next(next_type=CharacterType.OCT_DIGIT):
+            pass
+    sargs.state_stack.leave_state()
 
 
 @create_state(TokenizerState.CHECK_END_AMP)
 def state_check_end_amp(*args):
     """"""
     sargs = StateArgs(*args)
+    sargs.cwrap.try_next(next_char="&")
+    sargs.state_stack.leave_state()
 
 
 @create_state(TokenizerState.CONSTRUCT_HEX)
 def state_construct_hex(*args):
     """"""
     sargs = StateArgs(*args)
+    sargs.curr_token_gen.send(TokenType.LITERAL_HEX)  # token_type
+    sargs.state_stack.leave_state()
 
 
 @create_state(TokenizerState.CONSTRUCT_OCT)
 def state_construct_oct(*args):
     """"""
     sargs = StateArgs(*args)
+    sargs.curr_token_gen.send(TokenType.LITERAL_OCT)  # token_type
+    sargs.state_stack.leave_state()
 
 
 @create_state(TokenizerState.START_ID)
