@@ -77,13 +77,21 @@ class TokenizerState(enum.IntEnum):
     CONSTRUCT_OCT = enum.auto()
 
     START_ID = enum.auto()
+    START_DOT_ID = enum.auto()
     START_ID_ESCAPE = enum.auto()
+    START_DOT_ID_ESCAPE = enum.auto()
     PROCESS_ID = enum.auto()
-    # if identifier == "Rem", pop remaining ID states and push SKIP_COMMENT
-    CHECK_ID_REM = enum.auto()
     PROCESS_ID_ESCAPE = enum.auto()
     CHECK_END_DOT = enum.auto()
+    CHECK_DOT_END_DOT = enum.auto()
+    # if identifier == "Rem", pop remaining ID states and push SKIP_COMMENT
+    CHECK_ID_REM = enum.auto()
+    CHECK_DOT_ID_REM = enum.auto()
+    CANCEL_ID = enum.auto()
     CONSTRUCT_ID = enum.auto()
+    CONSTRUCT_DOT_ID = enum.auto()
+    CONSTRUCT_ID_DOT = enum.auto()
+    CONSTRUCT_DOT_ID_DOT = enum.auto()
 
     # pop this state
     # push [CHECK_FLOAT_SCI_E, CHECK_FLOAT_DEC_PT, PROCESS_NUMBER_CHUNK]

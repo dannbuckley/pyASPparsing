@@ -5,6 +5,7 @@ from dataclasses import dataclass
 from functools import wraps
 import typing
 
+from ... import TokenizerError
 from .codewrapper import CharacterType, CodeWrapper
 from .tokenizer_state import TokenizerState, TokenizerStateStack
 from .token_types import TokenType, Token
@@ -176,24 +177,69 @@ def state_end_newline(*args):
 def state_start_terminal(*args):
     """"""
     sargs = StateArgs(*args)
+    sargs.curr_token_gen.send(sargs.cwrap.current_idx)  # slice_start
+    sargs.state_stack.leave_state()
+    sargs.state_stack.enter_state(TokenizerState.END_TERMINAL)
+
+    # terminals with known starting characters
+    terminal_begin: typing.Dict[str, TokenizerState] = {
+        ".": TokenizerState.START_DOT,
+        "[": TokenizerState.START_ID_ESCAPE,
+        '"': TokenizerState.START_STRING,
+        "&": TokenizerState.START_AMP,
+        "#": TokenizerState.START_DATE,
+    }
+
+    # try to determine token type
+    if sargs.cwrap.validate_type(CharacterType.LETTER):
+        sargs.state_stack.enter_state(TokenizerState.START_ID)
+    elif sargs.cwrap.validate_type(CharacterType.DIGIT):
+        sargs.state_stack.enter_state(TokenizerState.START_NUMBER)
+    else:
+        try:
+            sargs.state_stack.enter_state(terminal_begin[sargs.cwrap.current_char])
+        except KeyError:
+            # return as symbol
+            sargs.cwrap.advance_pos()  # consume symbol
+            sargs.state_stack.enter_state(TokenizerState.CONSTRUCT_SYMBOL)
 
 
 @create_state(TokenizerState.END_TERMINAL)
 def state_end_terminal(*args):
     """"""
     sargs = StateArgs(*args)
+    sargs.state_stack.leave_state()
+    try:
+        sargs.curr_token_gen.send(sargs.cwrap.current_idx)  # slice_end
+        sargs.curr_token_gen.send(True)  # debug_info
+        sargs.curr_token_gen.send(sargs.cwrap.line_no)  # line_no
+        sargs.curr_token_gen.send(sargs.cwrap.line_start)  # line_start
+    except StopIteration as ex:
+        return ex.value
 
 
 @create_state(TokenizerState.CONSTRUCT_SYMBOL)
 def state_construct_symbol(*args):
     """"""
     sargs = StateArgs(*args)
+    sargs.curr_token_gen.send(TokenType.SYMBOL)  # token_type
+    sargs.state_stack.leave_state()
 
 
 @create_state(TokenizerState.START_DOT)
 def state_start_dot(*args):
     """"""
     sargs = StateArgs(*args)
+    sargs.cwrap.advance_pos()  # consume '.'
+    if sargs.cwrap.current_char == "[":
+        sargs.state_stack.enter_state(TokenizerState.START_DOT_ID_ESCAPE)
+    elif sargs.cwrap.validate_type(CharacterType.LETTER):
+        sargs.state_stack.enter_state(TokenizerState.START_DOT_ID)
+    elif sargs.cwrap.validate_type(CharacterType.DIGIT):
+        pass
+    else:
+        sargs.state_stack.enter_state(TokenizerState.CONSTRUCT_SYMBOL)
+    sargs.state_stack.leave_state()
 
 
 @create_state(TokenizerState.START_AMP)
@@ -248,42 +294,154 @@ def state_construct_oct(*args):
 def state_start_id(*args):
     """"""
     sargs = StateArgs(*args)
+    sargs.state_stack.leave_state()
+    sargs.state_stack.enter_multiple(
+        [
+            TokenizerState.PROCESS_ID,
+            TokenizerState.CHECK_ID_REM,
+        ]
+    )
+
+
+@create_state(TokenizerState.START_DOT_ID)
+def state_start_dot_id(*args):
+    """"""
+    sargs = StateArgs(*args)
+    sargs.state_stack.leave_state()
+    sargs.state_stack.enter_multiple(
+        [TokenizerState.PROCESS_ID, TokenizerState.CHECK_DOT_ID_REM]
+    )
 
 
 @create_state(TokenizerState.START_ID_ESCAPE)
 def state_start_id_escape(*args):
     """"""
     sargs = StateArgs(*args)
+    sargs.state_stack.leave_state()
+    sargs.state_stack.enter_multiple(
+        [TokenizerState.PROCESS_ID_ESCAPE, TokenizerState.CHECK_END_DOT]
+    )
+
+
+@create_state(TokenizerState.START_DOT_ID_ESCAPE)
+def state_start_dot_id_escape(*args):
+    """"""
+    sargs = StateArgs(*args)
+    sargs.state_stack.leave_state()
+    sargs.state_stack.enter_multiple(
+        [TokenizerState.PROCESS_ID_ESCAPE, TokenizerState.CHECK_DOT_END_DOT]
+    )
 
 
 @create_state(TokenizerState.PROCESS_ID)
 def state_process_id(*args):
     """"""
     sargs = StateArgs(*args)
-
-
-@create_state(TokenizerState.CHECK_ID_REM)
-def state_check_id_rem(*args):
-    """"""
-    sargs = StateArgs(*args)
+    sargs.cwrap.assert_next(next_type=CharacterType.LETTER)
+    while sargs.cwrap.try_next(next_type=CharacterType.ID_TAIL):
+        pass
+    sargs.state_stack.leave_state()
 
 
 @create_state(TokenizerState.PROCESS_ID_ESCAPE)
 def state_process_id_escape(*args):
     """"""
     sargs = StateArgs(*args)
+    sargs.cwrap.assert_next(next_char="[")
+    while sargs.cwrap.try_next(next_type=CharacterType.ID_NAME_CHAR):
+        pass
+    sargs.cwrap.assert_next(next_char="]")
+    sargs.state_stack.leave_state()
 
 
 @create_state(TokenizerState.CHECK_END_DOT)
 def state_check_end_dot(*args):
     """"""
     sargs = StateArgs(*args)
+    if sargs.cwrap.try_next(next_char="."):
+        sargs.state_stack.enter_state(TokenizerState.CONSTRUCT_ID_DOT)
+    else:
+        sargs.state_stack.enter_state(TokenizerState.CONSTRUCT_ID)
+    sargs.state_stack.leave_state()
+
+
+@create_state(TokenizerState.CHECK_DOT_END_DOT)
+def state_check_dot_end_dot(*args):
+    """"""
+    sargs = StateArgs(*args)
+    if sargs.cwrap.try_next(next_char="."):
+        sargs.state_stack.enter_state(TokenizerState.CONSTRUCT_DOT_ID_DOT)
+    else:
+        sargs.state_stack.enter_state(TokenizerState.CONSTRUCT_DOT_ID)
+    sargs.state_stack.leave_state()
+
+
+@create_state(TokenizerState.CHECK_ID_REM)
+def state_check_id_rem(*args):
+    """"""
+    sargs = StateArgs(*args)
+    sargs.state_stack.leave_state()
+    rem_end = sargs.cwrap.current_idx
+    rem_start = rem_end - 3
+    if rem_start > 0 and ("rem" in sargs.cwrap.codeblock[rem_start:rem_end].casefold()):
+        sargs.state_stack.enter_multiple(
+            [TokenizerState.SKIP_COMMENT, TokenizerState.CANCEL_ID]
+        )
+    else:
+        sargs.state_stack.enter_state(TokenizerState.CHECK_END_DOT)
+
+
+@create_state(TokenizerState.CHECK_DOT_ID_REM)
+def state_check_dot_id_rem(*args):
+    """"""
+    sargs = StateArgs(*args)
+    sargs.state_stack.leave_state()
+    rem_end = sargs.cwrap.current_idx
+    rem_start = rem_end - 3
+    if rem_start > 0 and ("rem" in sargs.cwrap.codeblock[rem_start:rem_end].casefold()):
+        raise TokenizerError("Illegal use of '.' symbol; cannot appear before Rem")
+    else:
+        sargs.state_stack.enter_state(TokenizerState.CHECK_DOT_END_DOT)
+
+
+@create_state(TokenizerState.CANCEL_ID)
+def state_cancel_id(*args):
+    """"""
+    sargs = StateArgs(*args)
+    sargs.state_stack.leave_state()
+    sargs.curr_token_gen.close()
 
 
 @create_state(TokenizerState.CONSTRUCT_ID)
 def state_construct_id(*args):
     """"""
     sargs = StateArgs(*args)
+    sargs.state_stack.leave_state()
+    sargs.curr_token_gen.send(TokenType.IDENTIFIER)  # token_type
+
+
+@create_state(TokenizerState.CONSTRUCT_DOT_ID)
+def state_construct_dot_id(*args):
+    """"""
+    sargs = StateArgs(*args)
+    sargs.state_stack.leave_state()
+    sargs.curr_token_gen.send(TokenType.IDENTIFIER_DOTID)  # token_type
+
+
+@create_state(TokenizerState.CONSTRUCT_ID_DOT)
+def state_construct_id_dot(*args):
+    """"""
+    sargs = StateArgs(*args)
+    sargs.state_stack.leave_state()
+    sargs.curr_token_gen.send(TokenType.IDENTIFIER_IDDOT)  # token_type
+
+
+@create_state(TokenizerState.CONSTRUCT_DOT_ID_DOT)
+def state_construct_dot_id_dot(*args):
+    """"""
+    sargs = StateArgs(*args)
+    sargs.state_stack.leave_state()
+    sargs.curr_token_gen.send(TokenType.IDENTIFIER_DOTIDDOT)  # token_type
 
 
 @create_state(TokenizerState.START_NUMBER)

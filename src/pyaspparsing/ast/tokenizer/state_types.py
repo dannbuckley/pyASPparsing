@@ -15,10 +15,17 @@ state_starts_token: typing.List[TokenizerState] = [
     TokenizerState.START_TERMINAL,
 ]
 
-# states that return a token and need to cleanup curr_token_gen
-state_ends_token: typing.List[TokenizerState] = [
+# states that return a token
+state_returns_token: typing.List[TokenizerState] = [
     TokenizerState.END_NEWLINE,
     TokenizerState.END_TERMINAL,
+]
+
+# states that need to cleanup curr_token_gen
+state_cleans_token: typing.List[TokenizerState] = [
+    TokenizerState.END_NEWLINE,
+    TokenizerState.END_TERMINAL,
+    TokenizerState.CANCEL_ID,
 ]
 
 
@@ -54,5 +61,7 @@ def token_generator() -> TokenGen:
     return Token(
         token_type,
         slice(slice_start, slice_end),
-        line_info=DebugLineInfo(line_no, line_start) if debug_info else None,
+        line_info=(
+            DebugLineInfo(line_no, slice_start - line_start) if debug_info else None
+        ),
     )

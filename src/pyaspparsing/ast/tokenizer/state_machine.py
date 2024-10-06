@@ -9,7 +9,8 @@ from .state_types import (
     TokenGenOpt,
     token_generator,
     state_starts_token,
-    state_ends_token,
+    state_returns_token,
+    state_cleans_token,
 )
 from .state_handlers import state_handlers
 
@@ -25,8 +26,10 @@ def tokenize(codeblock: str) -> typing.Generator[Token, None, None]:
                 curr_token_gen = token_generator()
                 next(curr_token_gen)  # start generator
 
-            if state in state_ends_token:
+            if state in state_returns_token:
                 yield state_handlers[state](cwrap, state_stack, curr_token_gen)
-                curr_token_gen = None
             else:
                 state_handlers[state](cwrap, state_stack, curr_token_gen)
+
+            if state in state_cleans_token:
+                curr_token_gen = None
