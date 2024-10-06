@@ -46,11 +46,17 @@ class CodeWrapper:
     codeblock: str
     suppress_error: bool = attrs.field(default=True)
     output_file: typing.IO = attrs.field(default=sys.stdout)
+
+    # iterating through codeblock
     _code_iter: typing.Optional[typing.Iterator[str]] = attrs.field(
         default=None, init=False
     )
     _pos_char: typing.Optional[str] = attrs.field(default=None, init=False)
     _pos_idx: typing.Optional[int] = attrs.field(default=None, init=False)
+
+    # debug line info
+    line_no: typing.Optional[int] = attrs.field(default=None, init=False)
+    line_start: typing.Optional[int] = attrs.field(default=None, init=False)
 
     @property
     def current_char(self):
@@ -89,6 +95,10 @@ class CodeWrapper:
         # preload first character
         self._pos_char = next(self._code_iter, None)
         self._pos_idx = 0
+
+        # initialize debug line info
+        self.line_no = 1
+        self.line_start = 0
         return self
 
     def __exit__(self, exc_type, exc_val: BaseException, tb) -> bool:
@@ -102,9 +112,11 @@ class CodeWrapper:
         self._code_iter = None
         self._pos_char = None
         self._pos_idx = None
+        self.line_no = None
+        self.line_start = None
         return self.suppress_error
 
-    def _advance_pos(self) -> bool:
+    def advance_pos(self) -> bool:
         """
         Returns
         -------
@@ -117,7 +129,13 @@ class CodeWrapper:
         self._pos_idx += 1
         return self._pos_char is not None
 
-    def _validate_type(self, char_type: CharacterType) -> bool:
+    def advance_line(self, num_lines: int = 1):
+        """Update debug line info"""
+        if self.line_no is not None and self.line_start is not None:
+            self.line_no += num_lines
+            self.line_start = self._pos_idx
+
+    def validate_type(self, char_type: CharacterType) -> bool:
         """
         Parameters
         ----------
@@ -137,10 +155,12 @@ class CodeWrapper:
             and (self._pos_idx is None)
         ):
             raise RuntimeError(
-                "_validate_type() cannot be used outside of a runtime context"
+                "validate_type() cannot be used outside of a runtime context"
             )
         if self.check_for_end():
             return False
+        # http://www.goldparser.org/doc/grammars/index.htm
+        # predefined character sets -> "Printable"
         printable: typing.Set[int] = set([0xA0, *range(0x20, 0x7F)])
         match char_type:
             case CharacterType.LETTER:
@@ -200,9 +220,9 @@ class CodeWrapper:
             raise ValueError("Must specify either next_char or next_type, but not both")
 
         if (next_char is not None and self._pos_char == next_char) or (
-            next_type is not None and self._validate_type(next_type)
+            next_type is not None and self.validate_type(next_type)
         ):
-            self._advance_pos()
+            self.advance_pos()
             return True
         return False
 
@@ -262,7 +282,7 @@ class CodeWrapper:
                 CharacterType.WS: "Expected a valid whitespace character, not including '\\r' or '\\n'",
                 CharacterType.ID_TAIL: "Expected either an alphanumeric character or '_'",
             }
-            assert self._validate_type(next_type), assert_msg[next_type]
+            assert self.validate_type(next_type), assert_msg[next_type]
 
         # character valid, advance to next position
-        return self._advance_pos()
+        return self.advance_pos()

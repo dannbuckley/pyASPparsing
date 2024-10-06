@@ -25,18 +25,24 @@ def test_premature_check_for_end():
 
 def test_exhausted_advance_pos():
     with CodeWrapper("", False) as cwrap:
-        assert cwrap._advance_pos() is False
+        assert cwrap.advance_pos() is False
+
+
+def test_advance_line():
+    with CodeWrapper("", False) as cwrap:
+        cwrap.advance_line()
+        assert cwrap.line_no == 2
 
 
 def test_premature_validate_type():
     cwrap = CodeWrapper("", False)
     with pytest.raises(RuntimeError):
-        cwrap._validate_type(CharacterType.LETTER)
+        cwrap.validate_type(CharacterType.LETTER)
 
 
 def test_exhausted_validate_type():
     with CodeWrapper("", False) as cwrap:
-        assert cwrap._validate_type(CharacterType.LETTER) is False
+        assert cwrap.validate_type(CharacterType.LETTER) is False
 
 
 def test_premature_try_next():
