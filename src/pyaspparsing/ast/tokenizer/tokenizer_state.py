@@ -132,6 +132,10 @@ class TokenizerStateStack:
                 "Called TokenizerStateStack.__iter__() but stack is not empty"
             )
         self.state_stack.append(TokenizerState.CHECK_EXHAUSTED)
+        self._prev_state = None
+        # _prev_state does not exist yet
+        # use _leave_on_next=False for first iteration
+        self._leave_on_next = False
         return self
 
     def __next__(self):
@@ -143,7 +147,9 @@ class TokenizerStateStack:
             finally:
                 if len(self.state_stack) == 0:
                     raise StopIteration
-            self._leave_on_next = False
+        else:
+            # reset to True to encourage use-once states and prevent infinite looping
+            self._leave_on_next = True
         self._prev_state = len(self.state_stack) - 1
         return self.current_state
 
@@ -155,12 +161,30 @@ class TokenizerStateStack:
             return None
 
     def enter_state(self, state: TokenizerState):
+        """Push a new state onto the stack
+
+        Parameters
+        ----------
+        state : TokenizerState
+        """
         self.state_stack.append(state)
 
     def enter_multiple(
         self, states: typing.Iterable[TokenizerState], top_first: bool = True
     ):
+        """Push multiple new states onto the stack
+
+        Parameters
+        ----------
+        states : Iterable[TokenizerState]
+        top_first : bool, default=True
+            If True, states are pushed in reverse order
+        """
         self.state_stack.extend(states[:: -1 if top_first else 1])
 
-    def leave_state(self):
-        self._leave_on_next = True
+    def persist_state(self):
+        """Disable `_leave_on_next` flag for the next iteration
+
+        This keeps the current state on the stack
+        """
+        self._leave_on_next = False

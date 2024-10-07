@@ -57,14 +57,14 @@ def create_state(
     if cleans:
         reg_state_cleans_token.append(state)
 
-    def wrap_func(func: Callable):
+    def wrap_func(func: Callable[[StateArgs], TokenOpt]):
         @wraps(func)
         def add_state_args(
             cwrap: CodeWrapper,
             state_stack: TokenizerStateStack,
             curr_token_gen: TokenGenOpt = None,
         ) -> TokenOpt:
-            return func(cwrap, state_stack, curr_token_gen)
+            return func(StateArgs(cwrap, state_stack, curr_token_gen))
 
         reg_state_handlers[state] = add_state_args
         return add_state_args
@@ -87,127 +87,87 @@ class StateArgs:
     curr_token_gen: TokenGenOpt = None
 
 
-def process_whitespace(cwrap: CodeWrapper) -> bool:
-    """
-    Returns
-    -------
-    bool
-        True if newline consumed
-    """
-    while cwrap.try_next(next_type=CharacterType.WS):
-        pass
-
-    # check for line continuation
-    if cwrap.try_next(next_char="_"):
-        while cwrap.try_next(next_type=CharacterType.WS):
-            pass
-        # optional newline characters
-        carriage_return = cwrap.try_next(next_char="\r")
-        line_feed = cwrap.try_next(next_char="\n")
-        # signal to caller if debug line info out of date
-        return carriage_return or line_feed
-    # don't update debug line info
-    return False
-
-
-def process_comment(cwrap: CodeWrapper):
-    """Skip the body of a comment"""
-    while not cwrap.check_for_end() and cwrap.current_char not in ":\r\n":
-        cwrap.advance_pos()
-
-
-def process_newline(cwrap: CodeWrapper) -> int:
-    """Consume successive newline characters (':', '\\r', '\\n')
-
-    A "\\r\\n" pair is treated as a single newline
-
-    Returns
-    -------
-    line_processed : int
-        Number of newlines processed
-    """
-    lines_processed: int = 0
-    while not cwrap.check_for_end() and cwrap.current_char in ":\r\n":
-        carriage_return = cwrap.current_char == "\r"
-        cwrap.advance_pos()
-        if carriage_return and (cwrap.current_char == "\n"):
-            # "\r\n" should be treated as a single newline
-            cwrap.advance_pos()
-        lines_processed += 1
-    return lines_processed
-
-
 # ======== TOKENIZER STATE HANDLERS ========
 # These are not called directly
 # Instead, create_state registers them in the reg_state_handlers global dict
 
 
 @create_state(TokenizerState.CHECK_EXHAUSTED)
-def state_check_exhausted(*args):
+def state_check_exhausted(sargs: StateArgs) -> TokenOpt:
     """"""
-    sargs = StateArgs(*args)
-    if sargs.cwrap.check_for_end():
-        sargs.state_stack.leave_state()
-    else:
+    if not sargs.cwrap.check_for_end():
+        sargs.state_stack.persist_state()
         sargs.state_stack.enter_state(TokenizerState.CHECK_WHITESPACE)
 
 
 @create_state(TokenizerState.CHECK_WHITESPACE)
-def state_check_whitespace(*args):
+def state_check_whitespace(sargs: StateArgs) -> TokenOpt:
     """"""
-    sargs = StateArgs(*args)
-    if process_whitespace(sargs.cwrap):
-        sargs.cwrap.advance_line()
-    sargs.state_stack.leave_state()
-    if sargs.cwrap.check_for_end():
-        # CHECK_EXHAUSTED should be below this state
-        return
-    if sargs.cwrap.try_next(next_char="'"):
-        sargs.state_stack.enter_state(TokenizerState.SKIP_COMMENT)
-    elif sargs.cwrap.current_char in ":\r\n":
-        sargs.state_stack.enter_state(TokenizerState.START_NEWLINE)
-    else:
-        sargs.state_stack.enter_state(TokenizerState.START_TERMINAL)
+    # consume whitespace
+    while sargs.cwrap.try_next(next_type=CharacterType.WS):
+        pass
+
+    # check for line continuation
+    if sargs.cwrap.try_next(next_char="_"):
+        while sargs.cwrap.try_next(next_type=CharacterType.WS):
+            pass
+        # optional newline characters
+        carriage_return = sargs.cwrap.try_next(next_char="\r")
+        line_feed = sargs.cwrap.try_next(next_char="\n")
+        # update debug line info
+        if carriage_return or line_feed:
+            sargs.cwrap.advance_line()
+
+    # if check_for_end(), return to CHECK_EXHAUSTED
+    # else, check for comments, newlines, or terminals
+    if not sargs.cwrap.check_for_end():
+        if sargs.cwrap.try_next(next_char="'"):
+            # need to consume "'" so that SKIP_COMMENT works the same for 'Rem' comments as well
+            sargs.state_stack.enter_state(TokenizerState.SKIP_COMMENT)
+        elif sargs.cwrap.current_char in ":\r\n":
+            sargs.state_stack.enter_state(TokenizerState.START_NEWLINE)
+        else:
+            sargs.state_stack.enter_state(TokenizerState.START_TERMINAL)
 
 
 @create_state(TokenizerState.SKIP_COMMENT)
-def state_skip_comment(*args):
+def state_skip_comment(sargs: StateArgs) -> TokenOpt:
     """"""
-    sargs = StateArgs(*args)
-    process_comment(sargs.cwrap)
-    sargs.state_stack.leave_state()
-    if sargs.cwrap.check_for_end():
-        # CHECK_EXHAUSTED should be below this state
-        return
-    if sargs.cwrap.current_char in ":\r\n":
+    # consume comment
+    while not sargs.cwrap.check_for_end() and sargs.cwrap.current_char not in ":\r\n":
+        sargs.cwrap.advance_pos()
+
+    # if check_for_end(), return to CHECK_EXHAUSTED
+    # else, check for newline
+    if not sargs.cwrap.check_for_end() and sargs.cwrap.current_char in ":\r\n":
         sargs.state_stack.enter_state(TokenizerState.START_NEWLINE)
 
 
 @create_state(TokenizerState.START_NEWLINE, starts=True)
-def state_start_newline(*args):
+def state_start_newline(sargs: StateArgs) -> TokenOpt:
     """"""
-    sargs = StateArgs(*args)
     sargs.curr_token_gen.send(sargs.cwrap.current_idx)  # slice_start
     sargs.curr_token_gen.send(TokenType.NEWLINE)  # token_type
-    sargs.state_stack.leave_state()
     sargs.state_stack.enter_multiple(
         [TokenizerState.HANDLE_NEWLINE, TokenizerState.END_NEWLINE]
     )
 
 
 @create_state(TokenizerState.HANDLE_NEWLINE)
-def state_handle_newline(*args):
+def state_handle_newline(sargs: StateArgs) -> TokenOpt:
     """"""
-    sargs = StateArgs(*args)
-    sargs.cwrap.advance_line(process_newline(sargs.cwrap))
-    sargs.state_stack.leave_state()
+    while not sargs.cwrap.check_for_end() and sargs.cwrap.current_char in ":\r\n":
+        carriage_return = sargs.cwrap.current_char == "\r"
+        sargs.cwrap.advance_pos()
+        if carriage_return and (sargs.cwrap.current_char == "\n"):
+            # "\r\n" should be treated as a single newline
+            sargs.cwrap.advance_pos()
+        sargs.cwrap.advance_line()
 
 
 @create_state(TokenizerState.END_NEWLINE, returns=True, cleans=True)
-def state_end_newline(*args):
+def state_end_newline(sargs: StateArgs) -> TokenOpt:
     """"""
-    sargs = StateArgs(*args)
-    sargs.state_stack.leave_state()
     try:
         sargs.curr_token_gen.send(sargs.cwrap.current_idx)  # slice_end
         sargs.curr_token_gen.send(False)  # debug_info
@@ -216,11 +176,9 @@ def state_end_newline(*args):
 
 
 @create_state(TokenizerState.START_TERMINAL, starts=True)
-def state_start_terminal(*args):
+def state_start_terminal(sargs: StateArgs) -> TokenOpt:
     """"""
-    sargs = StateArgs(*args)
     sargs.curr_token_gen.send(sargs.cwrap.current_idx)  # slice_start
-    sargs.state_stack.leave_state()
 
     # terminals with known starting characters
     terminal_begin: typing.Dict[str, TokenizerState] = {
@@ -246,10 +204,8 @@ def state_start_terminal(*args):
 
 
 @create_state(TokenizerState.END_TERMINAL, returns=True, cleans=True)
-def state_end_terminal(*args):
+def state_end_terminal(sargs: StateArgs) -> TokenOpt:
     """"""
-    sargs = StateArgs(*args)
-    sargs.state_stack.leave_state()
     try:
         sargs.curr_token_gen.send(sargs.cwrap.current_idx)  # slice_end
         sargs.curr_token_gen.send(True)  # debug_info
@@ -260,18 +216,15 @@ def state_end_terminal(*args):
 
 
 @create_state(TokenizerState.CONSTRUCT_SYMBOL)
-def state_construct_symbol(*args):
+def state_construct_symbol(sargs: StateArgs) -> TokenOpt:
     """"""
-    sargs = StateArgs(*args)
     sargs.curr_token_gen.send(TokenType.SYMBOL)  # token_type
-    sargs.state_stack.leave_state()
     sargs.state_stack.enter_state(TokenizerState.END_TERMINAL)
 
 
 @create_state(TokenizerState.START_DOT)
-def state_start_dot(*args):
+def state_start_dot(sargs: StateArgs) -> TokenOpt:
     """"""
-    sargs = StateArgs(*args)
     sargs.cwrap.assert_next(next_char=".")
     if sargs.cwrap.current_char == "[":
         sargs.state_stack.enter_state(TokenizerState.START_DOT_ID_ESCAPE)
@@ -288,13 +241,11 @@ def state_start_dot(*args):
     else:
         # return as symbol
         sargs.state_stack.enter_state(TokenizerState.CONSTRUCT_SYMBOL)
-    sargs.state_stack.leave_state()
 
 
 @create_state(TokenizerState.START_AMP)
-def state_start_amp(*args):
+def state_start_amp(sargs: StateArgs) -> TokenOpt:
     """"""
-    sargs = StateArgs(*args)
     sargs.cwrap.assert_next(next_char="&")
     if sargs.cwrap.try_next(next_char="H"):
         sargs.state_stack.enter_state(TokenizerState.START_HEX)
@@ -303,15 +254,12 @@ def state_start_amp(*args):
     else:
         # return as symbol
         sargs.state_stack.enter_state(TokenizerState.CONSTRUCT_SYMBOL)
-    sargs.state_stack.leave_state()
 
 
 @create_state(TokenizerState.START_HEX)
-def state_start_hex(*args):
+def state_start_hex(sargs: StateArgs) -> TokenOpt:
     """"""
-    sargs = StateArgs(*args)
     # leading 'H' already consumed by START_AMP
-    sargs.state_stack.leave_state()
     sargs.state_stack.enter_multiple(
         [
             TokenizerState.PROCESS_HEX,
@@ -322,10 +270,8 @@ def state_start_hex(*args):
 
 
 @create_state(TokenizerState.START_OCT)
-def state_start_oct(*args):
+def state_start_oct(sargs: StateArgs) -> TokenOpt:
     """"""
-    sargs = StateArgs(*args)
-    sargs.state_stack.leave_state()
     sargs.state_stack.enter_multiple(
         [
             TokenizerState.PROCESS_OCT,
@@ -336,60 +282,48 @@ def state_start_oct(*args):
 
 
 @create_state(TokenizerState.PROCESS_HEX)
-def state_process_hex(*args):
+def state_process_hex(sargs: StateArgs) -> TokenOpt:
     """"""
-    sargs = StateArgs(*args)
     # need at least one hex digit
     if sargs.cwrap.assert_next(next_type=CharacterType.HEX_DIGIT):
         # not at end of codeblock
         while sargs.cwrap.try_next(next_type=CharacterType.HEX_DIGIT):
             pass
-    sargs.state_stack.leave_state()
 
 
 @create_state(TokenizerState.PROCESS_OCT)
-def state_process_oct(*args):
+def state_process_oct(sargs: StateArgs) -> TokenOpt:
     """"""
-    sargs = StateArgs(*args)
     # need at least one oct digit
     if sargs.cwrap.assert_next(next_type=CharacterType.OCT_DIGIT):
         # not at end of codeblock
         while sargs.cwrap.try_next(next_type=CharacterType.OCT_DIGIT):
             pass
-    sargs.state_stack.leave_state()
 
 
 @create_state(TokenizerState.CHECK_END_AMP)
-def state_check_end_amp(*args):
+def state_check_end_amp(sargs: StateArgs) -> TokenOpt:
     """"""
-    sargs = StateArgs(*args)
     sargs.cwrap.try_next(next_char="&")
-    sargs.state_stack.leave_state()
 
 
 @create_state(TokenizerState.CONSTRUCT_HEX)
-def state_construct_hex(*args):
+def state_construct_hex(sargs: StateArgs) -> TokenOpt:
     """"""
-    sargs = StateArgs(*args)
     sargs.curr_token_gen.send(TokenType.LITERAL_HEX)  # token_type
-    sargs.state_stack.leave_state()
     sargs.state_stack.enter_state(TokenizerState.END_TERMINAL)
 
 
 @create_state(TokenizerState.CONSTRUCT_OCT)
-def state_construct_oct(*args):
+def state_construct_oct(sargs: StateArgs) -> TokenOpt:
     """"""
-    sargs = StateArgs(*args)
     sargs.curr_token_gen.send(TokenType.LITERAL_OCT)  # token_type
-    sargs.state_stack.leave_state()
     sargs.state_stack.enter_state(TokenizerState.END_TERMINAL)
 
 
 @create_state(TokenizerState.START_ID)
-def state_start_id(*args):
+def state_start_id(sargs: StateArgs) -> TokenOpt:
     """"""
-    sargs = StateArgs(*args)
-    sargs.state_stack.leave_state()
     sargs.state_stack.enter_multiple(
         [
             TokenizerState.PROCESS_ID,
@@ -399,83 +333,67 @@ def state_start_id(*args):
 
 
 @create_state(TokenizerState.START_DOT_ID)
-def state_start_dot_id(*args):
+def state_start_dot_id(sargs: StateArgs) -> TokenOpt:
     """"""
-    sargs = StateArgs(*args)
-    sargs.state_stack.leave_state()
     sargs.state_stack.enter_multiple(
         [TokenizerState.PROCESS_ID, TokenizerState.CHECK_DOT_ID_REM]
     )
 
 
 @create_state(TokenizerState.START_ID_ESCAPE)
-def state_start_id_escape(*args):
+def state_start_id_escape(sargs: StateArgs) -> TokenOpt:
     """"""
-    sargs = StateArgs(*args)
-    sargs.state_stack.leave_state()
     sargs.state_stack.enter_multiple(
         [TokenizerState.PROCESS_ID_ESCAPE, TokenizerState.CHECK_END_DOT]
     )
 
 
 @create_state(TokenizerState.START_DOT_ID_ESCAPE)
-def state_start_dot_id_escape(*args):
+def state_start_dot_id_escape(sargs: StateArgs) -> TokenOpt:
     """"""
-    sargs = StateArgs(*args)
-    sargs.state_stack.leave_state()
     sargs.state_stack.enter_multiple(
         [TokenizerState.PROCESS_ID_ESCAPE, TokenizerState.CHECK_DOT_END_DOT]
     )
 
 
 @create_state(TokenizerState.PROCESS_ID)
-def state_process_id(*args):
+def state_process_id(sargs: StateArgs) -> TokenOpt:
     """"""
-    sargs = StateArgs(*args)
     sargs.cwrap.assert_next(next_type=CharacterType.LETTER)
     while sargs.cwrap.try_next(next_type=CharacterType.ID_TAIL):
         pass
-    sargs.state_stack.leave_state()
 
 
 @create_state(TokenizerState.PROCESS_ID_ESCAPE)
-def state_process_id_escape(*args):
+def state_process_id_escape(sargs: StateArgs) -> TokenOpt:
     """"""
-    sargs = StateArgs(*args)
     sargs.cwrap.assert_next(next_char="[")
     while sargs.cwrap.try_next(next_type=CharacterType.ID_NAME_CHAR):
         pass
     sargs.cwrap.assert_next(next_char="]")
-    sargs.state_stack.leave_state()
 
 
 @create_state(TokenizerState.CHECK_END_DOT)
-def state_check_end_dot(*args):
+def state_check_end_dot(sargs: StateArgs) -> TokenOpt:
     """"""
-    sargs = StateArgs(*args)
     if sargs.cwrap.try_next(next_char="."):
         sargs.state_stack.enter_state(TokenizerState.CONSTRUCT_ID_DOT)
     else:
         sargs.state_stack.enter_state(TokenizerState.CONSTRUCT_ID)
-    sargs.state_stack.leave_state()
 
 
 @create_state(TokenizerState.CHECK_DOT_END_DOT)
-def state_check_dot_end_dot(*args):
+def state_check_dot_end_dot(sargs: StateArgs) -> TokenOpt:
     """"""
-    sargs = StateArgs(*args)
     if sargs.cwrap.try_next(next_char="."):
         sargs.state_stack.enter_state(TokenizerState.CONSTRUCT_DOT_ID_DOT)
     else:
         sargs.state_stack.enter_state(TokenizerState.CONSTRUCT_DOT_ID)
-    sargs.state_stack.leave_state()
 
 
 @create_state(TokenizerState.CHECK_ID_REM)
-def state_check_id_rem(*args):
+def state_check_id_rem(sargs: StateArgs) -> TokenOpt:
     """"""
-    sargs = StateArgs(*args)
-    sargs.state_stack.leave_state()
     rem_end = sargs.cwrap.current_idx
     rem_start = rem_end - 3
     if (rem_start >= 0) and (
@@ -494,10 +412,8 @@ def state_check_id_rem(*args):
 
 
 @create_state(TokenizerState.CHECK_DOT_ID_REM)
-def state_check_dot_id_rem(*args):
+def state_check_dot_id_rem(sargs: StateArgs) -> TokenOpt:
     """"""
-    sargs = StateArgs(*args)
-    sargs.state_stack.leave_state()
     rem_end = sargs.cwrap.current_idx
     rem_start = rem_end - 3
     if rem_start > 0 and ("rem" in sargs.cwrap.codeblock[rem_start:rem_end].casefold()):
@@ -507,74 +423,59 @@ def state_check_dot_id_rem(*args):
 
 
 @create_state(TokenizerState.CANCEL_ID, cleans=True)
-def state_cancel_id(*args):
+def state_cancel_id(sargs: StateArgs) -> TokenOpt:
     """"""
-    sargs = StateArgs(*args)
-    sargs.state_stack.leave_state()
     sargs.curr_token_gen.close()
 
 
 @create_state(TokenizerState.CONSTRUCT_ID)
-def state_construct_id(*args):
+def state_construct_id(sargs: StateArgs) -> TokenOpt:
     """"""
-    sargs = StateArgs(*args)
-    sargs.state_stack.leave_state()
     sargs.curr_token_gen.send(TokenType.IDENTIFIER)  # token_type
     sargs.state_stack.enter_state(TokenizerState.END_TERMINAL)
 
 
 @create_state(TokenizerState.CONSTRUCT_DOT_ID)
-def state_construct_dot_id(*args):
+def state_construct_dot_id(sargs: StateArgs) -> TokenOpt:
     """"""
-    sargs = StateArgs(*args)
-    sargs.state_stack.leave_state()
     sargs.curr_token_gen.send(TokenType.IDENTIFIER_DOTID)  # token_type
     sargs.state_stack.enter_state(TokenizerState.END_TERMINAL)
 
 
 @create_state(TokenizerState.CONSTRUCT_ID_DOT)
-def state_construct_id_dot(*args):
+def state_construct_id_dot(sargs: StateArgs) -> TokenOpt:
     """"""
-    sargs = StateArgs(*args)
-    sargs.state_stack.leave_state()
     sargs.curr_token_gen.send(TokenType.IDENTIFIER_IDDOT)  # token_type
     sargs.state_stack.enter_state(TokenizerState.END_TERMINAL)
 
 
 @create_state(TokenizerState.CONSTRUCT_DOT_ID_DOT)
-def state_construct_dot_id_dot(*args):
+def state_construct_dot_id_dot(sargs: StateArgs) -> TokenOpt:
     """"""
-    sargs = StateArgs(*args)
-    sargs.state_stack.leave_state()
     sargs.curr_token_gen.send(TokenType.IDENTIFIER_DOTIDDOT)  # token_type
     sargs.state_stack.enter_state(TokenizerState.END_TERMINAL)
 
 
 @create_state(TokenizerState.START_NUMBER)
-def state_start_number(*args):
+def state_start_number(sargs: StateArgs) -> TokenOpt:
     """"""
-    sargs = StateArgs(*args)
     sargs.state_stack.enter_multiple(
         [TokenizerState.PROCESS_NUMBER_CHUNK, TokenizerState.VERIFY_INT]
     )
-    sargs.state_stack.leave_state()
 
 
 @create_state(TokenizerState.PROCESS_NUMBER_CHUNK)
-def state_process_number_chunk(*args):
+def state_process_number_chunk(sargs: StateArgs) -> TokenOpt:
     """"""
-    sargs = StateArgs(*args)
     # need at least one digit
     if sargs.cwrap.assert_next(next_type=CharacterType.DIGIT):
         while sargs.cwrap.try_next(next_type=CharacterType.DIGIT):
             pass
-    sargs.state_stack.leave_state()
 
 
 @create_state(TokenizerState.VERIFY_INT)
-def state_verify_int(*args):
+def state_verify_int(sargs: StateArgs) -> TokenOpt:
     """"""
-    sargs = StateArgs(*args)
     if sargs.cwrap.current_char == ".":
         # has '.', not an int!
         sargs.state_stack.enter_multiple(
@@ -592,51 +493,41 @@ def state_verify_int(*args):
     else:
         # symbol is an int
         sargs.state_stack.enter_state(TokenizerState.CONSTRUCT_INT)
-    sargs.state_stack.leave_state()
 
 
 @create_state(TokenizerState.CHECK_FLOAT_DEC_PT)
-def state_check_float_dec_pt(*args):
+def state_check_float_dec_pt(sargs: StateArgs) -> TokenOpt:
     """"""
-    sargs = StateArgs(*args)
     if sargs.cwrap.try_next(next_char="."):
         sargs.state_stack.enter_state(TokenizerState.PROCESS_NUMBER_CHUNK)
-    sargs.state_stack.leave_state()
 
 
 @create_state(TokenizerState.CHECK_FLOAT_SCI_E)
-def state_check_float_sci_e(*args):
+def state_check_float_sci_e(sargs: StateArgs) -> TokenOpt:
     """"""
-    sargs = StateArgs(*args)
     if sargs.cwrap.try_next(next_char="E"):
         if not sargs.cwrap.check_for_end() and sargs.cwrap.current_char in "+-":
             sargs.cwrap.advance_pos()  # consume '-' or '+'
         sargs.state_stack.enter_state(TokenizerState.PROCESS_NUMBER_CHUNK)
-    sargs.state_stack.leave_state()
 
 
 @create_state(TokenizerState.CONSTRUCT_INT)
-def state_construct_int(*args):
+def state_construct_int(sargs: StateArgs) -> TokenOpt:
     """"""
-    sargs = StateArgs(*args)
     sargs.curr_token_gen.send(TokenType.LITERAL_INT)  # token_type
-    sargs.state_stack.leave_state()
     sargs.state_stack.enter_state(TokenizerState.END_TERMINAL)
 
 
 @create_state(TokenizerState.CONSTRUCT_FLOAT)
-def state_construct_float(*args):
+def state_construct_float(sargs: StateArgs) -> TokenOpt:
     """"""
-    sargs = StateArgs(*args)
     sargs.curr_token_gen.send(TokenType.LITERAL_FLOAT)  # token_type
-    sargs.state_stack.leave_state()
     sargs.state_stack.enter_state(TokenizerState.END_TERMINAL)
 
 
 @create_state(TokenizerState.START_STRING)
-def state_start_string(*args):
+def state_start_string(sargs: StateArgs) -> TokenOpt:
     """"""
-    sargs = StateArgs(*args)
     sargs.state_stack.enter_multiple(
         [
             TokenizerState.PROCESS_STRING,
@@ -644,66 +535,52 @@ def state_start_string(*args):
             TokenizerState.CONSTRUCT_STRING,
         ]
     )
-    sargs.state_stack.leave_state()
 
 
 @create_state(TokenizerState.PROCESS_STRING)
-def state_process_string(*args):
+def state_process_string(sargs: StateArgs) -> TokenOpt:
     """"""
-    sargs = StateArgs(*args)
     sargs.cwrap.assert_next(next_char='"')
     while sargs.cwrap.try_next(next_type=CharacterType.STRING_CHAR):
         pass
     sargs.cwrap.assert_next(next_char='"')
-    sargs.state_stack.leave_state()
 
 
 @create_state(TokenizerState.VERIFY_STRING_END)
-def state_verify_string_end(*args):
+def state_verify_string_end(sargs: StateArgs) -> TokenOpt:
     """"""
-    sargs = StateArgs(*args)
     if sargs.cwrap.current_char == '"':
         # double quote is escaped
+        sargs.state_stack.persist_state()
         sargs.state_stack.enter_state(TokenizerState.PROCESS_STRING)
-    else:
-        # reached end of string literal
-        sargs.state_stack.leave_state()
 
 
 @create_state(TokenizerState.CONSTRUCT_STRING)
-def state_construct_string(*args):
+def state_construct_string(sargs: StateArgs) -> TokenOpt:
     """"""
-    sargs = StateArgs(*args)
     sargs.curr_token_gen.send(TokenType.LITERAL_STRING)  # token_type
-    sargs.state_stack.leave_state()
     sargs.state_stack.enter_state(TokenizerState.END_TERMINAL)
 
 
 @create_state(TokenizerState.START_DATE)
-def state_start_date(*args):
+def state_start_date(sargs: StateArgs) -> TokenOpt:
     """"""
-    sargs = StateArgs(*args)
     sargs.state_stack.enter_multiple(
         [TokenizerState.PROCESS_DATE, TokenizerState.CONSTRUCT_DATE]
     )
-    sargs.state_stack.leave_state()
 
 
 @create_state(TokenizerState.PROCESS_DATE)
-def state_process_date(*args):
+def state_process_date(sargs: StateArgs) -> TokenOpt:
     """"""
-    sargs = StateArgs(*args)
     sargs.cwrap.assert_next(next_char="#")
     while sargs.cwrap.try_next(next_type=CharacterType.DATE_CHAR):
         pass
     sargs.cwrap.assert_next(next_char="#")
-    sargs.state_stack.leave_state()
 
 
 @create_state(TokenizerState.CONSTRUCT_DATE)
-def state_construct_date(*args):
+def state_construct_date(sargs: StateArgs) -> TokenOpt:
     """"""
-    sargs = StateArgs(*args)
     sargs.curr_token_gen.send(TokenType.LITERAL_DATE)  # token_type
-    sargs.state_stack.leave_state()
     sargs.state_stack.enter_state(TokenizerState.END_TERMINAL)

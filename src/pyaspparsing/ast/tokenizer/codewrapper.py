@@ -129,10 +129,10 @@ class CodeWrapper:
         self._pos_idx += 1
         return self._pos_char is not None
 
-    def advance_line(self, num_lines: int = 1):
+    def advance_line(self):
         """Update debug line info"""
         if self.line_no is not None and self.line_start is not None:
-            self.line_no += num_lines
+            self.line_no += 1
             self.line_start = self._pos_idx
 
     def validate_type(self, char_type: CharacterType) -> bool:

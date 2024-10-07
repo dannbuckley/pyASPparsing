@@ -27,22 +27,36 @@ def token_generator() -> TokenGen:
     line_no : int
     line_start : int
     """
-    # start state
+    # START_* state
     slice_start: int = yield
-    assert isinstance(slice_start, int)
-    # construct state
+    assert isinstance(
+        slice_start, int
+    ), f"slice_start must receive an int; got {type(slice_start)}"
+
+    # CONSTRUCT_* state
     token_type: TokenType = yield
-    assert isinstance(token_type, TokenType)
-    # end state
+    assert isinstance(
+        token_type, TokenType
+    ), f"token_type must receive a TokenType; got {type(token_type)}"
+
+    # END_* state
     slice_end: int = yield
-    assert isinstance(slice_end, int)
+    assert isinstance(
+        slice_end, int
+    ), f"slice_end must receive an int; got {type(slice_end)}"
     debug_info: bool = yield
-    assert isinstance(debug_info, bool)
+    assert isinstance(
+        debug_info, bool
+    ), f"debug_info must receive a bool; got {type(debug_info)}"
     if debug_info:
         line_no: int = yield
-        assert isinstance(line_no, int)
+        assert isinstance(
+            line_no, int
+        ), f"line_no must receive an int; got {type(line_no)}"
         line_start: int = yield
-        assert isinstance(line_start, int)
+        assert isinstance(
+            line_start, int
+        ), f"line_start must receive an int; got {type(line_start)}"
     return Token(
         token_type,
         slice(slice_start, slice_end),
