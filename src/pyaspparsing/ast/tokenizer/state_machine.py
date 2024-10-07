@@ -1,5 +1,7 @@
 """state_machine module"""
 
+import sys
+import traceback
 import typing
 
 import attrs
@@ -135,10 +137,17 @@ class Tokenizer:
     """
 
     codeblock: str
+    suppress_exc: bool = attrs.field(default=True)
+    output_file: typing.IO = attrs.field(default=sys.stdout)
     _tok_iter: typing.Optional[typing.Generator[Token, None, None]] = attrs.field(
         default=None, repr=False, init=False
     )
     _pos_tok: typing.Optional[Token] = attrs.field(default=None, repr=False, init=False)
+
+    @property
+    def current_token(self) -> typing.Optional[Token]:
+        """Current token object"""
+        return self._pos_tok
 
     def __enter__(self) -> typing.Self:
         """"""
@@ -151,11 +160,33 @@ class Tokenizer:
 
     def __exit__(self, exc_type, exc_val: BaseException, tb) -> bool:
         """"""
+        if tb is not None:
+            print("Tokenizer exited with an exception!", file=self.output_file)
+            print("Current token:", self._pos_tok, file=self.output_file)
+            print(
+                "Current token code:",
+                repr(self.get_token_code(False)) if not self._pos_tok is None else "",
+                file=self.output_file,
+            )
+            print("Exception type:", exc_type, file=self.output_file)
+            print("Exception value:", str(exc_val), file=self.output_file)
+            caused_by = exc_val.__cause__
+            while caused_by is not None:
+                print("Caused by:", file=self.output_file)
+                print(
+                    "\tException type:",
+                    repr(type(caused_by)),
+                    file=self.output_file,
+                )
+                print("\tException value:", str(caused_by), file=self.output_file)
+                caused_by = caused_by.__cause__
+            print("Traceback:", file=self.output_file)
+            traceback.print_tb(tb, file=self.output_file)
         self._pos_tok = None
         self._tok_iter.close()
         self._tok_iter = None
-        # don't suppress exception
-        return False
+        # suppress exception
+        return self.suppress_exc
 
     def advance_pos(self) -> bool:
         """

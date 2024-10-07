@@ -76,11 +76,11 @@ class Parser:
                 print("Caused by:", file=self.output_file)
                 print(
                     "\tException type:",
-                    repr(type(exc_val.__cause__)),
+                    repr(type(caused_by)),
                     file=self.output_file,
                 )
                 print(
-                    "\tException value:", str(exc_val.__cause__), file=self.output_file
+                    "\tException value:", str(caused_by), file=self.output_file
                 )
                 caused_by = caused_by.__cause__
             print("Traceback:", file=self.output_file)

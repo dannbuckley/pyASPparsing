@@ -1,8 +1,27 @@
 from contextlib import ExitStack
 import typing
 import pytest
+from pyaspparsing import TokenizerError
 from pyaspparsing.ast.tokenizer.token_types import Token, TokenType, KeywordType
 from pyaspparsing.ast.tokenizer.state_machine import Tokenizer
+
+
+def test_exit_tokenize_error():
+    with ExitStack() as stack:
+        stack.enter_context(pytest.raises(TokenizerError))
+        stack.enter_context(Tokenizer('"', False))
+
+
+def test_empty_current_token():
+    with Tokenizer("") as tkzr:
+        assert tkzr.current_token is None
+
+
+def test_token_current_token():
+    with Tokenizer("a") as tkzr:
+        assert tkzr.current_token is not None
+        assert tkzr.current_token.token_src == slice(0, 1)
+        assert tkzr.current_token.token_type == TokenType.IDENTIFIER
 
 
 def test_premature_advance_pos():
@@ -37,7 +56,7 @@ def test_premature_get_token_code():
 def test_empty_get_token_code():
     with ExitStack() as stack:
         stack.enter_context(pytest.raises(RuntimeError))
-        tkzr: Tokenizer = stack.enter_context(Tokenizer(""))
+        tkzr: Tokenizer = stack.enter_context(Tokenizer("", False))
         tkzr.get_token_code()
 
 
@@ -77,21 +96,21 @@ def test_premature_assert_consume():
 def test_invalid_assert_consume():
     with ExitStack() as stack:
         stack.enter_context(pytest.raises(ValueError))
-        tkzr: Tokenizer = stack.enter_context(Tokenizer(""))
+        tkzr: Tokenizer = stack.enter_context(Tokenizer("", False))
         tkzr.assert_consume(None)
 
 
 def test_wrong_type_assert_consume():
     with ExitStack() as stack:
         stack.enter_context(pytest.raises(AssertionError))
-        tkzr: Tokenizer = stack.enter_context(Tokenizer("a"))
+        tkzr: Tokenizer = stack.enter_context(Tokenizer("a", False))
         tkzr.assert_consume(TokenType.NEWLINE)
 
 
 def test_wrong_code_assert_consume():
     with ExitStack() as stack:
         stack.enter_context(pytest.raises(AssertionError))
-        tkzr: Tokenizer = stack.enter_context(Tokenizer("a"))
+        tkzr: Tokenizer = stack.enter_context(Tokenizer("a", False))
         tkzr.assert_consume(TokenType.IDENTIFIER, "not_a")
 
 
