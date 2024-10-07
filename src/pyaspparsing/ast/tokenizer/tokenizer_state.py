@@ -7,7 +7,7 @@ import attrs
 
 @enum.verify(enum.CONTINUOUS, enum.UNIQUE)
 class TokenizerState(enum.IntEnum):
-    """"""
+    """Enumeration of valid tokenizer states"""
 
     # housekeeping states
     CHECK_EXHAUSTED = enum.auto()
@@ -80,7 +80,7 @@ class TokenizerState(enum.IntEnum):
 
 @attrs.define
 class TokenizerStateStack:
-    """"""
+    """Stack implementation to handle transitioning between tokenizer states"""
 
     state_stack: typing.List[TokenizerState] = attrs.field(
         default=attrs.Factory(list), init=False
@@ -117,6 +117,8 @@ class TokenizerStateStack:
 
     @property
     def current_state(self) -> typing.Optional[TokenizerState]:
+        """If the stack is empty, returns None;
+        otherwise, returns the state at the top of the stack"""
         try:
             return self.state_stack[-1]
         except IndexError:

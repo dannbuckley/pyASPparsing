@@ -276,10 +276,10 @@ class CodeWrapper:
                 CharacterType.DIGIT: "Expected a digit",
                 CharacterType.STRING_CHAR: "Expected a valid character, not including '\"'",
                 CharacterType.DATE_CHAR: "Expected a printable character, not including '#'",
-                CharacterType.ID_NAME_CHAR: "Expected a printable character, not including '[' or ']'",
+                CharacterType.ID_NAME_CHAR: "Expected a printable character (w/o '[' or ']')",
                 CharacterType.HEX_DIGIT: "Expected a hexadecimal digit",
                 CharacterType.OCT_DIGIT: "Expected an octal digit",
-                CharacterType.WS: "Expected a valid whitespace character, not including '\\r' or '\\n'",
+                CharacterType.WS: "Expected a valid whitespace character (w/o '\\r' or '\\n')",
                 CharacterType.ID_TAIL: "Expected either an alphanumeric character or '_'",
             }
             assert self.validate_type(next_type), assert_msg[next_type]
