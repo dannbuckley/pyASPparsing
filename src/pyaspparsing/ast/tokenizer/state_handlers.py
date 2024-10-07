@@ -11,15 +11,51 @@ from .tokenizer_state import TokenizerState, TokenizerStateStack
 from .token_types import TokenType, Token
 from .state_types import TokenGenOpt, TokenOpt
 
-state_handlers: typing.Dict[
+# states that use curr_token_gen
+reg_state_starts_token: typing.List[TokenizerState] = []
+
+# states that return a token
+reg_state_returns_token: typing.List[TokenizerState] = []
+
+# states that need to cleanup curr_token_gen
+reg_state_cleans_token: typing.List[TokenizerState] = []
+
+# map state enum to handler function
+reg_state_handlers: typing.Dict[
     TokenizerState,
     Callable[[CodeWrapper, TokenizerStateStack, TokenGenOpt], typing.Optional[Token]],
 ] = {}
 
 
-def create_state(state: TokenizerState):
+def create_state(
+    state: TokenizerState,
+    *,
+    starts: bool = False,
+    returns: bool = False,
+    cleans: bool = False,
+):
     """Decorator function that adds state arguments
-    to handler functions"""
+    to handler functions
+
+    State handler is registered in `reg_state_handlers`
+
+    Parameters
+    ----------
+    state : TokenizerState
+    starts : bool, default=False
+        If True, register state in `reg_state_starts_token`
+    returns : bool, default=False
+        If True, register state in `reg_state_returns_token`
+    cleans : bool, default=False
+        If True, register state in `reg_state_cleans_token`
+    """
+
+    if starts:
+        reg_state_starts_token.append(state)
+    if returns:
+        reg_state_returns_token.append(state)
+    if cleans:
+        reg_state_cleans_token.append(state)
 
     def wrap_func(func: Callable):
         @wraps(func)
@@ -30,7 +66,7 @@ def create_state(state: TokenizerState):
         ) -> TokenOpt:
             return func(cwrap, state_stack, curr_token_gen)
 
-        state_handlers[state] = add_state_args
+        reg_state_handlers[state] = add_state_args
         return add_state_args
 
     return wrap_func
@@ -38,6 +74,14 @@ def create_state(state: TokenizerState):
 
 @dataclass
 class StateArgs:
+    """
+    Attributes
+    ----------
+    cwrap : CodeWrapper
+    state_stack : TokenizerStateStack
+    curr_token_gen : TokenGenOpt, default=None
+    """
+
     cwrap: CodeWrapper
     state_stack: TokenizerStateStack
     curr_token_gen: TokenGenOpt = None
@@ -95,7 +139,7 @@ def process_newline(cwrap: CodeWrapper) -> int:
 
 # ======== TOKENIZER STATE HANDLERS ========
 # These are not called directly
-# Instead, create_state registers them in the state_handlers global dict
+# Instead, create_state registers them in the reg_state_handlers global dict
 
 
 @create_state(TokenizerState.CHECK_EXHAUSTED)
@@ -139,7 +183,7 @@ def state_skip_comment(*args):
         sargs.state_stack.enter_state(TokenizerState.START_NEWLINE)
 
 
-@create_state(TokenizerState.START_NEWLINE)
+@create_state(TokenizerState.START_NEWLINE, starts=True)
 def state_start_newline(*args):
     """"""
     sargs = StateArgs(*args)
@@ -159,7 +203,7 @@ def state_handle_newline(*args):
     sargs.state_stack.leave_state()
 
 
-@create_state(TokenizerState.END_NEWLINE)
+@create_state(TokenizerState.END_NEWLINE, returns=True, cleans=True)
 def state_end_newline(*args):
     """"""
     sargs = StateArgs(*args)
@@ -171,7 +215,7 @@ def state_end_newline(*args):
         return ex.value
 
 
-@create_state(TokenizerState.START_TERMINAL)
+@create_state(TokenizerState.START_TERMINAL, starts=True)
 def state_start_terminal(*args):
     """"""
     sargs = StateArgs(*args)
@@ -201,7 +245,7 @@ def state_start_terminal(*args):
             sargs.state_stack.enter_state(TokenizerState.CONSTRUCT_SYMBOL)
 
 
-@create_state(TokenizerState.END_TERMINAL)
+@create_state(TokenizerState.END_TERMINAL, returns=True, cleans=True)
 def state_end_terminal(*args):
     """"""
     sargs = StateArgs(*args)
@@ -462,7 +506,7 @@ def state_check_dot_id_rem(*args):
         sargs.state_stack.enter_state(TokenizerState.CHECK_DOT_END_DOT)
 
 
-@create_state(TokenizerState.CANCEL_ID)
+@create_state(TokenizerState.CANCEL_ID, cleans=True)
 def state_cancel_id(*args):
     """"""
     sargs = StateArgs(*args)

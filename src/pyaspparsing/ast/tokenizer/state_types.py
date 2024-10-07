@@ -1,32 +1,11 @@
 """state_types module"""
 
 import typing
-from .tokenizer_state import TokenizerState
 from .token_types import Token, TokenType, DebugLineInfo
 
 type TokenGen = typing.Generator[None, typing.Any, Token]
 type TokenGenOpt = typing.Optional[TokenGen]
 type TokenOpt = typing.Optional[Token]
-
-
-# states that use curr_token_gen
-state_starts_token: typing.List[TokenizerState] = [
-    TokenizerState.START_NEWLINE,
-    TokenizerState.START_TERMINAL,
-]
-
-# states that return a token
-state_returns_token: typing.List[TokenizerState] = [
-    TokenizerState.END_NEWLINE,
-    TokenizerState.END_TERMINAL,
-]
-
-# states that need to cleanup curr_token_gen
-state_cleans_token: typing.List[TokenizerState] = [
-    TokenizerState.END_NEWLINE,
-    TokenizerState.END_TERMINAL,
-    TokenizerState.CANCEL_ID,
-]
 
 
 def token_generator() -> TokenGen:

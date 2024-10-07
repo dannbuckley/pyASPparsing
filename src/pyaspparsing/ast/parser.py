@@ -8,8 +8,9 @@ import attrs
 
 from .. import ParserError
 
+from .tokenizer.state_types import TokenGenOpt
+from .tokenizer.state_machine import tokenize
 from .tokenizer.token_types import TokenType, Token
-from .tokenizer import Tokenizer
 from .ast_types import *
 
 
@@ -30,9 +31,7 @@ class Parser:
     codeblock: str
     suppress_exc: bool = attrs.field(default=True)
     output_file: typing.IO = attrs.field(default=sys.stdout)
-    _tkzr: typing.Optional[Tokenizer] = attrs.field(
-        default=None, repr=False, init=False
-    )
+    _tkzr: TokenGenOpt = attrs.field(default=None, repr=False, init=False)
     _pos_tok: typing.Optional[Token] = attrs.field(default=None, repr=False, init=False)
 
     def __enter__(self) -> typing.Self:
@@ -42,7 +41,7 @@ class Parser:
         -------
         Self
         """
-        self._tkzr = iter(Tokenizer(self.codeblock))
+        self._tkzr = tokenize(self.codeblock)
         # preload first token
         self._pos_tok = next(
             self._tkzr, None

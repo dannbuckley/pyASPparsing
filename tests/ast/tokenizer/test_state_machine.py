@@ -101,6 +101,14 @@ def test_comment_newline(comment_delim: str, newline: str):
             pytest.fail("First token was None, should be a NEWLINE Token")
 
 
+def test_trailing_whitespace():
+    tkzr = tokenize('"Hello, world!"   ')
+    tok = next(tkzr, None)
+    assert tok.token_type == TokenType.LITERAL_STRING
+    tok = next(tkzr, None)
+    assert tok is None
+
+
 def test_line_continuation():
     for tok, etok in zip(
         tokenize('"Hello, " & _  \r\n" world!"'),
