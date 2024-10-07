@@ -30,9 +30,7 @@ class Parser:
     codeblock: str
     suppress_exc: bool = attrs.field(default=True)
     output_file: typing.IO = attrs.field(default=sys.stdout)
-    _tkzr: typing.Generator[Token, None, None] = attrs.field(
-        default=None, repr=False, init=False
-    )
+    _tkzr: typing.Generator[Token, None, None] = attrs.field(default=None, repr=False, init=False)
     _pos_tok: typing.Optional[Token] = attrs.field(default=None, repr=False, init=False)
 
     def __enter__(self) -> typing.Self:
