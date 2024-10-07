@@ -50,15 +50,17 @@ def test_tokenize(codeblock: str, exp_type: TokenType):
 @pytest.mark.parametrize(
     "codeblock",
     [
-        ("[Invalid Escape Identifier"),
-        ('"This string does not have an end'),
-        ("&H"),
-        ("&HG"),
-        ("1."),
-        ("1E"),
-        ("#"),
-        ("#1970/01/01"),
-        (".Rem"),
+        ("["), # missing last ']'
+        ("[Invalid Escape Identifier"),  # missing last ']'
+        ('"This string does not have an end'),  # missing last '"'
+        ("&H"),  # need at least one hex digit
+        ("&HG"),  # invalid hex digit
+        ("1."),  # need at least one digit after '.'
+        ("1E"),  # need at least one digit after '.'
+        ("#"),  # need at least one date character
+        ("##"),  # need at least one date character
+        ("#1970/01/01"),  # missing last '#'
+        (".Rem"),  # cannot have '.' immediately before Rem comment
     ],
 )
 def test_tokenize_invalid(codeblock: str):
