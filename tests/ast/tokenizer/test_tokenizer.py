@@ -87,6 +87,29 @@ def test_token_try_token_type():
         assert tkzr.try_token_type(TokenType.NEWLINE) is True
 
 
+def test_invalid_try_multiple_token_type():
+    with Tokenizer("0") as tkzr:
+        assert (
+            tkzr.try_multiple_token_type([TokenType.LITERAL_HEX, TokenType.LITERAL_OCT])
+            is False
+        )
+
+
+def test_valid_try_multiple_token_type():
+    with Tokenizer(".add") as tkzr:
+        assert (
+            tkzr.try_multiple_token_type(
+                [
+                    TokenType.IDENTIFIER,
+                    TokenType.IDENTIFIER_IDDOT,
+                    TokenType.IDENTIFIER_DOTID,
+                    TokenType.IDENTIFIER_DOTIDDOT,
+                ]
+            )
+            is True
+        )
+
+
 def test_premature_assert_consume():
     with pytest.raises(RuntimeError):
         tkzr = Tokenizer("")

@@ -1,20 +1,14 @@
 """Base AST types"""
 
 import enum
-import typing
-
-import attrs
-
-from ..tokenizer.token_types import Token
+import inspect
 
 __all__ = [
     "AccessModifierType",
     "CompareExprType",
-    "ExtendedID",
     "Expr",
     "Value",
     "GlobalStmt",
-    "Program",
     "MethodStmt",
     "BlockStmt",
     "InlineStmt",
@@ -49,14 +43,6 @@ class CompareExprType(enum.Enum):
     COMPARE_EQ = 9
 
 
-@attrs.define(slots=False)
-class ExtendedID:
-    """Defined on grammar line 513"""
-
-    id_token: Token
-
-
-@attrs.define(slots=False)
 class Expr:
     """Defined on grammar line 664
 
@@ -64,7 +50,6 @@ class Expr:
     """
 
 
-@attrs.define(slots=False)
 class Value(Expr):
     """Defined on grammar line 720
 
@@ -72,7 +57,6 @@ class Value(Expr):
     """
 
 
-@attrs.define(slots=False)
 class GlobalStmt:
     """Defined on grammar line 357
 
@@ -86,21 +70,23 @@ class GlobalStmt:
     - BlockStmt
     """
 
+    @classmethod
+    def generate_global_stmt(cls):
+        # get signature of derived class constructor
+        sig: inspect.Signature = inspect.signature(cls)
 
-@attrs.define
-class Program:
-    """The starting symbol for the VBScript grammar.
-    Defined on grammar line 267
+        # iteratively receive constructor arguments
+        init_kw = {}
+        for param_name in sig.parameters.keys():
+            init_kw[param_name] = yield
 
-    Attributes
-    ----------
-    global_stmt_list : List[GlobalStmt], default=[]
-    """
+        # wait until caller is ready before returning
+        yield
 
-    global_stmt_list: typing.List[GlobalStmt] = attrs.field(default=attrs.Factory(list))
+        # construct and return final class
+        return cls(**init_kw)
 
 
-@attrs.define(slots=False)
 class MethodStmt:
     """Defined on grammar line 365
 
@@ -108,7 +94,6 @@ class MethodStmt:
     """
 
 
-@attrs.define(slots=False)
 class BlockStmt(GlobalStmt, MethodStmt):
     """Defined on grammar line 368
 
@@ -117,11 +102,9 @@ class BlockStmt(GlobalStmt, MethodStmt):
     """
 
 
-@attrs.define(slots=False)
 class InlineStmt(BlockStmt):
     """Defined on grammar line 377"""
 
 
-@attrs.define(slots=False)
 class MemberDecl:
     """Defined on grammar line 278"""

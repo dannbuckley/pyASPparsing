@@ -11,9 +11,9 @@ from .base import (
     Expr,
     GlobalStmt,
     MethodStmt,
-    ExtendedID,
     MemberDecl,
 )
+from .statements import ExtendedID
 
 __all__ = [
     "ClassDecl",
@@ -29,23 +29,6 @@ __all__ = [
     "FunctionDecl",
     "PropertyDecl",
 ]
-
-
-@attrs.define(slots=False)
-class ClassDecl(GlobalStmt):
-    """Defined on grammar line 273
-
-    'Class' &lt;ExtendedID&gt; &lt;NEWLINE&gt; <br />
-    &lt;MemberDeclList&gt; 'End' 'Class' &lt;NEWLINE&gt;
-
-    Attributes
-    ----------
-    extended_id : ExtendedID
-    member_decl_list : List[MemberDecl], default=[]
-    """
-
-    extended_id: ExtendedID
-    member_decl_list: typing.List[MemberDecl] = attrs.field(default=attrs.Factory(list))
 
 
 @attrs.define(slots=False)
@@ -189,3 +172,20 @@ class PropertyDecl(MemberDecl):
     access_mod: typing.Optional[AccessModifierType] = attrs.field(
         default=None, kw_only=True
     )
+
+
+@attrs.define(slots=False)
+class ClassDecl(GlobalStmt):
+    """Defined on grammar line 273
+
+    'Class' &lt;ExtendedID&gt; &lt;NEWLINE&gt; <br />
+    &lt;MemberDeclList&gt; 'End' 'Class' &lt;NEWLINE&gt;
+
+    Attributes
+    ----------
+    extended_id : ExtendedID
+    member_decl_list : List[MemberDecl], default=[]
+    """
+
+    extended_id: ExtendedID
+    member_decl_list: typing.List[MemberDecl] = attrs.field(default=attrs.Factory(list))

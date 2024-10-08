@@ -5,10 +5,11 @@ import typing
 import attrs
 
 from ..tokenizer.token_types import Token
-from .base import GlobalStmt, Expr, ExtendedID, BlockStmt, InlineStmt
+from .base import GlobalStmt, Expr, BlockStmt, InlineStmt
 from .expressions import LeftExpr
 
 __all__ = [
+    "ExtendedID",
     "OptionExplicit",
     "RedimDecl",
     "RedimStmt",
@@ -26,6 +27,13 @@ __all__ = [
     "ExitStmt",
     "EraseStmt",
 ]
+
+
+@attrs.define(slots=False)
+class ExtendedID:
+    """Defined on grammar line 513"""
+
+    id_token: Token
 
 
 @attrs.define(slots=False)

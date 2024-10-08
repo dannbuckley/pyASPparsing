@@ -238,6 +238,10 @@ class Tokenizer:
         """Compare the given token type against
         the token type of the current token
 
+        Parameters
+        ----------
+        tok_type : TokenType
+
         Returns
         -------
         bool
@@ -256,6 +260,22 @@ class Tokenizer:
         if self._pos_tok is None:
             return False
         return self._pos_tok.token_type == tok_type
+
+    def try_multiple_token_type(self, tok_types: typing.Iterable[TokenType]) -> bool:
+        """Compare the current token type against
+        multiple possible token types
+
+        Parameters
+        ----------
+        tok_types : Iterable[TokenType]
+
+        Returns
+        -------
+        bool
+            False if the current token is None or
+            the current token does not match any of the given token types
+        """
+        return any(map(self.try_token_type, tok_types))
 
     def assert_consume(
         self,

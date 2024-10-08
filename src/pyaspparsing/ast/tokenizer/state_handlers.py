@@ -25,11 +25,26 @@ reg_state_cleans_token: typing.List[TokenizerState] = []
 # map state enum to handler function
 reg_state_handlers: typing.Dict[
     TokenizerState,
-    Callable[[CodeWrapper, TokenizerStateStack, TokenGenOpt], typing.Optional[Token]],
+    Callable[[CodeWrapper, TokenizerStateStack, TokenGenOpt], TokenOpt],
 ] = {}
 
 
-def create_state(
+@dataclass
+class StateArgs:
+    """
+    Attributes
+    ----------
+    cwrap : CodeWrapper
+    state_stack : TokenizerStateStack
+    curr_token_gen : TokenGenOpt, default=None
+    """
+
+    cwrap: CodeWrapper
+    state_stack: TokenizerStateStack
+    curr_token_gen: TokenGenOpt = None
+
+
+def create_tokenizer_state(
     state: TokenizerState,
     *,
     starts: bool = False,
@@ -74,28 +89,13 @@ def create_state(
     return wrap_func
 
 
-@dataclass
-class StateArgs:
-    """
-    Attributes
-    ----------
-    cwrap : CodeWrapper
-    state_stack : TokenizerStateStack
-    curr_token_gen : TokenGenOpt, default=None
-    """
-
-    cwrap: CodeWrapper
-    state_stack: TokenizerStateStack
-    curr_token_gen: TokenGenOpt = None
-
-
 # ======== TOKENIZER STATE HANDLERS ========
 # THESE ARE NOT CALLED DIRECTLY
-# Instead, the create_state decorator registers them in the reg_state_handlers global dict
+# Instead, the create_tokenizer_state decorator registers them in the reg_state_handlers global dict
 # States are exited automatically unless state_stack.persist_state() is called
 
 
-@create_state(TokenizerState.CHECK_EXHAUSTED)
+@create_tokenizer_state(TokenizerState.CHECK_EXHAUSTED)
 def state_check_exhausted(sargs: StateArgs) -> TokenOpt:
     """Handler for CHECK_EXHAUSTED tokenizer state
 
@@ -107,7 +107,7 @@ def state_check_exhausted(sargs: StateArgs) -> TokenOpt:
         sargs.state_stack.enter_state(TokenizerState.CHECK_WHITESPACE)
 
 
-@create_state(TokenizerState.CHECK_WHITESPACE)
+@create_tokenizer_state(TokenizerState.CHECK_WHITESPACE)
 def state_check_whitespace(sargs: StateArgs) -> TokenOpt:
     """Handler for CHECK_WHITESPACE tokenizer state
 
@@ -143,7 +143,7 @@ def state_check_whitespace(sargs: StateArgs) -> TokenOpt:
             sargs.state_stack.enter_state(TokenizerState.START_TERMINAL)
 
 
-@create_state(TokenizerState.SKIP_COMMENT)
+@create_tokenizer_state(TokenizerState.SKIP_COMMENT)
 def state_skip_comment(sargs: StateArgs) -> TokenOpt:
     """Handler for SKIP_COMMENT tokenizer state
 
@@ -162,7 +162,7 @@ def state_skip_comment(sargs: StateArgs) -> TokenOpt:
         sargs.state_stack.enter_state(TokenizerState.START_NEWLINE)
 
 
-@create_state(TokenizerState.START_NEWLINE, starts=True)
+@create_tokenizer_state(TokenizerState.START_NEWLINE, starts=True)
 def state_start_newline(sargs: StateArgs) -> TokenOpt:
     """Handler for START_NEWLINE tokenizer state
 
@@ -178,7 +178,7 @@ def state_start_newline(sargs: StateArgs) -> TokenOpt:
     )
 
 
-@create_state(TokenizerState.HANDLE_NEWLINE)
+@create_tokenizer_state(TokenizerState.HANDLE_NEWLINE)
 def state_handle_newline(sargs: StateArgs) -> TokenOpt:
     """Handler for HANDLE_NEWLINE tokenizer state
 
@@ -193,7 +193,7 @@ def state_handle_newline(sargs: StateArgs) -> TokenOpt:
         sargs.cwrap.advance_line()
 
 
-@create_state(TokenizerState.END_NEWLINE, returns=True, cleans=True)
+@create_tokenizer_state(TokenizerState.END_NEWLINE, returns=True, cleans=True)
 def state_end_newline(sargs: StateArgs) -> TokenOpt:
     """Handler for END_NEWLINE tokenizer state
 
@@ -219,7 +219,7 @@ def state_end_newline(sargs: StateArgs) -> TokenOpt:
     return ret_token
 
 
-@create_state(TokenizerState.START_TERMINAL, starts=True)
+@create_tokenizer_state(TokenizerState.START_TERMINAL, starts=True)
 def state_start_terminal(sargs: StateArgs) -> TokenOpt:
     """Handler for START_TERMINAL tokenizer state
 
@@ -253,7 +253,7 @@ def state_start_terminal(sargs: StateArgs) -> TokenOpt:
             sargs.state_stack.enter_state(TokenizerState.CONSTRUCT_SYMBOL)
 
 
-@create_state(TokenizerState.END_TERMINAL, returns=True, cleans=True)
+@create_tokenizer_state(TokenizerState.END_TERMINAL, returns=True, cleans=True)
 def state_end_terminal(sargs: StateArgs) -> TokenOpt:
     """Handler for END_TERMINAL tokenizer state
 
@@ -281,7 +281,7 @@ def state_end_terminal(sargs: StateArgs) -> TokenOpt:
     return ret_token
 
 
-@create_state(TokenizerState.CONSTRUCT_SYMBOL)
+@create_tokenizer_state(TokenizerState.CONSTRUCT_SYMBOL)
 def state_construct_symbol(sargs: StateArgs) -> TokenOpt:
     """Handler for CONSTRUCT_SYMBOL tokenizer state
 
@@ -292,7 +292,7 @@ def state_construct_symbol(sargs: StateArgs) -> TokenOpt:
     sargs.state_stack.enter_state(TokenizerState.END_TERMINAL)
 
 
-@create_state(TokenizerState.START_DOT)
+@create_tokenizer_state(TokenizerState.START_DOT)
 def state_start_dot(sargs: StateArgs) -> TokenOpt:
     """Handler for START_DOT tokenizer state
 
@@ -319,7 +319,7 @@ def state_start_dot(sargs: StateArgs) -> TokenOpt:
         sargs.state_stack.enter_state(TokenizerState.CONSTRUCT_SYMBOL)
 
 
-@create_state(TokenizerState.START_AMP)
+@create_tokenizer_state(TokenizerState.START_AMP)
 def state_start_amp(sargs: StateArgs) -> TokenOpt:
     """Handler for START_AMP tokenizer state
 
@@ -338,7 +338,7 @@ def state_start_amp(sargs: StateArgs) -> TokenOpt:
         sargs.state_stack.enter_state(TokenizerState.CONSTRUCT_SYMBOL)
 
 
-@create_state(TokenizerState.START_HEX)
+@create_tokenizer_state(TokenizerState.START_HEX)
 def state_start_hex(sargs: StateArgs) -> TokenOpt:
     """Handler for START_HEX tokenizer state
 
@@ -357,7 +357,7 @@ def state_start_hex(sargs: StateArgs) -> TokenOpt:
     )
 
 
-@create_state(TokenizerState.START_OCT)
+@create_tokenizer_state(TokenizerState.START_OCT)
 def state_start_oct(sargs: StateArgs) -> TokenOpt:
     """Handler for START_OCT tokenizer state
 
@@ -375,7 +375,7 @@ def state_start_oct(sargs: StateArgs) -> TokenOpt:
     )
 
 
-@create_state(TokenizerState.PROCESS_HEX)
+@create_tokenizer_state(TokenizerState.PROCESS_HEX)
 def state_process_hex(sargs: StateArgs) -> TokenOpt:
     """Handler for PROCESS_HEX tokenizer state
 
@@ -388,7 +388,7 @@ def state_process_hex(sargs: StateArgs) -> TokenOpt:
             pass
 
 
-@create_state(TokenizerState.PROCESS_OCT)
+@create_tokenizer_state(TokenizerState.PROCESS_OCT)
 def state_process_oct(sargs: StateArgs) -> TokenOpt:
     """Handler for PROCESS_OCT tokenizer state
 
@@ -401,7 +401,7 @@ def state_process_oct(sargs: StateArgs) -> TokenOpt:
             pass
 
 
-@create_state(TokenizerState.CHECK_END_AMP)
+@create_tokenizer_state(TokenizerState.CHECK_END_AMP)
 def state_check_end_amp(sargs: StateArgs) -> TokenOpt:
     """Handler for CHECK_END_AMP tokenizer state
 
@@ -410,7 +410,7 @@ def state_check_end_amp(sargs: StateArgs) -> TokenOpt:
     sargs.cwrap.try_next(next_char="&")
 
 
-@create_state(TokenizerState.CONSTRUCT_HEX)
+@create_tokenizer_state(TokenizerState.CONSTRUCT_HEX)
 def state_construct_hex(sargs: StateArgs) -> TokenOpt:
     """Handler for CONSTRUCT_HEX tokenizer state
 
@@ -421,7 +421,7 @@ def state_construct_hex(sargs: StateArgs) -> TokenOpt:
     sargs.state_stack.enter_state(TokenizerState.END_TERMINAL)
 
 
-@create_state(TokenizerState.CONSTRUCT_OCT)
+@create_tokenizer_state(TokenizerState.CONSTRUCT_OCT)
 def state_construct_oct(sargs: StateArgs) -> TokenOpt:
     """Handler for CONSTRUCT_OCT tokenizer state
 
@@ -432,7 +432,7 @@ def state_construct_oct(sargs: StateArgs) -> TokenOpt:
     sargs.state_stack.enter_state(TokenizerState.END_TERMINAL)
 
 
-@create_state(TokenizerState.START_ID)
+@create_tokenizer_state(TokenizerState.START_ID)
 def state_start_id(sargs: StateArgs) -> TokenOpt:
     """Handler for START_ID tokenizer state
 
@@ -448,7 +448,7 @@ def state_start_id(sargs: StateArgs) -> TokenOpt:
     )
 
 
-@create_state(TokenizerState.START_DOT_ID)
+@create_tokenizer_state(TokenizerState.START_DOT_ID)
 def state_start_dot_id(sargs: StateArgs) -> TokenOpt:
     """Handler for START_DOT_ID tokenizer state
 
@@ -461,7 +461,7 @@ def state_start_dot_id(sargs: StateArgs) -> TokenOpt:
     )
 
 
-@create_state(TokenizerState.START_ID_ESCAPE)
+@create_tokenizer_state(TokenizerState.START_ID_ESCAPE)
 def state_start_id_escape(sargs: StateArgs) -> TokenOpt:
     """Handler for START_ID_ESCAPE tokenizer state
 
@@ -474,7 +474,7 @@ def state_start_id_escape(sargs: StateArgs) -> TokenOpt:
     )
 
 
-@create_state(TokenizerState.START_DOT_ID_ESCAPE)
+@create_tokenizer_state(TokenizerState.START_DOT_ID_ESCAPE)
 def state_start_dot_id_escape(sargs: StateArgs) -> TokenOpt:
     """Handler for START_DOT_ID_ESCAPE tokenizer state
 
@@ -487,7 +487,7 @@ def state_start_dot_id_escape(sargs: StateArgs) -> TokenOpt:
     )
 
 
-@create_state(TokenizerState.PROCESS_ID)
+@create_tokenizer_state(TokenizerState.PROCESS_ID)
 def state_process_id(sargs: StateArgs) -> TokenOpt:
     """Handler for PROCESS_ID tokenizer state
 
@@ -498,7 +498,7 @@ def state_process_id(sargs: StateArgs) -> TokenOpt:
         pass
 
 
-@create_state(TokenizerState.PROCESS_ID_ESCAPE)
+@create_tokenizer_state(TokenizerState.PROCESS_ID_ESCAPE)
 def state_process_id_escape(sargs: StateArgs) -> TokenOpt:
     """Handler for PROCESS_ID_ESCAPE tokenizer state
 
@@ -510,7 +510,7 @@ def state_process_id_escape(sargs: StateArgs) -> TokenOpt:
     sargs.cwrap.assert_next(next_char="]")
 
 
-@create_state(TokenizerState.CHECK_END_DOT)
+@create_tokenizer_state(TokenizerState.CHECK_END_DOT)
 def state_check_end_dot(sargs: StateArgs) -> TokenOpt:
     """Handler for CHECK_END_DOT tokenizer state
 
@@ -524,7 +524,7 @@ def state_check_end_dot(sargs: StateArgs) -> TokenOpt:
         sargs.state_stack.enter_state(TokenizerState.CONSTRUCT_ID)
 
 
-@create_state(TokenizerState.CHECK_DOT_END_DOT)
+@create_tokenizer_state(TokenizerState.CHECK_DOT_END_DOT)
 def state_check_dot_end_dot(sargs: StateArgs) -> TokenOpt:
     """Handler for CHECK_DOT_END_DOT tokenizer state
 
@@ -538,7 +538,7 @@ def state_check_dot_end_dot(sargs: StateArgs) -> TokenOpt:
         sargs.state_stack.enter_state(TokenizerState.CONSTRUCT_DOT_ID)
 
 
-@create_state(TokenizerState.CHECK_ID_REM)
+@create_tokenizer_state(TokenizerState.CHECK_ID_REM)
 def state_check_id_rem(sargs: StateArgs) -> TokenOpt:
     """Handler for CHECK_ID_REM tokenizer state
 
@@ -567,7 +567,7 @@ def state_check_id_rem(sargs: StateArgs) -> TokenOpt:
         sargs.state_stack.enter_state(TokenizerState.CHECK_END_DOT)
 
 
-@create_state(TokenizerState.CHECK_DOT_ID_REM)
+@create_tokenizer_state(TokenizerState.CHECK_DOT_ID_REM)
 def state_check_dot_id_rem(sargs: StateArgs) -> TokenOpt:
     """Handler for CHECK_DOT_ID_REM tokenizer state
 
@@ -587,7 +587,7 @@ def state_check_dot_id_rem(sargs: StateArgs) -> TokenOpt:
     sargs.state_stack.enter_state(TokenizerState.CHECK_DOT_END_DOT)
 
 
-@create_state(TokenizerState.CANCEL_ID, cleans=True)
+@create_tokenizer_state(TokenizerState.CANCEL_ID, cleans=True)
 def state_cancel_id(sargs: StateArgs) -> TokenOpt:
     """Handler for CANCEL_ID tokenizer state
 
@@ -597,7 +597,7 @@ def state_cancel_id(sargs: StateArgs) -> TokenOpt:
     sargs.curr_token_gen.close()
 
 
-@create_state(TokenizerState.CONSTRUCT_ID)
+@create_tokenizer_state(TokenizerState.CONSTRUCT_ID)
 def state_construct_id(sargs: StateArgs) -> TokenOpt:
     """Handler for CONSTRUCT_ID tokenizer state
 
@@ -608,7 +608,7 @@ def state_construct_id(sargs: StateArgs) -> TokenOpt:
     sargs.state_stack.enter_state(TokenizerState.END_TERMINAL)
 
 
-@create_state(TokenizerState.CONSTRUCT_DOT_ID)
+@create_tokenizer_state(TokenizerState.CONSTRUCT_DOT_ID)
 def state_construct_dot_id(sargs: StateArgs) -> TokenOpt:
     """Handler for CONSTRUCT_DOT_ID tokenizer state
 
@@ -619,7 +619,7 @@ def state_construct_dot_id(sargs: StateArgs) -> TokenOpt:
     sargs.state_stack.enter_state(TokenizerState.END_TERMINAL)
 
 
-@create_state(TokenizerState.CONSTRUCT_ID_DOT)
+@create_tokenizer_state(TokenizerState.CONSTRUCT_ID_DOT)
 def state_construct_id_dot(sargs: StateArgs) -> TokenOpt:
     """Handler for CONSTRUCT_ID_DOT tokenizer state
 
@@ -630,7 +630,7 @@ def state_construct_id_dot(sargs: StateArgs) -> TokenOpt:
     sargs.state_stack.enter_state(TokenizerState.END_TERMINAL)
 
 
-@create_state(TokenizerState.CONSTRUCT_DOT_ID_DOT)
+@create_tokenizer_state(TokenizerState.CONSTRUCT_DOT_ID_DOT)
 def state_construct_dot_id_dot(sargs: StateArgs) -> TokenOpt:
     """Handler for CONSTRUCT_DOT_ID_DOT tokenizer state
 
@@ -641,7 +641,7 @@ def state_construct_dot_id_dot(sargs: StateArgs) -> TokenOpt:
     sargs.state_stack.enter_state(TokenizerState.END_TERMINAL)
 
 
-@create_state(TokenizerState.START_NUMBER)
+@create_tokenizer_state(TokenizerState.START_NUMBER)
 def state_start_number(sargs: StateArgs) -> TokenOpt:
     """Handler for START_NUMBER tokenizer state
 
@@ -654,7 +654,7 @@ def state_start_number(sargs: StateArgs) -> TokenOpt:
     )
 
 
-@create_state(TokenizerState.PROCESS_NUMBER_CHUNK)
+@create_tokenizer_state(TokenizerState.PROCESS_NUMBER_CHUNK)
 def state_process_number_chunk(sargs: StateArgs) -> TokenOpt:
     """Handler for PROCESS_NUMBER_CHUNK tokenizer state
 
@@ -666,7 +666,7 @@ def state_process_number_chunk(sargs: StateArgs) -> TokenOpt:
             pass
 
 
-@create_state(TokenizerState.VERIFY_INT)
+@create_tokenizer_state(TokenizerState.VERIFY_INT)
 def state_verify_int(sargs: StateArgs) -> TokenOpt:
     """Handler for VERIFY_INT tokenizer state
 
@@ -693,7 +693,7 @@ def state_verify_int(sargs: StateArgs) -> TokenOpt:
         sargs.state_stack.enter_state(TokenizerState.CONSTRUCT_INT)
 
 
-@create_state(TokenizerState.CHECK_FLOAT_DEC_PT)
+@create_tokenizer_state(TokenizerState.CHECK_FLOAT_DEC_PT)
 def state_check_float_dec_pt(sargs: StateArgs) -> TokenOpt:
     """Handler for CHECK_FLOAT_DEC_PT tokenizer state
 
@@ -704,7 +704,7 @@ def state_check_float_dec_pt(sargs: StateArgs) -> TokenOpt:
         sargs.state_stack.enter_state(TokenizerState.PROCESS_NUMBER_CHUNK)
 
 
-@create_state(TokenizerState.CHECK_FLOAT_SCI_E)
+@create_tokenizer_state(TokenizerState.CHECK_FLOAT_SCI_E)
 def state_check_float_sci_e(sargs: StateArgs) -> TokenOpt:
     """Handler for CHECK_FLOAT_SCI_E tokenizer state
 
@@ -718,7 +718,7 @@ def state_check_float_sci_e(sargs: StateArgs) -> TokenOpt:
         sargs.state_stack.enter_state(TokenizerState.PROCESS_NUMBER_CHUNK)
 
 
-@create_state(TokenizerState.CONSTRUCT_INT)
+@create_tokenizer_state(TokenizerState.CONSTRUCT_INT)
 def state_construct_int(sargs: StateArgs) -> TokenOpt:
     """Handler for CONSTRUCT_INT tokenizer state
 
@@ -729,7 +729,7 @@ def state_construct_int(sargs: StateArgs) -> TokenOpt:
     sargs.state_stack.enter_state(TokenizerState.END_TERMINAL)
 
 
-@create_state(TokenizerState.CONSTRUCT_FLOAT)
+@create_tokenizer_state(TokenizerState.CONSTRUCT_FLOAT)
 def state_construct_float(sargs: StateArgs) -> TokenOpt:
     """Handler for CONSTRUCT_FLOAT tokenizer state
 
@@ -740,7 +740,7 @@ def state_construct_float(sargs: StateArgs) -> TokenOpt:
     sargs.state_stack.enter_state(TokenizerState.END_TERMINAL)
 
 
-@create_state(TokenizerState.START_STRING)
+@create_tokenizer_state(TokenizerState.START_STRING)
 def state_start_string(sargs: StateArgs) -> TokenOpt:
     """Handler for START_STRING tokenizer state
 
@@ -758,7 +758,7 @@ def state_start_string(sargs: StateArgs) -> TokenOpt:
     )
 
 
-@create_state(TokenizerState.PROCESS_STRING)
+@create_tokenizer_state(TokenizerState.PROCESS_STRING)
 def state_process_string(sargs: StateArgs) -> TokenOpt:
     """Handler for PROCESS_STRING tokenizer state
 
@@ -770,7 +770,7 @@ def state_process_string(sargs: StateArgs) -> TokenOpt:
     sargs.cwrap.assert_next(next_char='"')
 
 
-@create_state(TokenizerState.VERIFY_STRING_END)
+@create_tokenizer_state(TokenizerState.VERIFY_STRING_END)
 def state_verify_string_end(sargs: StateArgs) -> TokenOpt:
     """Handler for VERIFY_STRING_END tokenizer state
 
@@ -784,7 +784,7 @@ def state_verify_string_end(sargs: StateArgs) -> TokenOpt:
         sargs.state_stack.enter_state(TokenizerState.PROCESS_STRING)
 
 
-@create_state(TokenizerState.CONSTRUCT_STRING)
+@create_tokenizer_state(TokenizerState.CONSTRUCT_STRING)
 def state_construct_string(sargs: StateArgs) -> TokenOpt:
     """Handler for CONSTRUCT_STRING tokenizer state
 
@@ -795,7 +795,7 @@ def state_construct_string(sargs: StateArgs) -> TokenOpt:
     sargs.state_stack.enter_state(TokenizerState.END_TERMINAL)
 
 
-@create_state(TokenizerState.START_DATE)
+@create_tokenizer_state(TokenizerState.START_DATE)
 def state_start_date(sargs: StateArgs) -> TokenOpt:
     """Handler for START_DATE tokenizer state
 
@@ -808,7 +808,7 @@ def state_start_date(sargs: StateArgs) -> TokenOpt:
     )
 
 
-@create_state(TokenizerState.PROCESS_DATE)
+@create_tokenizer_state(TokenizerState.PROCESS_DATE)
 def state_process_date(sargs: StateArgs) -> TokenOpt:
     """Handler for PROCESS_DATE tokenizer state
 
@@ -822,7 +822,7 @@ def state_process_date(sargs: StateArgs) -> TokenOpt:
     sargs.cwrap.assert_next(next_char="#")
 
 
-@create_state(TokenizerState.CONSTRUCT_DATE)
+@create_tokenizer_state(TokenizerState.CONSTRUCT_DATE)
 def state_construct_date(sargs: StateArgs) -> TokenOpt:
     """Handler for CONSTRUCT_DATE tokenizer state
 
