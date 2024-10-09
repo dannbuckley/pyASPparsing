@@ -104,11 +104,21 @@ class ExpressionParser:
                 if id_tokens[-1].token_type != TokenType.IDENTIFIER_IDDOT:
                     expand_tail = False
             return QualifiedID(id_tokens)
+        if tkzr.try_multiple_token_type(
+            [TokenType.IDENTIFIER, TokenType.IDENTIFIER_DOTID]
+        ):
+            id_token = tkzr.current_token
+            tkzr.advance_pos()  # consume identifier
+            return QualifiedID([id_token])
+        raise ParserError(
+            "Expected either an identifier token or a dotted identifier token "
+            "for the qualified identifier symbol"
+        )
 
     @staticmethod
     def parse_left_expr_tail(tkzr: Tokenizer) -> LeftExprTail:
         """"""
-        qual_id_tail: QualifiedID = ExpressionParser.parse_qualified_id()
+        qual_id_tail: QualifiedID = ExpressionParser.parse_qualified_id(tkzr)
         # check for index or params list
         index_or_params_tail: typing.List[IndexOrParams] = []
         while tkzr.try_consume(TokenType.SYMBOL, "("):
@@ -468,7 +478,7 @@ class ExpressionParser:
 
         # more than one term?
         while tkzr.try_token_type(TokenType.SYMBOL) and tkzr.get_token_code() in "*/":
-            op_queue.append(tkzr)
+            op_queue.append(tkzr.current_token)
             tkzr.advance_pos()  # consume operator
             expr_queue.append(ExpressionParser.parse_unary_expr(tkzr, sub_safe))
 

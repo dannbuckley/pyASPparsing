@@ -12,8 +12,8 @@ from pyaspparsing.ast.ast_types.parse_expressions import ExpressionParser
         ('"Hello, world!"', ConstExpr(Token.string_literal(0, 15))),
         ("#1970/01/01#", ConstExpr(Token.date_literal(0, 12))),
         ("0", IntLiteral(Token.int_literal(0, 1))),
-        ("&H7F", IntLiteral(Token.int_literal(0, 4))),
-        ("&777", IntLiteral(Token.int_literal(0, 4))),
+        ("&H7F", IntLiteral(Token.hex_literal(0, 4))),
+        ("&777", IntLiteral(Token.oct_literal(0, 4))),
         ("True", BoolLiteral(Token.identifier(0, 4))),
         ("False", BoolLiteral(Token.identifier(0, 5))),
         ("Nothing", Nothing(Token.identifier(0, 7))),
@@ -22,7 +22,7 @@ from pyaspparsing.ast.ast_types.parse_expressions import ExpressionParser
     ],
 )
 def test_parse_const_expr(expr_code: str, expr_val: Expr):
-    with Tokenizer(expr_code) as tkzr:
+    with Tokenizer(expr_code, False) as tkzr:
         const_expr: Expr = ExpressionParser.parse_const_expr(tkzr)
         assert const_expr == expr_val
 
@@ -196,7 +196,7 @@ def test_parse_const_expr(expr_code: str, expr_val: Expr):
     ],
 )
 def test_parse_left_expr(expr_code: str, expr_val: Expr):
-    with Tokenizer(expr_code) as tkzr:
+    with Tokenizer(expr_code, False) as tkzr:
         left_expr: Expr = ExpressionParser.parse_left_expr(tkzr)
         assert left_expr == expr_val
 
@@ -237,7 +237,7 @@ def test_parse_left_expr(expr_code: str, expr_val: Expr):
     ],
 )
 def test_parse_exp_expr(exp_code: str, exp_left: Expr, exp_right: Expr):
-    with Tokenizer(exp_code) as tkzr:
+    with Tokenizer(exp_code, False) as tkzr:
         exp_expr: ExpExpr = ExpressionParser.parse_exp_expr(tkzr)
         assert exp_expr.left == exp_left
         assert exp_expr.right == exp_right
@@ -263,7 +263,7 @@ def test_parse_exp_expr(exp_code: str, exp_left: Expr, exp_right: Expr):
     ],
 )
 def test_parse_unary_expr(exp_code: str, exp_sign: Token, exp_term: Expr):
-    with Tokenizer(exp_code) as tkzr:
+    with Tokenizer(exp_code, False) as tkzr:
         unary_expr: UnaryExpr = ExpressionParser.parse_unary_expr(tkzr)
         assert unary_expr.sign == exp_sign
         assert unary_expr.term == exp_term
@@ -322,7 +322,7 @@ def test_parse_unary_expr(exp_code: str, exp_sign: Token, exp_term: Expr):
             "-1 * 2",
             Token.symbol(3, 4),
             UnaryExpr(Token.symbol(0, 1), IntLiteral(Token.int_literal(1, 2))),
-            IntLiteral(Token.int_literal(4, 5)),
+            IntLiteral(Token.int_literal(5, 6)),
         ),
         (
             "1 * -2",
@@ -367,7 +367,7 @@ def test_parse_unary_expr(exp_code: str, exp_sign: Token, exp_term: Expr):
     ],
 )
 def test_parse_mult_expr(exp_code: str, exp_op: Token, exp_left: Expr, exp_right: Expr):
-    with Tokenizer(exp_code) as tkzr:
+    with Tokenizer(exp_code, False) as tkzr:
         mult_expr: MultExpr = ExpressionParser.parse_mult_expr(tkzr)
         assert mult_expr.op == exp_op
         assert mult_expr.left == exp_left
@@ -442,7 +442,7 @@ def test_parse_mult_expr(exp_code: str, exp_op: Token, exp_left: Expr, exp_right
     ],
 )
 def test_parse_int_div_expr(exp_code: str, exp_left: Expr, exp_right: Expr):
-    with Tokenizer(exp_code) as tkzr:
+    with Tokenizer(exp_code, False) as tkzr:
         int_div_expr: IntDivExpr = ExpressionParser.parse_int_div_expr(tkzr)
         assert int_div_expr.left == exp_left
         assert int_div_expr.right == exp_right
@@ -458,7 +458,9 @@ def test_parse_int_div_expr(exp_code: str, exp_left: Expr, exp_right: Expr):
         ),
         (
             "6 Mod 4 Mod 2",
-            ModExpr(Token.int_literal(0, 1), Token.int_literal(6, 7)),
+            ModExpr(
+                IntLiteral(Token.int_literal(0, 1)), IntLiteral(Token.int_literal(6, 7))
+            ),
             IntLiteral(Token.int_literal(12, 13)),
         ),
         (
@@ -508,7 +510,7 @@ def test_parse_int_div_expr(exp_code: str, exp_left: Expr, exp_right: Expr):
     ],
 )
 def test_parse_mod_expr(exp_code: str, exp_left: Expr, exp_right: Expr):
-    with Tokenizer(exp_code) as tkzr:
+    with Tokenizer(exp_code, False) as tkzr:
         mod_expr: ModExpr = ExpressionParser.parse_mod_expr(tkzr)
         assert mod_expr.left == exp_left
         assert mod_expr.right == exp_right
@@ -594,7 +596,7 @@ def test_parse_mod_expr(exp_code: str, exp_left: Expr, exp_right: Expr):
     ],
 )
 def test_parse_add_expr(exp_code: str, exp_op: Token, exp_left: Expr, exp_right: Expr):
-    with Tokenizer(exp_code) as tkzr:
+    with Tokenizer(exp_code, False) as tkzr:
         add_expr: AddExpr = ExpressionParser.parse_add_expr(tkzr)
         assert add_expr.op == exp_op
         assert add_expr.left == exp_left
@@ -612,7 +614,7 @@ def test_parse_add_expr(exp_code: str, exp_op: Token, exp_left: Expr, exp_right:
     ],
 )
 def test_parse_concat_expr(exp_code: str, exp_left: Expr, exp_right: Expr):
-    with Tokenizer(exp_code) as tkzr:
+    with Tokenizer(exp_code, False) as tkzr:
         concat_expr: ConcatExpr = ExpressionParser.parse_concat_expr(tkzr)
         assert concat_expr.left == exp_left
         assert concat_expr.right == exp_right
@@ -677,7 +679,7 @@ def test_parse_concat_expr(exp_code: str, exp_left: Expr, exp_right: Expr):
         ),
         (
             "1 = 1",
-            CompareExprType.COMPARE_IS,
+            CompareExprType.COMPARE_EQ,
             IntLiteral(Token.int_literal(0, 1)),
             IntLiteral(Token.int_literal(4, 5)),
         ),
@@ -686,7 +688,7 @@ def test_parse_concat_expr(exp_code: str, exp_left: Expr, exp_right: Expr):
 def test_parse_compare_expr(
     exp_code: str, exp_cmp_type: CompareExprType, exp_left: Expr, exp_right: Expr
 ):
-    with Tokenizer(exp_code) as tkzr:
+    with Tokenizer(exp_code, False) as tkzr:
         compare_expr: CompareExpr = ExpressionParser.parse_compare_expr(tkzr)
         assert compare_expr.cmp_type == exp_cmp_type
         assert compare_expr.left == exp_left
@@ -708,7 +710,7 @@ def test_parse_compare_expr(
     ],
 )
 def test_parse_not_expr(exp_code: str, exp_term: Expr):
-    with Tokenizer(exp_code) as tkzr:
+    with Tokenizer(exp_code, False) as tkzr:
         not_expr: NotExpr = ExpressionParser.parse_not_expr(tkzr)
         assert not_expr.term == exp_term
 
@@ -849,7 +851,7 @@ def test_parse_not_expr(exp_code: str, exp_term: Expr):
     ],
 )
 def test_parse_and_expr(exp_code: str, exp_left: Expr, exp_right: Expr):
-    with Tokenizer(exp_code) as tkzr:
+    with Tokenizer(exp_code, False) as tkzr:
         and_expr: AndExpr = ExpressionParser.parse_and_expr(tkzr)
         assert and_expr.left == exp_left
         assert and_expr.right == exp_right
@@ -920,7 +922,7 @@ def test_parse_and_expr(exp_code: str, exp_left: Expr, exp_right: Expr):
     ],
 )
 def test_parse_or_expr(exp_code: str, exp_left: Expr, exp_right: Expr):
-    with Tokenizer(exp_code) as tkzr:
+    with Tokenizer(exp_code, False) as tkzr:
         or_expr: OrExpr = ExpressionParser.parse_or_expr(tkzr)
         assert or_expr.left == exp_left
         assert or_expr.right == exp_right
@@ -991,7 +993,7 @@ def test_parse_or_expr(exp_code: str, exp_left: Expr, exp_right: Expr):
     ],
 )
 def test_parse_xor_expr(exp_code: str, exp_left: Expr, exp_right: Expr):
-    with Tokenizer(exp_code) as tkzr:
+    with Tokenizer(exp_code, False) as tkzr:
         xor_expr: XorExpr = ExpressionParser.parse_xor_expr(tkzr)
         assert xor_expr.left == exp_left
         assert xor_expr.right == exp_right
@@ -1062,7 +1064,7 @@ def test_parse_xor_expr(exp_code: str, exp_left: Expr, exp_right: Expr):
     ],
 )
 def test_parse_eqv_expr(exp_code: str, exp_left: Expr, exp_right: Expr):
-    with Tokenizer(exp_code) as tkzr:
+    with Tokenizer(exp_code, False) as tkzr:
         eqv_expr: EqvExpr = ExpressionParser.parse_eqv_expr(tkzr)
         assert eqv_expr.left == exp_left
         assert eqv_expr.right == exp_right
@@ -1133,7 +1135,7 @@ def test_parse_eqv_expr(exp_code: str, exp_left: Expr, exp_right: Expr):
     ],
 )
 def test_parse_imp_expr(exp_code: str, exp_left: Expr, exp_right: Expr):
-    with Tokenizer(exp_code) as tkzr:
+    with Tokenizer(exp_code, False) as tkzr:
         imp_expr: ImpExpr = ExpressionParser.parse_imp_expr(tkzr)
         assert imp_expr.left == exp_left
         assert imp_expr.right == exp_right
