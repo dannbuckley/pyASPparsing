@@ -42,14 +42,21 @@ class GlobalState(enum.IntEnum):
     START_FOR_STMT = enum.auto()
 
     # === INLINE STATEMENTS
-    START_INLINE_STMT = enum.auto()
+    INLINE_TERM_NEWLINE = enum.auto()
+    INLINE_TERM_END = enum.auto()
+    INLINE_TERM_END_NEWLINE = enum.auto()
+    INLINE_TERM_ELSE_END_NEWLINE = enum.auto()
 
     START_ASSIGN_STMT = enum.auto()
     START_CALL_STMT = enum.auto()
     START_ERROR_STMT = enum.auto()
     START_EXIT_STMT = enum.auto()
     START_ERASE_STMT = enum.auto()
-    START_SUBCALL_STMT = enum.auto()
+
+    SUBCALL_TERM_NEWLINE = enum.auto()
+    SUBCALL_TERM_END = enum.auto()
+    SUBCALL_TERM_END_NEWLINE = enum.auto()
+    SUBCALL_TERM_ELSE_END_NEWLINE = enum.auto()
 
 
 @attrs.define

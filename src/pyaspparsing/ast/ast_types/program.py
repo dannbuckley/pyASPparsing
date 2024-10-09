@@ -7,7 +7,6 @@ from .parser_state import GlobalStateStack
 from .state_handlers import (
     reg_state_handlers,
     reg_state_returns_stmt,
-    GlobalStmtGenOpt,
     StmtGenManager,
 )
 from ..tokenizer.token_types import TokenType
@@ -39,18 +38,10 @@ def parse_global_stmt(tkzr: Tokenizer) -> typing.Generator[GlobalStmt, None, Non
     stmt_gen_mngr = StmtGenManager()
     try:
         for state in state_stack:
-            # if state in reg_state_starts_stmt.keys():
-            # curr_stmt_gen = reg_state_starts_stmt[state].generate_global_stmt()
-            # use next(..., None) so that StopIteration isn't raised in a generator
-            # next(curr_stmt_gen, None)  # start generator
-
             if state in reg_state_returns_stmt:
                 yield reg_state_handlers[state](tkzr, state_stack, stmt_gen_mngr)
             else:
                 reg_state_handlers[state](tkzr, state_stack, stmt_gen_mngr)
-
-            # if state in reg_state_cleans_stmt:
-            # curr_stmt_gen = None
     except Exception as ex:
         raise ParserError("An error occurred during parsing") from ex
 

@@ -8,10 +8,11 @@ import typing
 from ..tokenizer.token_types import TokenType
 from ..tokenizer.state_machine import Tokenizer
 from .parser_state import GlobalState, GlobalStateStack
-from .base import GlobalStmt, AccessModifierType, CompareExprType
+from .base import GlobalStmt, Expr, AccessModifierType
 from .declarations import *
 from .expressions import *
 from .statements import *
+from .parse_expressions import ExpressionParser
 
 type GlobalStmtGen = typing.Generator[None, typing.Any, GlobalStmt]
 type GlobalStmtGenOpt = typing.Optional[GlobalStmtGen]
@@ -64,14 +65,8 @@ def create_parser_state(
     Parameters
     ----------
     state : GlobalState
-    starts : bool, default=False
-        If True, register state in `reg_state_starts_stmt`
-    start_type : type | None, default=None
-        If `start` is True, must be a subclass of GlobalStmt
     returns : bool, default=False
         If True, register state in `reg_state_returns_stmt`
-    cleans : bool, default=False
-        If True, register state in `reg_state_cleans_stmt`
     """
 
     if returns:
@@ -230,6 +225,38 @@ def state_start_function_decl(sargs: StateArgs) -> GlobalStmtOpt:
 @create_parser_state(GlobalState.START_BLOCK_STMT)
 def state_start_block_stmt(sargs: StateArgs) -> GlobalStmtOpt:
     """"""
+    assert sargs.tkzr.try_multiple_token_type(
+        [
+            TokenType.IDENTIFIER,
+            TokenType.IDENTIFIER_IDDOT,
+            TokenType.IDENTIFIER_DOTID,
+            TokenType.IDENTIFIER_DOTIDDOT,
+        ]
+    ), "Block statement must start with a valid identifier"
+
+    match sargs.tkzr.get_token_code():
+        case "dim":
+            sargs.state_stack.enter_state(GlobalState.START_VAR_DECL)
+        case "redim":
+            sargs.state_stack.enter_state(GlobalState.START_REDIM_STMT)
+        case "if":
+            sargs.state_stack.enter_state(GlobalState.START_IF_STMT)
+        case "with":
+            sargs.state_stack.enter_state(GlobalState.START_WITH_STMT)
+        case "select":
+            sargs.state_stack.enter_state(GlobalState.START_SELECT_STMT)
+        case "do" | "while":
+            sargs.state_stack.enter_state(GlobalState.START_LOOP_STMT)
+        case "for":
+            sargs.state_stack.enter_state(GlobalState.START_FOR_STMT)
+        case _:
+            # try to parse as inline statement
+            sargs.state_stack.enter_multiple(
+                [
+                    GlobalState.INLINE_TERM_NEWLINE,
+                    GlobalState.CHECK_BLOCK_INLINE_NEWLINE,
+                ]
+            )
 
 
 @create_parser_state(GlobalState.CHECK_BLOCK_INLINE_NEWLINE)
@@ -281,15 +308,92 @@ def state_start_for_stmt(sargs: StateArgs) -> GlobalStmtOpt:
     sargs.stmt_gen_mngr.start_generator(ForStmt)
 
 
-@create_parser_state(GlobalState.START_INLINE_STMT)
-def state_start_inline_stmt(sargs: StateArgs) -> GlobalStmtOpt:
+def parse_inline_stmt(sargs: StateArgs, state: GlobalState):
     """"""
+    assert sargs.tkzr.try_multiple_token_type(
+        [
+            TokenType.IDENTIFIER,
+            TokenType.IDENTIFIER_IDDOT,
+            TokenType.IDENTIFIER_DOTID,
+            TokenType.IDENTIFIER_DOTIDDOT,
+        ]
+    ), "Inline statement must start with a valid identifier"
+
+    matched: bool = False
+    match sargs.tkzr.get_token_code():
+        case "set":
+            sargs.stmt_gen_mngr.start_generator(AssignStmt)
+            sargs.state_stack.enter_state(GlobalState.START_ASSIGN_STMT)
+            matched = True
+        case "call":
+            sargs.state_stack.enter_state(GlobalState.START_CALL_STMT)
+            matched = True
+        case "on":
+            sargs.state_stack.enter_state(GlobalState.START_ERROR_STMT)
+            matched = True
+        case "exit":
+            sargs.state_stack.enter_state(GlobalState.START_EXIT_STMT)
+            matched = True
+        case "erase":
+            sargs.state_stack.enter_state(GlobalState.START_ERASE_STMT)
+            matched = True
+
+    if not matched:
+        # no leading keyword, try parsing a left expression
+        left_expr: LeftExpr = ExpressionParser.parse_left_expr(sargs.tkzr)
+
+        # assign statement?
+        if sargs.tkzr.try_consume(TokenType.SYMBOL, "="):
+            assign_expr = ExpressionParser.parse_expr(sargs.tkzr)
+            sargs.stmt_gen_mngr.start_generator(AssignStmt)
+            sargs.stmt_gen_mngr.curr_stmt_gen.send(left_expr)  # left_expr
+            sargs.stmt_gen_mngr.curr_stmt_gen.send(assign_expr)  # sub_safe_expr
+            sargs.stmt_gen_mngr.curr_stmt_gen.send(False)  # is_new
+        else:
+            # must be a subcall statement
+            sargs.stmt_gen_mngr.start_generator(SubCallStmt)
+            sargs.stmt_gen_mngr.curr_stmt_gen.send(left_expr)  # left_expr
+            match state:
+                case GlobalState.INLINE_TERM_NEWLINE:
+                    sargs.state_stack.enter_state(GlobalState.SUBCALL_TERM_NEWLINE)
+                case GlobalState.INLINE_TERM_END:
+                    sargs.state_stack.enter_state(GlobalState.SUBCALL_TERM_END)
+                case GlobalState.INLINE_TERM_END_NEWLINE:
+                    sargs.state_stack.enter_state(GlobalState.SUBCALL_TERM_END_NEWLINE)
+                case GlobalState.INLINE_TERM_ELSE_END_NEWLINE:
+                    sargs.state_stack.enter_state(
+                        GlobalState.SUBCALL_TERM_ELSE_END_NEWLINE
+                    )
+
+
+@create_parser_state(GlobalState.INLINE_TERM_NEWLINE)
+def state_inline_term_newline(sargs: StateArgs) -> GlobalStmtOpt:
+    """"""
+    parse_inline_stmt(sargs, GlobalState.INLINE_TERM_NEWLINE)
+
+
+@create_parser_state(GlobalState.INLINE_TERM_END)
+def state_inline_term_newline(sargs: StateArgs) -> GlobalStmtOpt:
+    """"""
+    parse_inline_stmt(sargs, GlobalState.INLINE_TERM_END)
+
+
+@create_parser_state(GlobalState.INLINE_TERM_END_NEWLINE)
+def state_inline_term_newline(sargs: StateArgs) -> GlobalStmtOpt:
+    """"""
+    parse_inline_stmt(sargs, GlobalState.INLINE_TERM_END_NEWLINE)
+
+
+@create_parser_state(GlobalState.INLINE_TERM_ELSE_END_NEWLINE)
+def state_inline_term_newline(sargs: StateArgs) -> GlobalStmtOpt:
+    """"""
+    parse_inline_stmt(sargs, GlobalState.INLINE_TERM_ELSE_END_NEWLINE)
 
 
 @create_parser_state(GlobalState.START_ASSIGN_STMT)
 def state_start_assign_stmt(sargs: StateArgs) -> GlobalStmtOpt:
     """"""
-    sargs.stmt_gen_mngr.start_generator(AssignStmt)
+    # sargs.stmt_gen_mngr.start_generator(AssignStmt)
 
 
 @create_parser_state(GlobalState.START_CALL_STMT)
@@ -316,7 +420,69 @@ def state_start_erase_stmt(sargs: StateArgs) -> GlobalStmtOpt:
     sargs.stmt_gen_mngr.start_generator(EraseStmt)
 
 
-@create_parser_state(GlobalState.START_SUBCALL_STMT)
-def state_start_subcall_stmt(sargs: StateArgs) -> GlobalStmtOpt:
+def parse_subcall_stmt(
+    sargs: StateArgs,
+    terminal_type: typing.Optional[TokenType] = None,
+    terminal_code: typing.Optional[str] = None,
+    terminal_casefold: bool = True,
+    *,
+    terminal_pairs: typing.List[typing.Tuple[TokenType, typing.Optional[str]]] = [],
+):
     """"""
-    sargs.stmt_gen_mngr.start_generator(SubCallStmt)
+    # need to send: sub_safe_expr, comma_expr_list
+    assert (len(terminal_pairs) > 0) or (
+        terminal_type is not None
+    ), "Expected at least one terminal type or type/code pair"
+
+    def _check_terminal() -> bool:
+        nonlocal sargs, terminal_type, terminal_code, terminal_casefold, terminal_pairs
+        if len(terminal_pairs) > 0:
+            return any(
+                map(
+                    lambda tpair: sargs.tkzr.try_token_type(tpair[0])
+                    and (
+                        (tpair[1] is None)
+                        or sargs.tkzr.get_token_code(terminal_casefold) == tpair[1]
+                    ),
+                    terminal_pairs,
+                )
+            )
+        return sargs.tkzr.try_token_type(terminal_type) and (
+            (terminal_code is None)
+            or (sargs.tkzr.get_token_code(terminal_casefold) == terminal_code)
+        )
+    
+    sub_safe_expr: typing.Optional[Expr] = None
+
+
+@create_parser_state(GlobalState.SUBCALL_TERM_NEWLINE)
+def state_subcall_term_newline(sargs: StateArgs) -> GlobalStmtOpt:
+    """"""
+    parse_subcall_stmt(sargs, TokenType.NEWLINE)
+
+
+@create_parser_state(GlobalState.SUBCALL_TERM_END)
+def state_subcall_term_newline(sargs: StateArgs) -> GlobalStmtOpt:
+    """"""
+    parse_subcall_stmt(sargs, TokenType.IDENTIFIER, "end")
+
+
+@create_parser_state(GlobalState.SUBCALL_TERM_END_NEWLINE)
+def state_subcall_term_newline(sargs: StateArgs) -> GlobalStmtOpt:
+    """"""
+    parse_subcall_stmt(
+        sargs, terminal_pairs=[(TokenType.IDENTIFIER, "end"), (TokenType.NEWLINE, None)]
+    )
+
+
+@create_parser_state(GlobalState.SUBCALL_TERM_ELSE_END_NEWLINE)
+def state_subcall_term_newline(sargs: StateArgs) -> GlobalStmtOpt:
+    """"""
+    parse_subcall_stmt(
+        sargs,
+        terminal_pairs=[
+            (TokenType.IDENTIFIER, "else"),
+            (TokenType.IDENTIFIER, "end"),
+            (TokenType.NEWLINE, None),
+        ],
+    )
