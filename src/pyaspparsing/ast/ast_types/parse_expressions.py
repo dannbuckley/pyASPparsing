@@ -155,11 +155,7 @@ class ExpressionParser:
             while not (
                 tkzr.try_token_type(TokenType.SYMBOL) and tkzr.get_token_code() == ")"
             ):
-                if (
-                    tkzr.try_token_type(TokenType.SYMBOL)
-                    and tkzr.get_token_code() == ","
-                ):
-                    tkzr.advance_pos()  # consume ','
+                if tkzr.try_consume(TokenType.SYMBOL, ","):
                     # was the previous entry not empty?
                     if found_expr:
                         found_expr = False

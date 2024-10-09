@@ -208,7 +208,32 @@ def test_parse_left_expr(expr_code: str, expr_val: Expr):
             "1 ^ 2",
             IntLiteral(Token.int_literal(0, 1)),
             IntLiteral(Token.int_literal(4, 5)),
-        )
+        ),
+        (
+            "1 ^ 2 ^ 3",
+            IntLiteral(Token.int_literal(0, 1)),
+            ExpExpr(
+                IntLiteral(Token.int_literal(4, 5)), IntLiteral(Token.int_literal(8, 9))
+            ),
+        ),
+        (
+            "(1 ^ 2) ^ 3",
+            ExpExpr(
+                IntLiteral(Token.int_literal(1, 2)), IntLiteral(Token.int_literal(5, 6))
+            ),
+            IntLiteral(Token.int_literal(10, 11)),
+        ),
+        (
+            "1 ^ 2 ^ 3 ^ 4",
+            IntLiteral(Token.int_literal(0, 1)),
+            ExpExpr(
+                IntLiteral(Token.int_literal(4, 5)),
+                ExpExpr(
+                    IntLiteral(Token.int_literal(8, 9)),
+                    IntLiteral(Token.int_literal(12, 13)),
+                ),
+            ),
+        ),
     ],
 )
 def test_parse_exp_expr(exp_code: str, exp_left: Expr, exp_right: Expr):
@@ -220,7 +245,22 @@ def test_parse_exp_expr(exp_code: str, exp_left: Expr, exp_right: Expr):
 
 @pytest.mark.parametrize(
     "exp_code,exp_sign,exp_term",
-    [("-1", Token.symbol(0, 1), IntLiteral(Token.int_literal(1, 2)))],
+    [
+        ("-1", Token.symbol(0, 1), IntLiteral(Token.int_literal(1, 2))),
+        ("+1", Token.symbol(0, 1), IntLiteral(Token.int_literal(1, 2))),
+        (
+            "+-1",
+            Token.symbol(0, 1),
+            UnaryExpr(Token.symbol(1, 2), IntLiteral(Token.int_literal(2, 3))),
+        ),
+        (
+            "-(1 ^ 2)",
+            Token.symbol(0, 1),
+            ExpExpr(
+                IntLiteral(Token.int_literal(2, 3)), IntLiteral(Token.int_literal(6, 7))
+            ),
+        ),
+    ],
 )
 def test_parse_unary_expr(exp_code: str, exp_sign: Token, exp_term: Expr):
     with Tokenizer(exp_code) as tkzr:
@@ -237,7 +277,93 @@ def test_parse_unary_expr(exp_code: str, exp_sign: Token, exp_term: Expr):
             Token.symbol(2, 3),
             IntLiteral(Token.int_literal(0, 1)),
             IntLiteral(Token.int_literal(4, 5)),
-        )
+        ),
+        (
+            "1 / 2",
+            Token.symbol(2, 3),
+            IntLiteral(Token.int_literal(0, 1)),
+            IntLiteral(Token.int_literal(4, 5)),
+        ),
+        (
+            "1 * 2 / 3",
+            Token.symbol(6, 7),
+            MultExpr(
+                Token.symbol(2, 3),
+                IntLiteral(Token.int_literal(0, 1)),
+                IntLiteral(Token.int_literal(4, 5)),
+            ),
+            IntLiteral(Token.int_literal(8, 9)),
+        ),
+        (
+            "1 * (2 / 3)",
+            Token.symbol(2, 3),
+            IntLiteral(Token.int_literal(0, 1)),
+            MultExpr(
+                Token.symbol(7, 8),
+                IntLiteral(Token.int_literal(5, 6)),
+                IntLiteral(Token.int_literal(9, 10)),
+            ),
+        ),
+        (
+            "1 * 2 / 3 * 4",
+            Token.symbol(10, 11),
+            MultExpr(
+                Token.symbol(6, 7),
+                MultExpr(
+                    Token.symbol(2, 3),
+                    IntLiteral(Token.int_literal(0, 1)),
+                    IntLiteral(Token.int_literal(4, 5)),
+                ),
+                IntLiteral(Token.int_literal(8, 9)),
+            ),
+            IntLiteral(Token.int_literal(12, 13)),
+        ),
+        (
+            "-1 * 2",
+            Token.symbol(3, 4),
+            UnaryExpr(Token.symbol(0, 1), IntLiteral(Token.int_literal(1, 2))),
+            IntLiteral(Token.int_literal(4, 5)),
+        ),
+        (
+            "1 * -2",
+            Token.symbol(2, 3),
+            IntLiteral(Token.int_literal(0, 1)),
+            UnaryExpr(Token.symbol(4, 5), IntLiteral(Token.int_literal(5, 6))),
+        ),
+        (
+            "-1 * -2",
+            Token.symbol(3, 4),
+            UnaryExpr(Token.symbol(0, 1), IntLiteral(Token.int_literal(1, 2))),
+            UnaryExpr(Token.symbol(5, 6), IntLiteral(Token.int_literal(6, 7))),
+        ),
+        (
+            "1 ^ 2 * 3",
+            Token.symbol(6, 7),
+            ExpExpr(
+                IntLiteral(Token.int_literal(0, 1)), IntLiteral(Token.int_literal(4, 5))
+            ),
+            IntLiteral(Token.int_literal(8, 9)),
+        ),
+        (
+            "1 * 2 ^ 3",
+            Token.symbol(2, 3),
+            IntLiteral(Token.int_literal(0, 1)),
+            ExpExpr(
+                IntLiteral(Token.int_literal(4, 5)), IntLiteral(Token.int_literal(8, 9))
+            ),
+        ),
+        (
+            "1 ^ 2 * 3 ^ 4",
+            Token.symbol(6, 7),
+            ExpExpr(
+                IntLiteral(Token.int_literal(0, 1)),
+                IntLiteral(Token.int_literal(4, 5)),
+            ),
+            ExpExpr(
+                IntLiteral(Token.int_literal(8, 9)),
+                IntLiteral(Token.int_literal(12, 13)),
+            ),
+        ),
     ],
 )
 def test_parse_mult_expr(exp_code: str, exp_op: Token, exp_left: Expr, exp_right: Expr):
@@ -255,7 +381,64 @@ def test_parse_mult_expr(exp_code: str, exp_op: Token, exp_left: Expr, exp_right
             "4 \\ 2",
             IntLiteral(Token.int_literal(0, 1)),
             IntLiteral(Token.int_literal(4, 5)),
-        )
+        ),
+        (
+            "4 \\ 2 \\ 1",
+            IntDivExpr(
+                IntLiteral(Token.int_literal(0, 1)), IntLiteral(Token.int_literal(4, 5))
+            ),
+            IntLiteral(Token.int_literal(8, 9)),
+        ),
+        (
+            "4 \\ (2 \\ 1)",
+            IntLiteral(Token.int_literal(0, 1)),
+            IntDivExpr(
+                IntLiteral(Token.int_literal(5, 6)),
+                IntLiteral(Token.int_literal(9, 10)),
+            ),
+        ),
+        (
+            "8 \\ 4 \\ 2 \\ 1",
+            IntDivExpr(
+                IntDivExpr(
+                    IntLiteral(Token.int_literal(0, 1)),
+                    IntLiteral(Token.int_literal(4, 5)),
+                ),
+                IntLiteral(Token.int_literal(8, 9)),
+            ),
+            IntLiteral(Token.int_literal(12, 13)),
+        ),
+        (
+            "2 * 4 \\ 8",
+            MultExpr(
+                Token.symbol(2, 3),
+                IntLiteral(Token.int_literal(0, 1)),
+                IntLiteral(Token.int_literal(4, 5)),
+            ),
+            IntLiteral(Token.int_literal(8, 9)),
+        ),
+        (
+            "4 \\ 2 * 8",
+            IntLiteral(Token.int_literal(0, 1)),
+            MultExpr(
+                Token.symbol(6, 7),
+                IntLiteral(Token.int_literal(4, 5)),
+                IntLiteral(Token.int_literal(8, 9)),
+            ),
+        ),
+        (
+            "2 * 4 \\ 4 * 2",
+            MultExpr(
+                Token.symbol(2, 3),
+                IntLiteral(Token.int_literal(0, 1)),
+                IntLiteral(Token.int_literal(4, 5)),
+            ),
+            MultExpr(
+                Token.symbol(10, 11),
+                IntLiteral(Token.int_literal(8, 9)),
+                IntLiteral(Token.int_literal(12, 13)),
+            ),
+        ),
     ],
 )
 def test_parse_int_div_expr(exp_code: str, exp_left: Expr, exp_right: Expr):
@@ -272,7 +455,56 @@ def test_parse_int_div_expr(exp_code: str, exp_left: Expr, exp_right: Expr):
             "6 Mod 2",
             IntLiteral(Token.int_literal(0, 1)),
             IntLiteral(Token.int_literal(6, 7)),
-        )
+        ),
+        (
+            "6 Mod 4 Mod 2",
+            ModExpr(Token.int_literal(0, 1), Token.int_literal(6, 7)),
+            IntLiteral(Token.int_literal(12, 13)),
+        ),
+        (
+            "6 Mod (4 Mod 2)",
+            IntLiteral(Token.int_literal(0, 1)),
+            ModExpr(
+                IntLiteral(Token.int_literal(7, 8)),
+                IntLiteral(Token.int_literal(13, 14)),
+            ),
+        ),
+        (
+            "8 Mod 6 Mod 4 Mod 2",
+            ModExpr(
+                ModExpr(
+                    IntLiteral(Token.int_literal(0, 1)),
+                    IntLiteral(Token.int_literal(6, 7)),
+                ),
+                IntLiteral(Token.int_literal(12, 13)),
+            ),
+            IntLiteral(Token.int_literal(18, 19)),
+        ),
+        (
+            "6 \\ 2 Mod 4",
+            IntDivExpr(
+                IntLiteral(Token.int_literal(0, 1)), IntLiteral(Token.int_literal(4, 5))
+            ),
+            IntLiteral(Token.int_literal(10, 11)),
+        ),
+        (
+            "6 Mod 4 \\ 2",
+            IntLiteral(Token.int_literal(0, 1)),
+            IntDivExpr(
+                IntLiteral(Token.int_literal(6, 7)),
+                IntLiteral(Token.int_literal(10, 11)),
+            ),
+        ),
+        (
+            "6 \\ 2 Mod 8 \\ 4",
+            IntDivExpr(
+                IntLiteral(Token.int_literal(0, 1)), IntLiteral(Token.int_literal(4, 5))
+            ),
+            IntDivExpr(
+                IntLiteral(Token.int_literal(10, 11)),
+                IntLiteral(Token.int_literal(14, 15)),
+            ),
+        ),
     ],
 )
 def test_parse_mod_expr(exp_code: str, exp_left: Expr, exp_right: Expr):
@@ -290,7 +522,75 @@ def test_parse_mod_expr(exp_code: str, exp_left: Expr, exp_right: Expr):
             Token.symbol(2, 3),
             IntLiteral(Token.int_literal(0, 1)),
             IntLiteral(Token.int_literal(4, 5)),
-        )
+        ),
+        (
+            "1 - 2",
+            Token.symbol(2, 3),
+            IntLiteral(Token.int_literal(0, 1)),
+            IntLiteral(Token.int_literal(4, 5)),
+        ),
+        (
+            "1 + 2 - 3",
+            Token.symbol(6, 7),
+            AddExpr(
+                Token.symbol(2, 3),
+                IntLiteral(Token.int_literal(0, 1)),
+                IntLiteral(Token.int_literal(4, 5)),
+            ),
+            IntLiteral(Token.int_literal(8, 9)),
+        ),
+        (
+            "1 + (2 - 3)",
+            Token.symbol(2, 3),
+            IntLiteral(Token.int_literal(0, 1)),
+            AddExpr(
+                Token.symbol(7, 8),
+                IntLiteral(Token.int_literal(5, 6)),
+                IntLiteral(Token.int_literal(9, 10)),
+            ),
+        ),
+        (
+            "1 + 2 - 3 + 4",
+            Token.symbol(10, 11),
+            AddExpr(
+                Token.symbol(6, 7),
+                AddExpr(
+                    Token.symbol(2, 3),
+                    IntLiteral(Token.int_literal(0, 1)),
+                    IntLiteral(Token.int_literal(4, 5)),
+                ),
+                IntLiteral(Token.int_literal(8, 9)),
+            ),
+            IntLiteral(Token.int_literal(12, 13)),
+        ),
+        (
+            "2 Mod 1 + 3",
+            Token.symbol(8, 9),
+            ModExpr(
+                IntLiteral(Token.int_literal(0, 1)), IntLiteral(Token.int_literal(6, 7))
+            ),
+            IntLiteral(Token.int_literal(10, 11)),
+        ),
+        (
+            "2 + 3 Mod 1",
+            Token.symbol(2, 3),
+            IntLiteral(Token.int_literal(0, 1)),
+            ModExpr(
+                IntLiteral(Token.int_literal(4, 5)),
+                IntLiteral(Token.int_literal(10, 11)),
+            ),
+        ),
+        (
+            "2 Mod 1 + 3 Mod 1",
+            Token.symbol(8, 9),
+            ModExpr(
+                IntLiteral(Token.int_literal(0, 1)), IntLiteral(Token.int_literal(6, 7))
+            ),
+            ModExpr(
+                IntLiteral(Token.int_literal(10, 11)),
+                IntLiteral(Token.int_literal(16, 17)),
+            ),
+        ),
     ],
 )
 def test_parse_add_expr(exp_code: str, exp_op: Token, exp_left: Expr, exp_right: Expr):
@@ -322,11 +622,65 @@ def test_parse_concat_expr(exp_code: str, exp_left: Expr, exp_right: Expr):
     "exp_code,exp_cmp_type,exp_left,exp_right",
     [
         (
+            "1 Is 1",
+            CompareExprType.COMPARE_IS,
+            IntLiteral(Token.int_literal(0, 1)),
+            IntLiteral(Token.int_literal(5, 6)),
+        ),
+        (
+            "1 Is Not 1",
+            CompareExprType.COMPARE_ISNOT,
+            IntLiteral(Token.int_literal(0, 1)),
+            IntLiteral(Token.int_literal(9, 10)),
+        ),
+        (
+            "1 >= 1",
+            CompareExprType.COMPARE_GTEQ,
+            IntLiteral(Token.int_literal(0, 1)),
+            IntLiteral(Token.int_literal(5, 6)),
+        ),
+        (
+            "1 => 1",
+            CompareExprType.COMPARE_EQGT,
+            IntLiteral(Token.int_literal(0, 1)),
+            IntLiteral(Token.int_literal(5, 6)),
+        ),
+        (
             "1 <= 1",
             CompareExprType.COMPARE_LTEQ,
             IntLiteral(Token.int_literal(0, 1)),
             IntLiteral(Token.int_literal(5, 6)),
-        )
+        ),
+        (
+            "1 =< 1",
+            CompareExprType.COMPARE_EQLT,
+            IntLiteral(Token.int_literal(0, 1)),
+            IntLiteral(Token.int_literal(5, 6)),
+        ),
+        (
+            "1 > 1",
+            CompareExprType.COMPARE_GT,
+            IntLiteral(Token.int_literal(0, 1)),
+            IntLiteral(Token.int_literal(4, 5)),
+        ),
+        (
+            "1 < 1",
+            CompareExprType.COMPARE_LT,
+            IntLiteral(Token.int_literal(0, 1)),
+            IntLiteral(Token.int_literal(4, 5)),
+        ),
+        (
+            "1 <> 1",
+            CompareExprType.COMPARE_LTGT,
+            IntLiteral(Token.int_literal(0, 1)),
+            IntLiteral(Token.int_literal(5, 6)),
+        ),
+        (
+            "1 = 1",
+            CompareExprType.COMPARE_IS,
+            IntLiteral(Token.int_literal(0, 1)),
+            IntLiteral(Token.int_literal(4, 5)),
+        ),
     ],
 )
 def test_parse_compare_expr(
@@ -340,7 +694,18 @@ def test_parse_compare_expr(
 
 
 @pytest.mark.parametrize(
-    "exp_code,exp_term", [("Not True", BoolLiteral(Token.identifier(4, 8)))]
+    "exp_code,exp_term",
+    [
+        ("Not True", BoolLiteral(Token.identifier(4, 8))),
+        (
+            "Not 1 > 1",
+            CompareExpr(
+                CompareExprType.COMPARE_GT,
+                IntLiteral(Token.int_literal(4, 5)),
+                IntLiteral(Token.int_literal(8, 9)),
+            ),
+        ),
+    ],
 )
 def test_parse_not_expr(exp_code: str, exp_term: Expr):
     with Tokenizer(exp_code) as tkzr:
@@ -355,7 +720,132 @@ def test_parse_not_expr(exp_code: str, exp_term: Expr):
             "True And False",
             BoolLiteral(Token.identifier(0, 4)),
             BoolLiteral(Token.identifier(9, 14)),
-        )
+        ),
+        (
+            "True And False And True",
+            AndExpr(
+                BoolLiteral(Token.identifier(0, 4)),
+                BoolLiteral(Token.identifier(9, 14)),
+            ),
+            BoolLiteral(Token.identifier(19, 23)),
+        ),
+        (
+            "True And (False And True)",
+            BoolLiteral(Token.identifier(0, 4)),
+            AndExpr(
+                BoolLiteral(Token.identifier(10, 15)),
+                BoolLiteral(Token.identifier(20, 24)),
+            ),
+        ),
+        (
+            "True And False And True And False",
+            AndExpr(
+                AndExpr(
+                    BoolLiteral(Token.identifier(0, 4)),
+                    BoolLiteral(Token.identifier(9, 14)),
+                ),
+                BoolLiteral(Token.identifier(19, 23)),
+            ),
+            BoolLiteral(Token.identifier(28, 33)),
+        ),
+        (
+            "Not False And True",
+            NotExpr(BoolLiteral(Token.identifier(4, 9))),
+            BoolLiteral(Token.identifier(14, 18)),
+        ),
+        (
+            "True And Not False",
+            BoolLiteral(Token.identifier(0, 4)),
+            NotExpr(BoolLiteral(Token.identifier(13, 18))),
+        ),
+        (
+            "Not False And Not False",
+            NotExpr(BoolLiteral(Token.identifier(4, 9))),
+            NotExpr(BoolLiteral(Token.identifier(18, 23))),
+        ),
+        (
+            "Not Not True And True",
+            BoolLiteral(Token.identifier(8, 12)),  # 'Not Not' ignored
+            BoolLiteral(Token.identifier(17, 21)),
+        ),
+        (
+            "1 = 1 And True",
+            CompareExpr(
+                CompareExprType.COMPARE_EQ,
+                IntLiteral(Token.int_literal(0, 1)),
+                IntLiteral(Token.int_literal(4, 5)),
+            ),
+            BoolLiteral(Token.identifier(10, 14)),
+        ),
+        (
+            "True And 1 = 1",
+            BoolLiteral(Token.identifier(0, 4)),
+            CompareExpr(
+                CompareExprType.COMPARE_EQ,
+                IntLiteral(Token.int_literal(9, 10)),
+                IntLiteral(Token.int_literal(13, 14)),
+            ),
+        ),
+        (
+            "1 = 1 And 2 = 2",
+            CompareExpr(
+                CompareExprType.COMPARE_EQ,
+                IntLiteral(Token.int_literal(0, 1)),
+                IntLiteral(Token.int_literal(4, 5)),
+            ),
+            CompareExpr(
+                CompareExprType.COMPARE_EQ,
+                IntLiteral(Token.int_literal(10, 11)),
+                IntLiteral(Token.int_literal(14, 15)),
+            ),
+        ),
+        (
+            "Not 1 <> 1 And 2 = 2",
+            NotExpr(
+                CompareExpr(
+                    CompareExprType.COMPARE_LTGT,
+                    IntLiteral(Token.int_literal(4, 5)),
+                    IntLiteral(Token.int_literal(9, 10)),
+                )
+            ),
+            CompareExpr(
+                CompareExprType.COMPARE_EQ,
+                IntLiteral(Token.int_literal(15, 16)),
+                IntLiteral(Token.int_literal(19, 20)),
+            ),
+        ),
+        (
+            "1 = 1 And Not 2 <> 2",
+            CompareExpr(
+                CompareExprType.COMPARE_EQ,
+                IntLiteral(Token.int_literal(0, 1)),
+                IntLiteral(Token.int_literal(4, 5)),
+            ),
+            NotExpr(
+                CompareExpr(
+                    CompareExprType.COMPARE_LTGT,
+                    IntLiteral(Token.int_literal(14, 15)),
+                    IntLiteral(Token.int_literal(19, 20)),
+                )
+            ),
+        ),
+        (
+            "Not 1 <> 1 And Not 2 <> 2",
+            NotExpr(
+                CompareExpr(
+                    CompareExprType.COMPARE_LTGT,
+                    IntLiteral(Token.int_literal(4, 5)),
+                    IntLiteral(Token.int_literal(9, 10)),
+                )
+            ),
+            NotExpr(
+                CompareExpr(
+                    CompareExprType.COMPARE_LTGT,
+                    IntLiteral(Token.int_literal(19, 20)),
+                    IntLiteral(Token.int_literal(24, 25)),
+                )
+            ),
+        ),
     ],
 )
 def test_parse_and_expr(exp_code: str, exp_left: Expr, exp_right: Expr):
@@ -372,7 +862,61 @@ def test_parse_and_expr(exp_code: str, exp_left: Expr, exp_right: Expr):
             "True Or False",
             BoolLiteral(Token.identifier(0, 4)),
             BoolLiteral(Token.identifier(8, 13)),
-        )
+        ),
+        (
+            "True Or False Or True",
+            OrExpr(
+                BoolLiteral(Token.identifier(0, 4)),
+                BoolLiteral(Token.identifier(8, 13)),
+            ),
+            BoolLiteral(Token.identifier(17, 21)),
+        ),
+        (
+            "True Or (False Or True)",
+            BoolLiteral(Token.identifier(0, 4)),
+            OrExpr(
+                BoolLiteral(Token.identifier(9, 14)),
+                BoolLiteral(Token.identifier(18, 22)),
+            ),
+        ),
+        (
+            "True Or False Or True Or False",
+            OrExpr(
+                OrExpr(
+                    BoolLiteral(Token.identifier(0, 4)),
+                    BoolLiteral(Token.identifier(8, 13)),
+                ),
+                BoolLiteral(Token.identifier(17, 21)),
+            ),
+            BoolLiteral(Token.identifier(25, 30)),
+        ),
+        (
+            "True And False Or True",
+            AndExpr(
+                BoolLiteral(Token.identifier(0, 4)),
+                BoolLiteral(Token.identifier(9, 14)),
+            ),
+            BoolLiteral(Token.identifier(18, 22)),
+        ),
+        (
+            "True Or False And True",
+            BoolLiteral(Token.identifier(0, 4)),
+            AndExpr(
+                BoolLiteral(Token.identifier(8, 13)),
+                BoolLiteral(Token.identifier(18, 22)),
+            ),
+        ),
+        (
+            "True And False Or True And False",
+            AndExpr(
+                BoolLiteral(Token.identifier(0, 4)),
+                BoolLiteral(Token.identifier(9, 14)),
+            ),
+            AndExpr(
+                BoolLiteral(Token.identifier(18, 22)),
+                BoolLiteral(Token.identifier(27, 32)),
+            ),
+        ),
     ],
 )
 def test_parse_or_expr(exp_code: str, exp_left: Expr, exp_right: Expr):
@@ -389,7 +933,61 @@ def test_parse_or_expr(exp_code: str, exp_left: Expr, exp_right: Expr):
             "True Xor False",
             BoolLiteral(Token.identifier(0, 4)),
             BoolLiteral(Token.identifier(9, 14)),
-        )
+        ),
+        (
+            "True Xor False Xor True",
+            XorExpr(
+                BoolLiteral(Token.identifier(0, 4)),
+                BoolLiteral(Token.identifier(9, 14)),
+            ),
+            BoolLiteral(Token.identifier(19, 23)),
+        ),
+        (
+            "True Xor (False Xor True)",
+            BoolLiteral(Token.identifier(0, 4)),
+            XorExpr(
+                BoolLiteral(Token.identifier(10, 15)),
+                BoolLiteral(Token.identifier(20, 24)),
+            ),
+        ),
+        (
+            "True Xor False Xor True Xor False",
+            XorExpr(
+                XorExpr(
+                    BoolLiteral(Token.identifier(0, 4)),
+                    BoolLiteral(Token.identifier(9, 14)),
+                ),
+                BoolLiteral(Token.identifier(19, 23)),
+            ),
+            BoolLiteral(Token.identifier(28, 33)),
+        ),
+        (
+            "True Or False Xor True",
+            OrExpr(
+                BoolLiteral(Token.identifier(0, 4)),
+                BoolLiteral(Token.identifier(8, 13)),
+            ),
+            BoolLiteral(Token.identifier(18, 22)),
+        ),
+        (
+            "True Xor False Or True",
+            BoolLiteral(Token.identifier(0, 4)),
+            OrExpr(
+                BoolLiteral(Token.identifier(9, 14)),
+                BoolLiteral(Token.identifier(18, 22)),
+            ),
+        ),
+        (
+            "True Or False Xor True Or False",
+            OrExpr(
+                BoolLiteral(Token.identifier(0, 4)),
+                BoolLiteral(Token.identifier(8, 13)),
+            ),
+            OrExpr(
+                BoolLiteral(Token.identifier(18, 22)),
+                BoolLiteral(Token.identifier(26, 31)),
+            ),
+        ),
     ],
 )
 def test_parse_xor_expr(exp_code: str, exp_left: Expr, exp_right: Expr):
@@ -403,10 +1001,64 @@ def test_parse_xor_expr(exp_code: str, exp_left: Expr, exp_right: Expr):
     "exp_code,exp_left,exp_right",
     [
         (
-            "1 Eqv 1",
-            IntLiteral(Token.int_literal(0, 1)),
-            IntLiteral(Token.int_literal(6, 7)),
-        )
+            "True Eqv True",
+            BoolLiteral(Token.identifier(0, 4)),
+            BoolLiteral(Token.identifier(9, 13)),
+        ),
+        (
+            "True Eqv False Eqv True",
+            EqvExpr(
+                BoolLiteral(Token.identifier(0, 4)),
+                BoolLiteral(Token.identifier(9, 14)),
+            ),
+            BoolLiteral(Token.identifier(19, 23)),
+        ),
+        (
+            "True Eqv (False Eqv True)",
+            BoolLiteral(Token.identifier(0, 4)),
+            EqvExpr(
+                BoolLiteral(Token.identifier(10, 15)),
+                BoolLiteral(Token.identifier(20, 24)),
+            ),
+        ),
+        (
+            "True Eqv False Eqv True Eqv False",
+            EqvExpr(
+                EqvExpr(
+                    BoolLiteral(Token.identifier(0, 4)),
+                    BoolLiteral(Token.identifier(9, 14)),
+                ),
+                BoolLiteral(Token.identifier(19, 23)),
+            ),
+            BoolLiteral(Token.identifier(28, 33)),
+        ),
+        (
+            "True Xor False Eqv True",
+            XorExpr(
+                BoolLiteral(Token.identifier(0, 4)),
+                BoolLiteral(Token.identifier(9, 14)),
+            ),
+            BoolLiteral(Token.identifier(19, 23)),
+        ),
+        (
+            "True Eqv False Xor True",
+            BoolLiteral(Token.identifier(0, 4)),
+            XorExpr(
+                BoolLiteral(Token.identifier(9, 14)),
+                BoolLiteral(Token.identifier(19, 23)),
+            ),
+        ),
+        (
+            "True Xor False Eqv True Xor False",
+            XorExpr(
+                BoolLiteral(Token.identifier(0, 4)),
+                BoolLiteral(Token.identifier(9, 14)),
+            ),
+            XorExpr(
+                BoolLiteral(Token.identifier(19, 23)),
+                BoolLiteral(Token.identifier(28, 33)),
+            ),
+        ),
     ],
 )
 def test_parse_eqv_expr(exp_code: str, exp_left: Expr, exp_right: Expr):
@@ -420,10 +1072,64 @@ def test_parse_eqv_expr(exp_code: str, exp_left: Expr, exp_right: Expr):
     "exp_code,exp_left,exp_right",
     [
         (
-            "1 Imp 1",
-            IntLiteral(Token.int_literal(0, 1)),
-            IntLiteral(Token.int_literal(6, 7)),
-        )
+            "True Imp True",
+            BoolLiteral(Token.identifier(0, 4)),
+            BoolLiteral(Token.identifier(9, 13)),
+        ),
+        (
+            "True Imp False Imp True",
+            ImpExpr(
+                BoolLiteral(Token.identifier(0, 4)),
+                BoolLiteral(Token.identifier(9, 14)),
+            ),
+            BoolLiteral(Token.identifier(19, 23)),
+        ),
+        (
+            "True Imp (False Imp True)",
+            BoolLiteral(Token.identifier(0, 4)),
+            ImpExpr(
+                BoolLiteral(Token.identifier(10, 15)),
+                BoolLiteral(Token.identifier(20, 24)),
+            ),
+        ),
+        (
+            "True Imp False Imp True Imp False",
+            ImpExpr(
+                ImpExpr(
+                    BoolLiteral(Token.identifier(0, 4)),
+                    BoolLiteral(Token.identifier(9, 14)),
+                ),
+                BoolLiteral(Token.identifier(19, 23)),
+            ),
+            BoolLiteral(Token.identifier(28, 33)),
+        ),
+        (
+            "True Eqv False Imp True",
+            EqvExpr(
+                BoolLiteral(Token.identifier(0, 4)),
+                BoolLiteral(Token.identifier(9, 14)),
+            ),
+            BoolLiteral(Token.identifier(19, 23)),
+        ),
+        (
+            "True Imp False Eqv True",
+            BoolLiteral(Token.identifier(0, 4)),
+            EqvExpr(
+                BoolLiteral(Token.identifier(9, 14)),
+                BoolLiteral(Token.identifier(19, 23)),
+            ),
+        ),
+        (
+            "True Eqv False Imp True Eqv False",
+            EqvExpr(
+                BoolLiteral(Token.identifier(0, 4)),
+                BoolLiteral(Token.identifier(9, 14)),
+            ),
+            EqvExpr(
+                BoolLiteral(Token.identifier(19, 23)),
+                BoolLiteral(Token.identifier(28, 33)),
+            ),
+        ),
     ],
 )
 def test_parse_imp_expr(exp_code: str, exp_left: Expr, exp_right: Expr):
