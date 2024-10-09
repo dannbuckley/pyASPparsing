@@ -4,9 +4,12 @@ import typing
 
 import attrs
 
-from ..tokenizer.token_types import Token
+from ... import ParserError
+from ..tokenizer.token_types import Token, TokenType
+from ..tokenizer.state_machine import Tokenizer
 from .base import GlobalStmt, Expr, BlockStmt, InlineStmt
 from .expressions import LeftExpr
+from .parse_expressions import ExpressionParser
 
 __all__ = [
     "ExtendedID",
@@ -34,6 +37,19 @@ class ExtendedID:
     """Defined on grammar line 513"""
 
     id_token: Token
+
+    @staticmethod
+    def from_tokenizer(tkzr: Tokenizer):
+        if (safe_kw := tkzr.try_safe_keyword_id()) is not None:
+            tkzr.advance_pos()  # consume safe keyword
+            return ExtendedID(safe_kw)
+        if tkzr.try_token_type(TokenType.IDENTIFIER):
+            id_token = tkzr.current_token
+            tkzr.advance_pos()  # consume identifier
+            return ExtendedID(id_token)
+        raise ParserError(
+            "Expected an identifier token for the extended identifier symbol"
+        )
 
 
 @attrs.define(slots=False)
@@ -64,6 +80,27 @@ class RedimStmt(BlockStmt):
 
     redim_decl_list: typing.List[RedimDecl] = attrs.field(default=attrs.Factory(list))
     preserve: bool = attrs.field(default=False, kw_only=True)
+
+    @staticmethod
+    def from_tokenizer(tkzr: Tokenizer):
+        tkzr.assert_consume(TokenType.IDENTIFIER, "redim")
+        preserve = tkzr.try_consume(TokenType.IDENTIFIER, "preserve")
+        redim_decl_list: typing.List[RedimDecl] = []
+        while not tkzr.try_token_type(TokenType.NEWLINE):
+            redim_id = ExtendedID.from_tokenizer(tkzr)
+            tkzr.assert_consume(TokenType.SYMBOL, "(")
+            redim_expr: typing.List[Expr] = []
+            while not (
+                tkzr.try_token_type(TokenType.SYMBOL) and tkzr.get_token_code() == ")"
+            ):
+                redim_expr.append(ExpressionParser.parse_expr(tkzr))
+                tkzr.try_consume(TokenType.SYMBOL, ",")
+            tkzr.assert_consume(TokenType.SYMBOL, ")")
+            redim_decl_list.append(RedimDecl(redim_id, redim_expr))
+            tkzr.try_consume(TokenType.SYMBOL, ",")
+            del redim_id, redim_expr
+        tkzr.assert_consume(TokenType.NEWLINE)
+        return RedimStmt(redim_decl_list, preserve=preserve)
 
 
 @attrs.define(slots=False)
