@@ -23,46 +23,6 @@ class Parser:
     """"""
 
     @staticmethod
-    def parse_extended_id(tkzr: Tokenizer) -> ExtendedID:
-        """
-
-        Returns
-        -------
-        ExtendedID
-
-        Raises
-        ------
-        ParserError
-        """
-        if (safe_kw := tkzr.try_safe_keyword_id()) is not None:
-            tkzr.advance_pos()  # consume safe keyword
-            return ExtendedID(safe_kw)
-        if tkzr.try_token_type(TokenType.IDENTIFIER):
-            id_token = tkzr.current_token
-            tkzr.advance_pos()  # consume identifier
-            return ExtendedID(id_token)
-        raise ParserError(
-            "Expected an identifier token for the extended identifier symbol"
-        )
-
-    @staticmethod
-    def parse_option_explicit(tkzr: Tokenizer) -> GlobalStmt:
-        """
-
-        Returns
-        -------
-        GlobalStmt
-
-        Raises
-        ------
-        ParserError
-        """
-        tkzr.assert_consume(TokenType.IDENTIFIER, "option")
-        tkzr.assert_consume(TokenType.IDENTIFIER, "explicit")
-        tkzr.assert_consume(TokenType.NEWLINE)
-        return OptionExplicit()
-
-    @staticmethod
     def parse_member_decl(tkzr: Tokenizer) -> MemberDecl:
         """
         Could be one of:
@@ -74,7 +34,6 @@ class Parser:
         - PropertyDecl
         """
         if tkzr.try_token_type(TokenType.IDENTIFIER) and tkzr.get_token_code() == "dim":
-            # return self._parse_var_decl()
             return Parser.parse_var_decl(tkzr)
 
         # identify access modifier
@@ -98,21 +57,16 @@ class Parser:
                 assert (
                     access_mod != AccessModifierType.PUBLIC_DEFAULT
                 ), "'Public Default' access modifier cannot be used with const declaration"
-                # return self._parse_const_decl(access_mod)
                 return Parser.parse_const_decl(tkzr, access_mod)
             case "sub":
-                # return self._parse_sub_decl(access_mod)
                 return Parser.parse_sub_decl(tkzr, access_mod)
             case "function":
-                # return self._parse_function_decl(access_mod)
                 return Parser.parse_function_decl(tkzr, access_mod)
             case "property":
-                # return self._parse_property_decl(access_mod)
                 return Parser.parse_property_decl(tkzr, access_mod)
 
         # assume this is a field declaration
         assert access_mod is not None, "Expected access modifier in field declaration"
-        # return self._parse_field_decl(access_mod)
         return Parser.parse_field_decl(tkzr, access_mod)
 
     @staticmethod
@@ -128,7 +82,6 @@ class Parser:
         ParserError
         """
         tkzr.assert_consume(TokenType.IDENTIFIER, "class")
-        # class_id = self._parse_extended_id()
         class_id = ExtendedID.from_tokenizer(tkzr)
         tkzr.assert_consume(TokenType.NEWLINE)
 
@@ -137,7 +90,6 @@ class Parser:
         while not (
             tkzr.try_token_type(TokenType.IDENTIFIER) and tkzr.get_token_code() == "end"
         ):
-            # member_decl_list.append(self._parse_member_decl())
             member_decl_list.append(Parser.parse_member_decl(tkzr))
 
         tkzr.assert_consume(TokenType.IDENTIFIER, "end")
@@ -157,10 +109,6 @@ class Parser:
         ------
         ParserError
         """
-        # if access_mod == AccessModifierType.PUBLIC_DEFAULT:
-        # raise ParserError(
-        #     "'Public Default' access modifier cannot be used with field declaration"
-        # )
         assert (
             access_mod != AccessModifierType.PUBLIC_DEFAULT
         ), "'Public Default' access modifier cannot be used with field declaration"
@@ -173,11 +121,6 @@ class Parser:
 
         int_literals: typing.List[Token] = []
         if tkzr.try_consume(TokenType.SYMBOL, "("):
-            # find_int_literal = (
-            #     tkzr.try_token_type(TokenType.LITERAL_INT)
-            #     or tkzr.try_token_type(TokenType.LITERAL_HEX)
-            #     or tkzr.try_token_type(TokenType.LITERAL_OCT)
-            # )
             find_int_literal = tkzr.try_multiple_token_type(
                 [
                     TokenType.LITERAL_INT,
@@ -186,11 +129,6 @@ class Parser:
                 ]
             )
             while find_int_literal:
-                # if not (
-                #     tkzr.try_token_type(TokenType.LITERAL_INT)
-                #     or tkzr.try_token_type(TokenType.LITERAL_HEX)
-                #     or tkzr.try_token_type(TokenType.LITERAL_OCT)
-                # ):
                 if not tkzr.try_multiple_token_type(
                     [
                         TokenType.LITERAL_INT,
@@ -225,14 +163,8 @@ class Parser:
         other_vars: typing.List[VarName] = []
         parse_var_name = tkzr.try_token_type(TokenType.IDENTIFIER)
         while parse_var_name:
-            # var_id = self._parse_extended_id()
             var_id = ExtendedID.from_tokenizer(tkzr)
             if tkzr.try_consume(TokenType.SYMBOL, "("):
-                # find_int_literal = (
-                #     self._try_token_type(TokenType.LITERAL_INT)
-                #     or self._try_token_type(TokenType.LITERAL_HEX)
-                #     or self._try_token_type(TokenType.LITERAL_OCT)
-                # )
                 find_int_literal = tkzr.try_multiple_token_type(
                     [
                         TokenType.LITERAL_INT,
@@ -242,11 +174,6 @@ class Parser:
                 )
                 int_literals: typing.List[Token] = []
                 while find_int_literal:
-                    # if not (
-                    #     self._try_token_type(TokenType.LITERAL_INT)
-                    #     or self._try_token_type(TokenType.LITERAL_HEX)
-                    #     or self._try_token_type(TokenType.LITERAL_OCT)
-                    # ):
                     if not tkzr.try_multiple_token_type(
                         [
                             TokenType.LITERAL_INT,
@@ -295,7 +222,6 @@ class Parser:
         tkzr.assert_consume(TokenType.IDENTIFIER, "const")
         const_list: typing.List[ConstListItem] = []
         while not tkzr.try_token_type(TokenType.NEWLINE):
-            # const_id = self._parse_extended_id()
             const_id = ExtendedID.from_tokenizer(tkzr)
             tkzr.assert_consume(TokenType.SYMBOL, "=")
             const_expr: typing.Optional[Expr] = None
@@ -329,7 +255,6 @@ class Parser:
                     assert (
                         const_expr is None
                     ), "Can only have one const expression per const list item"
-                    # const_expr = self._parse_const_expr()
                     const_expr = ExpressionParser.parse_const_expr(tkzr)
             assert (
                 const_expr is not None
@@ -366,8 +291,7 @@ class Parser:
         ParserError
         """
         tkzr.assert_consume(TokenType.IDENTIFIER, "sub")
-        # sub_id: ExtendedID = self._parse_extended_id()
-        sub_id: ExtendedID = ExtendedID.from_tokenizer(tkzr)
+        sub_id = ExtendedID.from_tokenizer(tkzr)
         method_arg_list: typing.List[Arg] = []
         if tkzr.try_consume(TokenType.SYMBOL, "("):
             while not (
@@ -376,12 +300,10 @@ class Parser:
                 if tkzr.try_token_type(
                     TokenType.IDENTIFIER
                 ) and tkzr.get_token_code() in ["byval", "byref"]:
-                    # arg_modifier = self._pos_tok
                     arg_modifier = tkzr.current_token
                     tkzr.advance_pos()  # consume modifier
                 else:
                     arg_modifier = None
-                # arg_id = self._parse_extended_id()
                 arg_id = ExtendedID.from_tokenizer(tkzr)
                 has_paren = tkzr.try_consume(TokenType.SYMBOL, "(")
                 if has_paren:
@@ -400,12 +322,8 @@ class Parser:
                 tkzr.try_token_type(TokenType.IDENTIFIER)
                 and tkzr.get_token_code() == "end"
             ):
-                # method_stmt_list.append(self._parse_method_stmt())
                 method_stmt_list.append(Parser.parse_method_stmt(tkzr))
         else:
-            # method_stmt_list.append(
-            #     self._parse_inline_stmt(TokenType.IDENTIFIER, "end")
-            # )
             method_stmt_list.append(
                 Parser.parse_inline_stmt(tkzr, TokenType.IDENTIFIER, "end")
             )
@@ -421,7 +339,6 @@ class Parser:
     ) -> GlobalStmt:
         """"""
         tkzr.assert_consume(TokenType.IDENTIFIER, "function")
-        # function_id: ExtendedID = self._parse_extended_id()
         function_id = ExtendedID.from_tokenizer(tkzr)
         method_arg_list: typing.List[Arg] = []
         if tkzr.try_consume(TokenType.SYMBOL, "("):
@@ -431,12 +348,10 @@ class Parser:
                 if tkzr.try_token_type(
                     TokenType.IDENTIFIER
                 ) and tkzr.get_token_code() in ["byval", "byref"]:
-                    # arg_modifier = self._pos_tok
                     arg_modifier = tkzr.current_token
                     tkzr.advance_pos()  # consume modifier
                 else:
                     arg_modifier = None
-                # arg_id = self._parse_extended_id()
                 arg_id = ExtendedID.from_tokenizer(tkzr)
                 has_paren = tkzr.try_consume(TokenType.SYMBOL, "(")
                 if has_paren:
@@ -455,12 +370,8 @@ class Parser:
                 tkzr.try_token_type(TokenType.IDENTIFIER)
                 and tkzr.get_token_code() == "end"
             ):
-                # method_stmt_list.append(self._parse_method_stmt())
                 method_stmt_list.append(Parser.parse_method_stmt(tkzr))
         else:
-            # method_stmt_list.append(
-            #     self._parse_inline_stmt(TokenType.IDENTIFIER, "end")
-            # )
             method_stmt_list.append(
                 Parser.parse_inline_stmt(tkzr, TokenType.IDENTIFIER, "end")
             )
@@ -491,12 +402,10 @@ class Parser:
         assert tkzr.try_token_type(TokenType.IDENTIFIER) and (
             tkzr.get_token_code() in ["get", "let", "set"]
         ), "Expected property access type after 'Property'"
-        # prop_access_type: Token = self._pos_tok
         prop_access_type: Token = tkzr.current_token
         tkzr.advance_pos()  # consume access type
 
-        # property_id: ExtendedID = self._parse_extended_id()
-        property_id: ExtendedID = ExtendedID.from_tokenizer(tkzr)
+        property_id = ExtendedID.from_tokenizer(tkzr)
 
         method_arg_list: typing.List[Arg] = []
         if tkzr.try_consume(TokenType.SYMBOL, "("):
@@ -506,12 +415,10 @@ class Parser:
                 if tkzr.try_token_type(
                     TokenType.IDENTIFIER
                 ) and tkzr.get_token_code() in ["byval", "byref"]:
-                    # arg_modifier = self._pos_tok
                     arg_modifier = tkzr.current_token
                     tkzr.advance_pos()  # consume modifier
                 else:
                     arg_modifier = None
-                # arg_id = self._parse_extended_id()
                 arg_id = ExtendedID.from_tokenizer(tkzr)
                 has_paren = tkzr.try_consume(TokenType.SYMBOL, "(")
                 if has_paren:
@@ -529,7 +436,6 @@ class Parser:
         while not (
             tkzr.try_token_type(TokenType.IDENTIFIER) and tkzr.get_token_code() == "end"
         ):
-            # method_stmt_list.append(self._parse_method_stmt())
             method_stmt_list.append(Parser.parse_method_stmt(tkzr))
 
         tkzr.assert_consume(TokenType.IDENTIFIER, "end")
@@ -583,17 +489,13 @@ class Parser:
                     assert (
                         access_mod != AccessModifierType.PUBLIC_DEFAULT
                     ), "'Public Default' access modifier cannot be used with const declaration"
-                    # return self._parse_const_decl(access_mod)
                     return Parser.parse_const_decl(tkzr, access_mod)
                 case "sub":
-                    # return self._parse_sub_decl(access_mod)
                     return Parser.parse_sub_decl(tkzr, access_mod)
                 case "function":
-                    # return self._parse_function_decl(access_mod)
                     return Parser.parse_function_decl(tkzr, access_mod)
 
             # assume this is a field declaration
-            # return self._parse_field_decl(access_mod)
             return Parser.parse_field_decl(tkzr, access_mod)
         raise ParserError("Expected a 'Public' or 'Private' access modifier token")
 
@@ -612,16 +514,12 @@ class Parser:
         if tkzr.try_token_type(TokenType.IDENTIFIER):
             match tkzr.get_token_code():
                 case "class":
-                    # return self._parse_class_decl()
                     return Parser.parse_class_decl(tkzr)
                 case "const":
-                    # return self._parse_const_decl()
                     return Parser.parse_const_decl(tkzr)
                 case "sub":
-                    # return self._parse_sub_decl()
                     return Parser.parse_sub_decl(tkzr)
                 case "function":
-                    # return self._parse_function_decl()
                     return Parser.parse_function_decl(tkzr)
                 case _:
                     # shouldn't get here, but just in case
@@ -646,16 +544,10 @@ class Parser:
         var_name: typing.List[VarName] = []
         parse_var_name = True
         while parse_var_name:
-            # var_id = self._parse_extended_id()
             var_id = ExtendedID.from_tokenizer(tkzr)
             if tkzr.try_consume(TokenType.SYMBOL, "("):
                 # parse array rank list
                 # first int literal is also optional
-                # find_int_literal = (
-                #     self._try_token_type(TokenType.LITERAL_INT)
-                #     or self._try_token_type(TokenType.LITERAL_HEX)
-                #     or self._try_token_type(TokenType.LITERAL_OCT)
-                # )
                 find_int_literal = tkzr.try_multiple_token_type(
                     [
                         TokenType.LITERAL_INT,
@@ -665,11 +557,6 @@ class Parser:
                 )
                 int_literals: typing.List[Token] = []
                 while find_int_literal:
-                    # if not (
-                    #     self._try_token_type(TokenType.LITERAL_INT)
-                    #     or self._try_token_type(TokenType.LITERAL_HEX)
-                    #     or self._try_token_type(TokenType.LITERAL_OCT)
-                    # ):
                     if not tkzr.try_multiple_token_type(
                         [
                             TokenType.LITERAL_INT,
@@ -711,15 +598,9 @@ class Parser:
         return VarDecl(var_name)
 
     @staticmethod
-    def parse_redim_stmt(tkzr: Tokenizer) -> GlobalStmt:
-        """"""
-        return RedimStmt.from_tokenizer(tkzr)
-
-    @staticmethod
     def parse_if_stmt(tkzr: Tokenizer) -> GlobalStmt:
         """"""
         tkzr.assert_consume(TokenType.IDENTIFIER, "if")
-        # if_expr = self._parse_expr()
         if_expr = ExpressionParser.parse_expr(tkzr)
         tkzr.assert_consume(TokenType.IDENTIFIER, "then")
 
@@ -732,7 +613,6 @@ class Parser:
                 tkzr.try_token_type(TokenType.IDENTIFIER)
                 and tkzr.get_token_code() in ["elseif", "else", "end"]
             ):
-                # block_stmt_list.append(self._parse_block_stmt())
                 block_stmt_list.append(Parser.parse_block_stmt(tkzr))
             # check for 'ElseIf' statements
             if (
@@ -745,7 +625,6 @@ class Parser:
                 ):
                     elif_stmt_list: typing.List[BlockStmt] = []
                     tkzr.assert_consume(TokenType.IDENTIFIER, "elseif")
-                    # elif_expr: Expr = self._parse_expr()
                     elif_expr = ExpressionParser.parse_expr(tkzr)
                     tkzr.assert_consume(TokenType.IDENTIFIER, "then")
                     if tkzr.try_token_type(TokenType.NEWLINE):
@@ -755,13 +634,9 @@ class Parser:
                             tkzr.try_token_type(TokenType.IDENTIFIER)
                             and tkzr.get_token_code() in ["elseif", "else", "end"]
                         ):
-                            # elif_stmt_list.append(self._parse_block_stmt())
                             elif_stmt_list.append(Parser.parse_block_stmt(tkzr))
                     else:
                         # inline statement
-                        # elif_stmt_list.append(
-                        #     self._parse_inline_stmt(TokenType.NEWLINE)
-                        # )
                         elif_stmt_list.append(
                             Parser.parse_inline_stmt(tkzr, TokenType.NEWLINE)
                         )
@@ -778,13 +653,9 @@ class Parser:
                         tkzr.try_token_type(TokenType.IDENTIFIER)
                         and tkzr.get_token_code() == "end"
                     ):
-                        # else_block_list.append(self._parse_block_stmt())
                         else_block_list.append(Parser.parse_block_stmt(tkzr))
                 else:
                     # inline statement
-                    # else_block_list.append(
-                    #     self._parse_inline_stmt(TokenType.NEWLINE)
-                    # )
                     else_block_list.append(
                         Parser.parse_inline_stmt(tkzr, TokenType.NEWLINE)
                     )
@@ -797,18 +668,6 @@ class Parser:
             tkzr.assert_consume(TokenType.NEWLINE)
         else:
             # inline statement
-            # block_stmt_list.append(
-            #     self._parse_inline_stmt(
-            #         terminal_pairs=[
-            #             (
-            #                 TokenType.IDENTIFIER,
-            #                 "else",
-            #             ),  # optional 'Else' <InlineStmt>
-            #             (TokenType.IDENTIFIER, "end"),  # optional 'End' 'If'
-            #             (TokenType.NEWLINE),  # if statement terminator
-            #         ]
-            #     )
-            # )
             block_stmt_list.append(
                 Parser.parse_inline_stmt(
                     tkzr,
@@ -824,15 +683,6 @@ class Parser:
                 else_stmt_list.append(
                     ElseStmt(
                         [
-                            # self._parse_inline_stmt(
-                            #     terminal_pairs=[
-                            #         (
-                            #             TokenType.IDENTIFIER,
-                            #             "end",
-                            #         ),  # optional 'End' 'If'
-                            #         (TokenType.NEWLINE),  # if statement terminator
-                            #     ]
-                            # )
                             Parser.parse_inline_stmt(
                                 tkzr,
                                 terminal_pairs=[
@@ -856,14 +706,12 @@ class Parser:
     def parse_with_stmt(tkzr: Tokenizer) -> GlobalStmt:
         """"""
         tkzr.assert_consume(TokenType.IDENTIFIER, "with")
-        # with_expr = self._parse_expr()
         with_expr = ExpressionParser.parse_expr(tkzr)
         tkzr.assert_consume(TokenType.NEWLINE)
         block_stmt_list: typing.List[BlockStmt] = []
         while not (
             tkzr.try_token_type(TokenType.IDENTIFIER) and tkzr.get_token_code() == "end"
         ):
-            # block_stmt_list.append(self._parse_block_stmt())
             block_stmt_list.append(Parser.parse_block_stmt(tkzr))
         tkzr.assert_consume(TokenType.IDENTIFIER, "end")
         tkzr.assert_consume(TokenType.IDENTIFIER, "with")
@@ -875,7 +723,6 @@ class Parser:
         """"""
         tkzr.assert_consume(TokenType.IDENTIFIER, "select")
         tkzr.assert_consume(TokenType.IDENTIFIER, "case")
-        # select_case_expr = self._parse_expr()
         select_case_expr = ExpressionParser.parse_expr(tkzr)
         tkzr.assert_consume(TokenType.NEWLINE)
         case_stmt_list: typing.List[CaseStmt] = []
@@ -889,7 +736,6 @@ class Parser:
                 # parse expression list
                 parse_case_expr: bool = True
                 while parse_case_expr:
-                    # case_expr_list.append(self._parse_expr())
                     case_expr_list.append(ExpressionParser.parse_expr(tkzr))
                     parse_case_expr = tkzr.try_consume(TokenType.SYMBOL, ",")
                 del parse_case_expr
@@ -902,7 +748,6 @@ class Parser:
                 tkzr.try_token_type(TokenType.IDENTIFIER)
                 and tkzr.get_token_code() in ["case", "end"]
             ):
-                # block_stmt_list.append(self._parse_block_stmt())
                 block_stmt_list.append(Parser.parse_block_stmt(tkzr))
             case_stmt_list.append(
                 CaseStmt(block_stmt_list, case_expr_list, is_else=is_else)
@@ -926,17 +771,14 @@ class Parser:
         block_stmt_list: typing.List[BlockStmt] = []
         if tkzr.get_token_code() == "while":
             # loop type is 'While'
-            # loop_type: Token = self._pos_tok
             loop_type: Token = tkzr.current_token
             tkzr.advance_pos()  # consume loop type
-            # loop_expr: Expr = self._parse_expr()
-            loop_expr: Expr = ExpressionParser.parse_expr(tkzr)
+            loop_expr = ExpressionParser.parse_expr(tkzr)
             tkzr.assert_consume(TokenType.NEWLINE)
             while not (
                 tkzr.try_token_type(TokenType.IDENTIFIER)
                 and tkzr.get_token_code() == "wend"
             ):
-                # block_stmt_list.append(self._parse_block_stmt())
                 block_stmt_list.append(Parser.parse_block_stmt(tkzr))
             tkzr.assert_consume(TokenType.IDENTIFIER, "wend")
             tkzr.assert_consume(TokenType.NEWLINE)
@@ -956,10 +798,8 @@ class Parser:
                     "while",
                     "until",
                 ], "Loop type must be either 'While' or 'Until'"
-                # loop_type = self._pos_tok
                 loop_type = tkzr.current_token
                 tkzr.advance_pos()  # consume loop type
-                # loop_expr = self._parse_expr()
                 loop_expr = ExpressionParser.parse_expr(tkzr)
                 return True
             return False
@@ -973,7 +813,6 @@ class Parser:
             tkzr.try_token_type(TokenType.IDENTIFIER)
             and tkzr.get_token_code() == "loop"
         ):
-            # block_stmt_list.append(self._parse_block_stmt())
             block_stmt_list.append(Parser.parse_block_stmt(tkzr))
         tkzr.assert_consume(TokenType.IDENTIFIER, "loop")
 
@@ -998,22 +837,17 @@ class Parser:
 
         # check for loop type
         for_each: bool = tkzr.try_consume(TokenType.IDENTIFIER, "each")
-        # target_id: ExtendedID = self._parse_extended_id()
         target_id = ExtendedID.from_tokenizer(tkzr)
         # parse expressions based on for loop type
         if for_each:
             tkzr.assert_consume(TokenType.IDENTIFIER, "in")
-            # each_in_expr = self._parse_expr()
             each_in_expr = ExpressionParser.parse_expr(tkzr)
         else:
             tkzr.assert_consume(TokenType.SYMBOL, "=")
-            # eq_expr = self._parse_expr()
             eq_expr = ExpressionParser.parse_expr(tkzr)
             tkzr.assert_consume(TokenType.IDENTIFIER, "to")
-            # to_expr = self._parse_expr()
             to_expr = ExpressionParser.parse_expr(tkzr)
             if tkzr.try_consume(TokenType.IDENTIFIER, "step"):
-                # step_expr = self._parse_expr()
                 step_expr = ExpressionParser.parse_expr(tkzr)
         tkzr.assert_consume(TokenType.NEWLINE)
         # parse block statement list
@@ -1022,7 +856,6 @@ class Parser:
             tkzr.try_token_type(TokenType.IDENTIFIER)
             and tkzr.get_token_code() == "next"
         ):
-            # block_stmt_list.append(self._parse_block_stmt())
             block_stmt_list.append(Parser.parse_block_stmt(tkzr))
         # finish for statement
         tkzr.assert_consume(TokenType.IDENTIFIER, "next")
@@ -1035,54 +868,6 @@ class Parser:
             step_expr=step_expr,
             each_in_expr=each_in_expr,
         )
-
-    @staticmethod
-    def parse_assign_stmt(tkzr: Tokenizer) -> GlobalStmt:
-        """
-
-        Returns
-        -------
-        GlobalStmt
-
-        Raises
-        ------
-        ParserError
-        """
-        # 'Set' is optional, don't throw if missing
-        tkzr.try_consume(TokenType.IDENTIFIER, "set")
-        # target_expr = self._parse_left_expr()
-        target_expr = ExpressionParser.parse_left_expr(tkzr)
-
-        # check for '='
-        tkzr.assert_consume(TokenType.SYMBOL, "=")
-
-        # check for 'New'
-        is_new = tkzr.try_consume(TokenType.IDENTIFIER, "new")
-
-        # parse assignment expression
-        # assign_expr = self._parse_left_expr() if is_new else self._parse_expr()
-        assign_expr = (
-            ExpressionParser.parse_left_expr(tkzr)
-            if is_new
-            else ExpressionParser.parse_expr(tkzr)
-        )
-        return AssignStmt(target_expr, assign_expr, is_new=is_new)
-
-    @staticmethod
-    def parse_call_stmt(tkzr: Tokenizer) -> GlobalStmt:
-        """
-
-        Returns
-        -------
-        GlobalStmt
-
-        Raises
-        ------
-        ParserError
-        """
-        tkzr.assert_consume(TokenType.IDENTIFIER, "call")
-        # return CallStmt(self._parse_left_expr())
-        return CallStmt(ExpressionParser.parse_left_expr(tkzr))
 
     @staticmethod
     def parse_subcall_stmt(
@@ -1159,7 +944,6 @@ class Parser:
                     and (tkzr.get_token_code() == ",")
                 )
             ):
-                # sub_safe_expr = self._parse_expr(True)
                 sub_safe_expr = ExpressionParser.parse_expr(tkzr, True)
         else:
             # left_expr = <QualifiedID> <IndexOrParamsList>
@@ -1185,7 +969,6 @@ class Parser:
             else:
                 # interpret as expression
                 comma_expr_list.append(
-                    # self._parse_expr()
                     ExpressionParser.parse_expr(tkzr)
                 )  # don't need sub_safe here
                 found_expr = True
@@ -1193,81 +976,6 @@ class Parser:
         del found_expr
 
         return SubCallStmt(left_expr, sub_safe_expr, comma_expr_list)
-
-    @staticmethod
-    def parse_error_stmt(tkzr: Tokenizer) -> GlobalStmt:
-        """
-
-        Returns
-        -------
-        GlobalStmt
-
-        Raises
-        ------
-        ParserError
-        """
-        tkzr.assert_consume(TokenType.IDENTIFIER, "on")
-        tkzr.assert_consume(TokenType.IDENTIFIER, "error")
-
-        # check for 'Resume'
-        if tkzr.try_consume(TokenType.IDENTIFIER, "resume"):
-            tkzr.assert_consume(TokenType.IDENTIFIER, "next")
-            return ErrorStmt(resume_next=True)
-
-        # check for 'GoTo'
-        if tkzr.try_consume(TokenType.IDENTIFIER, "goto"):
-            if not tkzr.try_token_type(TokenType.LITERAL_INT):
-                raise ParserError("Expected an integer literal after 'On Error GoTo'")
-            # goto_spec = self._pos_tok
-            goto_spec = tkzr.current_token
-            tkzr.advance_pos()  # consume int literal
-            return ErrorStmt(goto_spec=goto_spec)
-
-        raise ParserError(
-            "Expected either 'Resume Next' or 'GoTo <int>' after 'On Error'"
-        )
-
-    @staticmethod
-    def parse_exit_stmt(tkzr: Tokenizer) -> GlobalStmt:
-        """
-
-        Returns
-        -------
-        GlobalStmt
-
-        Raises
-        ------
-        ParserError
-        """
-        tkzr.assert_consume(TokenType.IDENTIFIER, "exit")
-        # get exit type
-        assert tkzr.try_token_type(TokenType.IDENTIFIER) and tkzr.get_token_code() in [
-            "do",
-            "for",
-            "function",
-            "property",
-            "sub",
-        ], "Expected one of the following after 'Exit': 'Do', 'For', 'Function', 'Property', or 'Sub'"
-        # exit_tok = self._pos_tok
-        exit_tok = tkzr.current_token
-        tkzr.advance_pos()  # consume exit type token
-        return ExitStmt(exit_tok)
-
-    @staticmethod
-    def parse_erase_stmt(tkzr: Tokenizer) -> GlobalStmt:
-        """
-
-        Returns
-        -------
-        GlobalStmt
-
-        Raises
-        ------
-        ParserError
-        """
-        tkzr.assert_consume(TokenType.IDENTIFIER, "erase")
-        # return EraseStmt(self._parse_extended_id())
-        return EraseStmt(ExtendedID.from_tokenizer(tkzr))
 
     @staticmethod
     def parse_inline_stmt(
@@ -1305,39 +1013,26 @@ class Parser:
                 TokenType.IDENTIFIER_DOTIDDOT,
             ]
         ), "Inline statement should start with an identifier or dotted identifier"
-        # if (
-        #     self._try_token_type(TokenType.IDENTIFIER)
-        #     or self._try_token_type(TokenType.IDENTIFIER_IDDOT)
-        #     or self._try_token_type(TokenType.IDENTIFIER_DOTID)
-        #     or self._try_token_type(TokenType.IDENTIFIER_DOTIDDOT)
-        # ):
         # AssignStmt and SubCallStmt could start with a dotted identifier
         match tkzr.get_token_code():
             case "set":
                 # 'Set' is optional for AssignStmt
                 # need to also handle assignment without leading 'Set'
-                # return self._parse_assign_stmt()
-                return Parser.parse_assign_stmt(tkzr)
+                return AssignStmt.from_tokenizer(tkzr)
             case "call":
-                # return self._parse_call_stmt()
-                return Parser.parse_call_stmt(tkzr)
+                return CallStmt.from_tokenizer(tkzr)
             case "on":
-                # return self._parse_error_stmt()
-                return Parser.parse_error_stmt(tkzr)
+                return ErrorStmt.from_tokenizer(tkzr)
             case "exit":
-                # return self._parse_exit_stmt()
-                return Parser.parse_exit_stmt(tkzr)
+                return ExitStmt.from_tokenizer(tkzr)
             case "erase":
-                # return self._parse_erase_stmt()
-                return Parser.parse_erase_stmt(tkzr)
+                return EraseStmt.from_tokenizer(tkzr)
 
         # no leading keyword, try parsing a left expression
-        # left_expr: LeftExpr = self._parse_left_expr()
-        left_expr: LeftExpr = ExpressionParser.parse_left_expr(tkzr)
+        left_expr = ExpressionParser.parse_left_expr(tkzr)
 
         # assign statement?
         if tkzr.try_consume(TokenType.SYMBOL, "="):
-            # assign_expr = self._parse_expr()
             assign_expr = ExpressionParser.parse_expr(tkzr)
             return AssignStmt(left_expr, assign_expr)
 
@@ -1350,16 +1045,6 @@ class Parser:
             terminal_casefold,
             terminal_pairs=terminal_pairs,
         )
-        # return self._parse_subcall_stmt(
-        #     left_expr,
-        #     terminal_type,
-        #     terminal_code,
-        #     terminal_casefold,
-        #     terminal_pairs=terminal_pairs,
-        # )
-        # raise ParserError(
-        #     "Inline statement should start with an identifier or dotted identifier"
-        # )
 
     @staticmethod
     def parse_block_stmt(tkzr: Tokenizer) -> GlobalStmt:
@@ -1381,44 +1066,27 @@ class Parser:
                 TokenType.IDENTIFIER_DOTIDDOT,
             ]
         ), "Block statement should start with an identifier or dotted identifier"
-        # if (
-        #     self._try_token_type(TokenType.IDENTIFIER)
-        #     or self._try_token_type(TokenType.IDENTIFIER_IDDOT)
-        #     or self._try_token_type(TokenType.IDENTIFIER_DOTID)
-        #     or self._try_token_type(TokenType.IDENTIFIER_DOTIDDOT)
-        # ):
         # AssignStmt and SubCallStmt could start with a dotted identifier
         match tkzr.get_token_code():
             case "dim":
-                # return self._parse_var_decl()
                 return Parser.parse_var_decl(tkzr)
             case "redim":
-                # return self._parse_redim_stmt()
-                return Parser.parse_redim_stmt(tkzr)
+                return RedimStmt.from_tokenizer(tkzr)
             case "if":
-                # return self._parse_if_stmt()
                 return Parser.parse_if_stmt(tkzr)
             case "with":
-                # return self._parse_with_stmt()
                 return Parser.parse_with_stmt(tkzr)
             case "select":
-                # return self._parse_select_stmt()
                 return Parser.parse_select_stmt(tkzr)
             case "do" | "while":
-                # return self._parse_loop_stmt()
                 return Parser.parse_loop_stmt(tkzr)
             case "for":
-                # return self._parse_for_stmt()
                 return Parser.parse_for_stmt(tkzr)
 
         # try to parse as inline statement
-        # ret_inline = self._parse_inline_stmt(TokenType.NEWLINE)
         ret_inline = Parser.parse_inline_stmt(tkzr, TokenType.NEWLINE)
         tkzr.assert_consume(TokenType.NEWLINE)
         return ret_inline
-        # raise ParserError(
-        #     "Block statement should start with an identifier or dotted identifier"
-        # )
 
     @staticmethod
     def parse_method_stmt(tkzr: Tokenizer) -> MethodStmt:
@@ -1439,10 +1107,8 @@ class Parser:
                 access_mod = AccessModifierType.PRIVATE
             else:
                 access_mod = None
-            # return self._parse_const_decl(access_mod)
             return Parser.parse_const_decl(tkzr, access_mod)
         # assume block statement
-        # return self._parse_block_stmt()
         return Parser.parse_block_stmt(tkzr)
 
     @staticmethod
@@ -1465,31 +1131,18 @@ class Parser:
                 TokenType.IDENTIFIER_DOTIDDOT,
             ]
         ), "Global statement should start with an identifier or dotted identifier"
-        # if (
-        #     self._try_token_type(TokenType.IDENTIFIER)
-        #     or self._try_token_type(TokenType.IDENTIFIER_IDDOT)
-        #     or self._try_token_type(TokenType.IDENTIFIER_DOTID)
-        #     or self._try_token_type(TokenType.IDENTIFIER_DOTIDDOT)
-        # ):
         # AssignStmt and SubCallStmt could start with a dotted identifier
         match tkzr.get_token_code():
             case "option":
-                # return self._parse_option_explicit()
-                return Parser.parse_option_explicit(tkzr)
+                return OptionExplicit.from_tokenizer(tkzr)
             case "class" | "const" | "sub" | "function":
                 # does not have an access modifier
-                # return self._parse_global_decl()
                 return Parser.parse_global_decl(tkzr)
             case "public" | "private":
-                # return self._parse_access_modifier()
                 return Parser.parse_access_modifier(tkzr)
             case _:
                 # try to parse as a block statement
-                # return self._parse_block_stmt()
                 return Parser.parse_block_stmt(tkzr)
-        # raise ParserError(
-        #     "Global statement should start with an identifier or dotted identifier"
-        # )
 
     @staticmethod
     def parse(tkzr: Tokenizer) -> Program:
@@ -1511,6 +1164,5 @@ class Parser:
         # don't catch any errors here!
         # if this method is run inside of a context, errors will be handled by __exit__()
         while tkzr.current_token is not None:
-            # global_stmts.append(self._parse_global_stmt())
             global_stmts.append(Parser.parse_global_stmt(tkzr))
         return Program(global_stmts)

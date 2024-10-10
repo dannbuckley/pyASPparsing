@@ -59,6 +59,13 @@ class OptionExplicit(GlobalStmt):
     'Option' 'Explicit' &lt;NEWLINE&gt;
     """
 
+    @staticmethod
+    def from_tokenizer(tkzr: Tokenizer):
+        tkzr.assert_consume(TokenType.IDENTIFIER, "option")
+        tkzr.assert_consume(TokenType.IDENTIFIER, "explicit")
+        tkzr.assert_consume(TokenType.NEWLINE)
+        return OptionExplicit()
+
 
 @attrs.define(slots=False)
 class RedimDecl:
@@ -273,6 +280,23 @@ class AssignStmt(InlineStmt):
     assign_expr: Expr
     is_new: bool = attrs.field(default=False, kw_only=True)
 
+    @staticmethod
+    def from_tokenizer(tkzr: Tokenizer):
+        # 'Set' is optional, don't throw if missing
+        tkzr.try_consume(TokenType.IDENTIFIER, "set")
+        target_expr = ExpressionParser.parse_left_expr(tkzr)
+        # check for '='
+        tkzr.assert_consume(TokenType.SYMBOL, "=")
+        # check for 'New'
+        is_new = tkzr.try_consume(TokenType.IDENTIFIER, "new")
+        # parse assignment expression
+        assign_expr = (
+            ExpressionParser.parse_left_expr(tkzr)
+            if is_new
+            else ExpressionParser.parse_expr(tkzr)
+        )
+        return AssignStmt(target_expr, assign_expr, is_new=is_new)
+
 
 @attrs.define(slots=False)
 class CallStmt(InlineStmt):
@@ -282,6 +306,11 @@ class CallStmt(InlineStmt):
     """
 
     left_expr: LeftExpr
+
+    @staticmethod
+    def from_tokenizer(tkzr: Tokenizer):
+        tkzr.assert_consume(TokenType.IDENTIFIER, "call")
+        return CallStmt(ExpressionParser.parse_left_expr(tkzr))
 
 
 @attrs.define(slots=False)
@@ -307,6 +336,26 @@ class ErrorStmt(InlineStmt):
     resume_next: bool = attrs.field(default=False, kw_only=True)
     goto_spec: typing.Optional[Token] = attrs.field(default=None, kw_only=True)
 
+    @staticmethod
+    def from_tokenizer(tkzr: Tokenizer):
+        tkzr.assert_consume(TokenType.IDENTIFIER, "on")
+        tkzr.assert_consume(TokenType.IDENTIFIER, "error")
+        # check for 'Resume'
+        if tkzr.try_consume(TokenType.IDENTIFIER, "resume"):
+            tkzr.assert_consume(TokenType.IDENTIFIER, "next")
+            return ErrorStmt(resume_next=True)
+        # check for 'GoTo'
+        if tkzr.try_consume(TokenType.IDENTIFIER, "goto"):
+            assert tkzr.try_token_type(
+                TokenType.LITERAL_INT
+            ), "Expected an integer literal after 'On Error GoTo'"
+            goto_spec = tkzr.current_token
+            tkzr.advance_pos()  # consume int literal
+            return ErrorStmt(goto_spec=goto_spec)
+        raise ParserError(
+            "Expected either 'Resume Next' or 'GoTo <int>' after 'On Error'"
+        )
+
 
 @attrs.define(slots=False)
 class ExitStmt(InlineStmt):
@@ -317,6 +366,20 @@ class ExitStmt(InlineStmt):
 
     exit_token: Token
 
+    @staticmethod
+    def from_tokenizer(tkzr: Tokenizer):
+        tkzr.assert_consume(TokenType.IDENTIFIER, "exit")
+        assert tkzr.try_token_type(TokenType.IDENTIFIER) and tkzr.get_token_code() in [
+            "do",
+            "for",
+            "function",
+            "property",
+            "sub",
+        ], "Expected one of the following after 'Exit': 'Do', 'For', 'Function', 'Property', or 'Sub'"
+        exit_tok = tkzr.current_token
+        tkzr.advance_pos()  # consume exit type token
+        return ExitStmt(exit_tok)
+
 
 @attrs.define(slots=False)
 class EraseStmt(InlineStmt):
@@ -326,3 +389,8 @@ class EraseStmt(InlineStmt):
     """
 
     extended_id: ExtendedID
+
+    @staticmethod
+    def from_tokenizer(tkzr: Tokenizer):
+        tkzr.assert_consume(TokenType.IDENTIFIER, "erase")
+        return EraseStmt(ExtendedID.from_tokenizer(tkzr))
