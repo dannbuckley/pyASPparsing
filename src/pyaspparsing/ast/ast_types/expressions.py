@@ -5,7 +5,7 @@ import typing
 import attrs
 
 from ..tokenizer.token_types import Token
-from .base import Expr, Value, CompareExprType
+from .base import FormatterMixin, Expr, Value, CompareExprType
 
 __all__ = [
     "ImpExpr",
@@ -33,8 +33,8 @@ __all__ = [
 ]
 
 
-@attrs.define(slots=False)
-class ImpExpr(Expr):
+@attrs.define(repr=False, slots=False)
+class ImpExpr(FormatterMixin, Expr):
     """Defined on grammar line 666
 
     [ &lt;ImpExpr&gt; 'Imp' ] &lt;EqvExpr&gt;
@@ -44,8 +44,8 @@ class ImpExpr(Expr):
     right: Expr
 
 
-@attrs.define(slots=False)
-class EqvExpr(Expr):
+@attrs.define(repr=False, slots=False)
+class EqvExpr(FormatterMixin, Expr):
     """Defined on grammar line 669
 
     [ &lt;EqvExpr&gt; 'Eqv' ] &lt;XorExpr&gt;
@@ -55,8 +55,8 @@ class EqvExpr(Expr):
     right: Expr
 
 
-@attrs.define(slots=False)
-class XorExpr(Expr):
+@attrs.define(repr=False, slots=False)
+class XorExpr(FormatterMixin, Expr):
     """Defined on grammar line 672
 
     [ &lt;XorExpr&gt; 'Xor' ] &lt;OrExpr&gt;
@@ -66,8 +66,8 @@ class XorExpr(Expr):
     right: Expr
 
 
-@attrs.define(slots=False)
-class OrExpr(Expr):
+@attrs.define(repr=False, slots=False)
+class OrExpr(FormatterMixin, Expr):
     """Defined on grammar line 675
 
     [ &lt;OrExpr&gt; 'Or' ] &lt;AndExpr&gt;
@@ -77,8 +77,8 @@ class OrExpr(Expr):
     right: Expr
 
 
-@attrs.define(slots=False)
-class AndExpr(Expr):
+@attrs.define(repr=False, slots=False)
+class AndExpr(FormatterMixin, Expr):
     """Defined on grammar line 678
 
     [ &lt;AndExpr&gt; 'And' ] &lt;NotExpr&gt;
@@ -88,8 +88,8 @@ class AndExpr(Expr):
     right: Expr
 
 
-@attrs.define(slots=False)
-class NotExpr(Expr):
+@attrs.define(repr=False, slots=False)
+class NotExpr(FormatterMixin, Expr):
     """Defined on grammar line 681
 
     { 'Not' &lt;NotExpr&gt; | &lt;CompareExpr&gt; }
@@ -98,8 +98,8 @@ class NotExpr(Expr):
     term: Expr
 
 
-@attrs.define(slots=False)
-class CompareExpr(Expr):
+@attrs.define(repr=False, slots=False)
+class CompareExpr(FormatterMixin, Expr):
     """Defined on grammar line 684
 
     [
@@ -113,8 +113,8 @@ class CompareExpr(Expr):
     right: Expr
 
 
-@attrs.define(slots=False)
-class ConcatExpr(Expr):
+@attrs.define(repr=False, slots=False)
+class ConcatExpr(FormatterMixin, Expr):
     """Defined on grammar line 696
 
     [ &lt;ConcatExpr&gt; '&' ] &lt;AddExpr&gt;
@@ -124,8 +124,8 @@ class ConcatExpr(Expr):
     right: Expr
 
 
-@attrs.define(slots=False)
-class AddExpr(Expr):
+@attrs.define(repr=False, slots=False)
+class AddExpr(FormatterMixin, Expr):
     """Defined on grammar line 699
 
     [ &lt;AddExpr&gt; { '+' | '-' } ] &lt;ModExpr&gt;
@@ -136,8 +136,8 @@ class AddExpr(Expr):
     right: Expr
 
 
-@attrs.define(slots=False)
-class ModExpr(Expr):
+@attrs.define(repr=False, slots=False)
+class ModExpr(FormatterMixin, Expr):
     """Defined on grammar line 703
 
     [ &lt;ModExpr&gt; 'Mod' ] &lt;IntDivExpr&gt;
@@ -147,8 +147,8 @@ class ModExpr(Expr):
     right: Expr
 
 
-@attrs.define(slots=False)
-class IntDivExpr(Expr):
+@attrs.define(repr=False, slots=False)
+class IntDivExpr(FormatterMixin, Expr):
     """Defined on grammar line 706
 
     [ &lt;IntDivExpr&gt; '\\\\' ] &lt;MultExpr&gt;
@@ -158,8 +158,8 @@ class IntDivExpr(Expr):
     right: Expr
 
 
-@attrs.define(slots=False)
-class MultExpr(Expr):
+@attrs.define(repr=False, slots=False)
+class MultExpr(FormatterMixin, Expr):
     """Defined on grammar line 709
 
     [ &lt;MultExpr&gt; { '*' | '/' } ] &lt;UnaryExpr&gt;
@@ -170,8 +170,8 @@ class MultExpr(Expr):
     right: Expr
 
 
-@attrs.define(slots=False)
-class UnaryExpr(Expr):
+@attrs.define(repr=False, slots=False)
+class UnaryExpr(FormatterMixin, Expr):
     """Defined on grammar line 713
 
     { { '-' | '+' } &lt;UnaryExpr&gt; | &lt;ExpExpr&gt; }
@@ -181,8 +181,8 @@ class UnaryExpr(Expr):
     term: Expr
 
 
-@attrs.define(slots=False)
-class ExpExpr(Expr):
+@attrs.define(repr=False, slots=False)
+class ExpExpr(FormatterMixin, Expr):
     """Defined on grammar line 717
 
     &lt;Value&gt; [ '^' &lt;ExpExpr&gt; ]
@@ -192,14 +192,15 @@ class ExpExpr(Expr):
     right: Expr
 
 
-@attrs.define(slots=False)
-class ConstExpr(Value):
+@attrs.define(repr=False, slots=False)
+class ConstExpr(FormatterMixin, Value):
     """Defined on grammar line 724"""
 
     const_token: Token
 
 
-@attrs.define(slots=False)
+# repr=False -> repr is inherited from ConstExpr (FormatterMixin.__repr__)
+@attrs.define(repr=False, slots=False)
 class BoolLiteral(ConstExpr):
     """Defined on grammar line 731
 
@@ -207,7 +208,8 @@ class BoolLiteral(ConstExpr):
     """
 
 
-@attrs.define(slots=False)
+# repr=False -> repr is inherited from ConstExpr (FormatterMixin.__repr__)
+@attrs.define(repr=False, slots=False)
 class IntLiteral(ConstExpr):
     """Defined on grammar line 734
 
@@ -215,7 +217,8 @@ class IntLiteral(ConstExpr):
     """
 
 
-@attrs.define(slots=False)
+# repr=False -> repr is inherited from ConstExpr (FormatterMixin.__repr__)
+@attrs.define(repr=False, slots=False)
 class Nothing(ConstExpr):
     """Defined on grammar line 738
 
@@ -223,15 +226,15 @@ class Nothing(ConstExpr):
     """
 
 
-@attrs.define(slots=False)
-class QualifiedID:
+@attrs.define(repr=False, slots=False)
+class QualifiedID(FormatterMixin):
     """Defined on grammar line 443"""
 
     id_tokens: typing.List[Token] = attrs.field(default=attrs.Factory(list))
 
 
-@attrs.define(slots=False)
-class IndexOrParams:
+@attrs.define(repr=False, slots=False)
+class IndexOrParams(FormatterMixin):
     """Defined of grammar line 519"""
 
     expr_list: typing.List[typing.Optional[Expr]] = attrs.field(
@@ -240,8 +243,8 @@ class IndexOrParams:
     dot: bool = attrs.field(default=False, kw_only=True)
 
 
-@attrs.define(slots=False)
-class LeftExprTail:
+@attrs.define(repr=False, slots=False)
+class LeftExprTail(FormatterMixin):
     """Defined on grammar line 436"""
 
     qual_id_tail: QualifiedID
@@ -250,8 +253,8 @@ class LeftExprTail:
     )
 
 
-@attrs.define(slots=False)
-class LeftExpr(Value):
+@attrs.define(repr=False, slots=False)
+class LeftExpr(FormatterMixin, Value):
     """Defined on grammar line 430"""
 
     qual_id: QualifiedID

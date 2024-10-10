@@ -113,7 +113,7 @@ class DebugLineInfo:
     line_start_pos: int
 
 
-@attrs.define
+@attrs.define(repr=False)
 class Token:
     """Represents an individual token"""
 
@@ -125,6 +125,17 @@ class Token:
     line_info: typing.Optional[DebugLineInfo] = attrs.field(
         default=None, eq=False, kw_only=True
     )
+
+    def __repr__(self) -> str:
+        return "\n".join(
+            [
+                "Token(",
+                f"  token_type={repr(self.token_type)},",
+                f"  token_src={repr(self.token_src)},",
+                f"  line_info={repr(self.line_info)}",
+                ")",
+            ]
+        )
 
     @staticmethod
     def _factory(

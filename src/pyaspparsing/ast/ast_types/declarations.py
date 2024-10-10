@@ -1,4 +1,4 @@
-"""Declaration AST classess"""
+"""Declaration AST classes"""
 
 import typing
 
@@ -8,6 +8,7 @@ from ... import ParserError
 from ..tokenizer.token_types import Token, TokenType
 from ..tokenizer.state_machine import Tokenizer
 from .base import (
+    FormatterMixin,
     AccessModifierType,
     BlockStmt,
     Expr,
@@ -35,23 +36,23 @@ __all__ = [
 ]
 
 
-@attrs.define(slots=False)
-class FieldID:
+@attrs.define(repr=False, slots=False)
+class FieldID(FormatterMixin):
     """Defined on grammar line 291"""
 
     id_token: Token
 
 
-@attrs.define(slots=False)
-class FieldName:
+@attrs.define(repr=False, slots=False)
+class FieldName(FormatterMixin):
     """Defined on grammar line 288"""
 
     field_id: FieldID
     array_rank_list: typing.List[Token] = attrs.field(default=attrs.Factory(list))
 
 
-@attrs.define(slots=False)
-class VarName:
+@attrs.define(repr=False, slots=False)
+class VarName(FormatterMixin):
     """Defined on grammar line 300
 
     &lt;ExtendedID&gt; [ '(' &lt;ArrayRankList&gt; ')']
@@ -65,8 +66,8 @@ class VarName:
     array_rank_list: typing.List[Token] = attrs.field(default=attrs.Factory(list))
 
 
-@attrs.define(slots=False)
-class FieldDecl(GlobalStmt, MemberDecl):
+@attrs.define(repr=False, slots=False)
+class FieldDecl(FormatterMixin, GlobalStmt, MemberDecl):
     """Defined on grammar line 285
 
     { 'Private' | 'Public' } &lt;FieldName&gt; &lt;OtherVarsOpt&gt; &lt;NEWLINE&gt;
@@ -186,8 +187,8 @@ class FieldDecl(GlobalStmt, MemberDecl):
         return FieldDecl(field_name, other_vars, access_mod=access_mod)
 
 
-@attrs.define(slots=False)
-class VarDecl(MemberDecl, BlockStmt):
+@attrs.define(repr=False, slots=False)
+class VarDecl(FormatterMixin, MemberDecl, BlockStmt):
     """Defined on grammar line 298
 
     'Dim' &lt;VarName&gt; &lt;OtherVarsOpt&gt; &lt;NEWLINE&gt;
@@ -255,8 +256,8 @@ class VarDecl(MemberDecl, BlockStmt):
         return VarDecl(var_name)
 
 
-@attrs.define(slots=False)
-class ConstListItem:
+@attrs.define(repr=False, slots=False)
+class ConstListItem(FormatterMixin):
     """Defined on grammar line 312"""
 
     extended_id: ExtendedID
@@ -269,8 +270,8 @@ class ConstListItem:
     const_expr: Expr
 
 
-@attrs.define(slots=False)
-class ConstDecl(GlobalStmt, MethodStmt, MemberDecl):
+@attrs.define(repr=False, slots=False)
+class ConstDecl(FormatterMixin, GlobalStmt, MethodStmt, MemberDecl):
     """Defined on grammar line 310
 
     [ 'Public' | 'Private' ] 'Const' &lt;ConstList&gt; &lt;NEWLINE&gt;
@@ -343,8 +344,8 @@ class ConstDecl(GlobalStmt, MethodStmt, MemberDecl):
         return ConstDecl(const_list, access_mod=access_mod)
 
 
-@attrs.define(slots=False)
-class Arg:
+@attrs.define(repr=False, slots=False)
+class Arg(FormatterMixin):
     """Defined on grammar line 340"""
 
     extended_id: ExtendedID
@@ -352,8 +353,8 @@ class Arg:
     has_paren: bool = attrs.field(default=False, kw_only=True)
 
 
-@attrs.define(slots=False)
-class SubDecl(GlobalStmt, MemberDecl):
+@attrs.define(repr=False, slots=False)
+class SubDecl(FormatterMixin, GlobalStmt, MemberDecl):
     """Defined on grammar line 320
 
     { 'Public' 'Default' | [ 'Public' | 'Private' ] } <br />
@@ -369,8 +370,8 @@ class SubDecl(GlobalStmt, MemberDecl):
     )
 
 
-@attrs.define(slots=False)
-class FunctionDecl(GlobalStmt, MemberDecl):
+@attrs.define(repr=False, slots=False)
+class FunctionDecl(FormatterMixin, GlobalStmt, MemberDecl):
     """Defined on grammar line 323
 
     { 'Public' 'Default' | [ 'Public' | 'Private' ] } <br />
@@ -386,8 +387,8 @@ class FunctionDecl(GlobalStmt, MemberDecl):
     )
 
 
-@attrs.define(slots=False)
-class PropertyDecl(MemberDecl):
+@attrs.define(repr=False, slots=False)
+class PropertyDecl(FormatterMixin, MemberDecl):
     """Defined on grammar line 347
 
     { 'Public' 'Default' | [ 'Public' | 'Private' ] } <br />
@@ -405,8 +406,8 @@ class PropertyDecl(MemberDecl):
     )
 
 
-@attrs.define(slots=False)
-class ClassDecl(GlobalStmt):
+@attrs.define(repr=False, slots=False)
+class ClassDecl(FormatterMixin, GlobalStmt):
     """Defined on grammar line 273
 
     'Class' &lt;ExtendedID&gt; &lt;NEWLINE&gt; <br />

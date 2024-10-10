@@ -7,7 +7,7 @@ import attrs
 from ... import ParserError
 from ..tokenizer.token_types import Token, TokenType
 from ..tokenizer.state_machine import Tokenizer
-from .base import GlobalStmt, Expr, BlockStmt, InlineStmt
+from .base import FormatterMixin, GlobalStmt, Expr, BlockStmt, InlineStmt
 from .expressions import LeftExpr
 from .parse_expressions import ExpressionParser
 
@@ -32,8 +32,8 @@ __all__ = [
 ]
 
 
-@attrs.define(slots=False)
-class ExtendedID:
+@attrs.define(repr=False, slots=False)
+class ExtendedID(FormatterMixin):
     """Defined on grammar line 513"""
 
     id_token: Token
@@ -52,8 +52,8 @@ class ExtendedID:
         )
 
 
-@attrs.define(slots=False)
-class OptionExplicit(GlobalStmt):
+@attrs.define(repr=False, slots=False)
+class OptionExplicit(FormatterMixin, GlobalStmt):
     """Defined on grammar line 393
 
     'Option' 'Explicit' &lt;NEWLINE&gt;
@@ -67,8 +67,8 @@ class OptionExplicit(GlobalStmt):
         return OptionExplicit()
 
 
-@attrs.define(slots=False)
-class RedimDecl:
+@attrs.define(repr=False, slots=False)
+class RedimDecl(FormatterMixin):
     """Defined on grammar line 545
 
     &lt;ExtendedID&gt; '(' &lt;ExprList&gt; ')'
@@ -78,8 +78,8 @@ class RedimDecl:
     expr_list: typing.List[Expr] = attrs.field(default=attrs.Factory(list))
 
 
-@attrs.define(slots=False)
-class RedimStmt(BlockStmt):
+@attrs.define(repr=False, slots=False)
+class RedimStmt(FormatterMixin, BlockStmt):
     """Defined on grammar line 539
 
     'Redim' [ 'Preserve' ] &lt;RedimDeclList&gt; &lt;NEWLINE&gt;
@@ -110,8 +110,8 @@ class RedimStmt(BlockStmt):
         return RedimStmt(redim_decl_list, preserve=preserve)
 
 
-@attrs.define(slots=False)
-class ElseStmt:
+@attrs.define(repr=False, slots=False)
+class ElseStmt(FormatterMixin):
     """Defined on grammar line 552
 
     Two possible definitions:
@@ -130,8 +130,8 @@ class ElseStmt:
     is_else: bool = attrs.field(default=False, kw_only=True)
 
 
-@attrs.define(slots=False)
-class IfStmt(BlockStmt):
+@attrs.define(repr=False, slots=False)
+class IfStmt(FormatterMixin, BlockStmt):
     """Defined on grammar line 549
 
     Two possible definitions:
@@ -148,8 +148,8 @@ class IfStmt(BlockStmt):
     else_stmt_list: typing.List[ElseStmt] = attrs.field(default=attrs.Factory(list))
 
 
-@attrs.define(slots=False)
-class WithStmt(BlockStmt):
+@attrs.define(repr=False, slots=False)
+class WithStmt(FormatterMixin, BlockStmt):
     """Defined on grammar line 566
 
     'With' &lt;Expr&gt; &lt;NEWLINE&gt; <br />
@@ -160,8 +160,8 @@ class WithStmt(BlockStmt):
     block_stmt_list: typing.List[BlockStmt] = attrs.field(default=attrs.Factory(list))
 
 
-@attrs.define(slots=False)
-class CaseStmt:
+@attrs.define(repr=False, slots=False)
+class CaseStmt(FormatterMixin):
     """Defined on grammar line 590
 
     Two possible definitions:
@@ -178,8 +178,8 @@ class CaseStmt:
     is_else: bool = attrs.field(default=False, kw_only=True)
 
 
-@attrs.define(slots=False)
-class SelectStmt(BlockStmt):
+@attrs.define(repr=False, slots=False)
+class SelectStmt(FormatterMixin, BlockStmt):
     """Defined on grammar line 588
 
     'Select' 'Case' &lt;Expr&gt; &lt;NEWLINE&gt; <br />
@@ -190,8 +190,8 @@ class SelectStmt(BlockStmt):
     case_stmt_list: typing.List[CaseStmt] = attrs.field(default=attrs.Factory(list))
 
 
-@attrs.define(slots=False)
-class LoopStmt(BlockStmt):
+@attrs.define(repr=False, slots=False)
+class LoopStmt(FormatterMixin, BlockStmt):
     """Defined on grammar line 570
 
     Several possible definitions:
@@ -215,8 +215,8 @@ class LoopStmt(BlockStmt):
     loop_expr: typing.Optional[Expr] = attrs.field(default=None, kw_only=True)
 
 
-@attrs.define(slots=False)
-class ForStmt(BlockStmt):
+@attrs.define(repr=False, slots=False)
+class ForStmt(FormatterMixin, BlockStmt):
     """Defined on grammar line 580
 
     Two possible definitions:
@@ -263,8 +263,8 @@ class ForStmt(BlockStmt):
         ), "For statement can only be a '=' 'To' type or an 'Each' 'In' type, but not both"
 
 
-@attrs.define(slots=False)
-class AssignStmt(InlineStmt):
+@attrs.define(repr=False, slots=False)
+class AssignStmt(FormatterMixin, InlineStmt):
     """Defined on grammar line 404
 
     Two possible definitions:
@@ -298,8 +298,8 @@ class AssignStmt(InlineStmt):
         return AssignStmt(target_expr, assign_expr, is_new=is_new)
 
 
-@attrs.define(slots=False)
-class CallStmt(InlineStmt):
+@attrs.define(repr=False, slots=False)
+class CallStmt(FormatterMixin, InlineStmt):
     """Defined on grammar line 428
 
     'Call' &lt;LeftExpr&gt;
@@ -313,8 +313,8 @@ class CallStmt(InlineStmt):
         return CallStmt(ExpressionParser.parse_left_expr(tkzr))
 
 
-@attrs.define(slots=False)
-class SubCallStmt(InlineStmt):
+@attrs.define(repr=False, slots=False)
+class SubCallStmt(FormatterMixin, InlineStmt):
     """Defined on grammar line 414"""
 
     left_expr: Expr
@@ -416,8 +416,8 @@ class SubCallStmt(InlineStmt):
         return SubCallStmt(left_expr, sub_safe_expr, comma_expr_list)
 
 
-@attrs.define(slots=False)
-class ErrorStmt(InlineStmt):
+@attrs.define(repr=False, slots=False)
+class ErrorStmt(FormatterMixin, InlineStmt):
     """Defined on grammar line 395
 
     'On' 'Error' { 'Resume' 'Next' | 'GoTo' IntLiteral }
@@ -449,8 +449,8 @@ class ErrorStmt(InlineStmt):
         )
 
 
-@attrs.define(slots=False)
-class ExitStmt(InlineStmt):
+@attrs.define(repr=False, slots=False)
+class ExitStmt(FormatterMixin, InlineStmt):
     """Defined on grammar line 398
 
     'Exit' { 'Do' | 'For' | 'Function' | 'Property' | 'Sub' }
@@ -473,8 +473,8 @@ class ExitStmt(InlineStmt):
         return ExitStmt(exit_tok)
 
 
-@attrs.define(slots=False)
-class EraseStmt(InlineStmt):
+@attrs.define(repr=False, slots=False)
+class EraseStmt(FormatterMixin, InlineStmt):
     """Part of InlineStmt definition on line 382
 
     'Erase' &lt;ExtendedID&gt;
