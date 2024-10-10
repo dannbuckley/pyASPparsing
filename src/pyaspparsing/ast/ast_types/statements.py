@@ -323,6 +323,98 @@ class SubCallStmt(InlineStmt):
         default=attrs.Factory(list)
     )
 
+    @staticmethod
+    def from_tokenizer(
+        tkzr: Tokenizer,
+        left_expr: LeftExpr,
+        terminal_type: typing.Optional[TokenType] = None,
+        terminal_code: typing.Optional[str] = None,
+        terminal_casefold: bool = True,
+        *,
+        terminal_pairs: typing.Optional[
+            typing.List[typing.Tuple[TokenType, typing.Optional[str]]]
+        ] = None,
+    ):
+        if terminal_pairs is None:
+            terminal_pairs = []
+        assert (len(terminal_pairs) > 0) or (
+            terminal_type is not None
+        ), "Expected at least one terminal type or type/code pair"
+
+        def _check_terminal() -> bool:
+            """Check for the terminal token
+
+            Returns
+            -------
+            bool
+                True if the current token is the terminal token
+            """
+            nonlocal tkzr, terminal_type, terminal_code, terminal_casefold, terminal_pairs
+            if len(terminal_pairs) > 0:
+                return any(
+                    map(
+                        lambda tpair: tkzr.try_token_type(tpair[0])
+                        and (
+                            (tpair[1] is None)
+                            or (tkzr.get_token_code(terminal_casefold) == tpair[1])
+                        ),
+                        terminal_pairs,
+                    )
+                )
+            return tkzr.try_token_type(terminal_type) and (
+                (terminal_code is None)
+                or (tkzr.get_token_code(terminal_casefold) == terminal_code)
+            )
+
+        sub_safe_expr = None
+        if len(left_expr.index_or_params) == 0 or len(left_expr.tail) >= 1:
+            # left_expr = <QualifiedID>
+            # or (
+            #   left_expr = <QualifiedID> <IndexOrParamsList> '.' <LeftExprTail>
+            #   or
+            #   left_expr = <QualifiedID> <IndexOrParamsListDot> <LeftExprTail>
+            # )
+            # try to parse sub safe expression
+            if not (
+                _check_terminal()
+                or (
+                    tkzr.try_token_type(TokenType.SYMBOL)
+                    and (tkzr.get_token_code() == ",")
+                )
+            ):
+                sub_safe_expr = ExpressionParser.parse_expr(tkzr, True)
+        else:
+            # left_expr = <QualifiedID> <IndexOrParamsList>
+            # make sure it matches:
+            #   <QualifiedID> '(' [ <Expr> ] ')'
+            assert (
+                len(left_expr.index_or_params) == 1
+                and 0 <= len(left_expr.index_or_params[0].expr_list) <= 1
+                and left_expr.index_or_params[0].dot == False
+                and len(left_expr.tail) == 0  # redundant check, but just in case
+            ), "Expected left expression to have the form: <QualifiedID> '(' [ <Expr> ] ')'"
+
+        # try to parse comma expression list
+        comma_expr_list: typing.List[typing.Optional[Expr]] = []
+        found_expr: bool = True  # fix: prevents erroneous None on first iteration
+        while not _check_terminal():
+            if tkzr.try_consume(TokenType.SYMBOL, ","):
+                # was the previous entry not empty?
+                if found_expr:
+                    found_expr = False
+                else:
+                    comma_expr_list.append(None)
+            else:
+                # interpret as expression
+                comma_expr_list.append(
+                    ExpressionParser.parse_expr(tkzr)
+                )  # don't need sub_safe here
+                found_expr = True
+        # DON'T CONSUME TERMINAL, LEAVE FOR CALLER
+        del found_expr
+
+        return SubCallStmt(left_expr, sub_safe_expr, comma_expr_list)
+
 
 @attrs.define(slots=False)
 class ErrorStmt(InlineStmt):

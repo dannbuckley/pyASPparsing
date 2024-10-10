@@ -3,7 +3,6 @@ from pyaspparsing.ast.tokenizer.token_types import Token
 from pyaspparsing.ast.tokenizer.state_machine import Tokenizer
 from pyaspparsing.ast.ast_types import *
 from pyaspparsing.ast.ast_types.program import Program
-from pyaspparsing.ast.ast_types.parser import Parser
 
 
 @pytest.mark.parametrize(
@@ -2347,6 +2346,6 @@ from pyaspparsing.ast.ast_types.parser import Parser
 def test_valid_global_stmt(stmt_code: str, stmt_type: GlobalStmt):
     # don't suppress exceptions
     with Tokenizer(stmt_code, False) as tkzr:
-        prog: Program = Parser.parse(tkzr)
+        prog = Program.from_tokenizer(tkzr)
         assert len(prog.global_stmt_list) == 1
         assert prog.global_stmt_list[0] == stmt_type

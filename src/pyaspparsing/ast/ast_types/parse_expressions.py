@@ -122,7 +122,7 @@ class ExpressionParser:
         # check for index or params list
         index_or_params_tail: typing.List[IndexOrParams] = []
         while tkzr.try_consume(TokenType.SYMBOL, "("):
-            expr_list: typing.List[Expr] = []
+            expr_list: typing.List[typing.Optional[Expr]] = []
             found_expr: bool = False  # helper variable for parsing commas
             while not (
                 tkzr.try_token_type(TokenType.SYMBOL) and tkzr.get_token_code() == ")"
@@ -153,7 +153,7 @@ class ExpressionParser:
         return LeftExprTail(qual_id_tail, index_or_params_tail)
 
     @staticmethod
-    def parse_left_expr(tkzr: Tokenizer) -> Expr:
+    def parse_left_expr(tkzr: Tokenizer) -> LeftExpr:
         """"""
         # attempt to parse qualified identifier
         qual_id = ExpressionParser.parse_qualified_id(tkzr)
