@@ -12,7 +12,8 @@ class TokenizerState(enum.IntEnum):
     # housekeeping states
     CHECK_EXHAUSTED = enum.auto()
     CHECK_WHITESPACE = enum.auto()
-    SKIP_COMMENT = enum.auto()
+    SKIP_QUOTE_COMMENT = enum.auto()
+    SKIP_REM_COMMENT = enum.auto()
 
     # NEWLINE token
     START_NEWLINE = enum.auto()

@@ -57,6 +57,7 @@ class CodeWrapper:
     # debug line info
     line_no: typing.Optional[int] = attrs.field(default=None, init=False)
     line_start: typing.Optional[int] = attrs.field(default=None, init=False)
+    line_code_start: typing.Optional[int] = attrs.field(default=None, init=False)
 
     @property
     def current_char(self):
@@ -99,6 +100,7 @@ class CodeWrapper:
         # initialize debug line info
         self.line_no = 1
         self.line_start = 0
+        self.line_code_start = 0
         return self
 
     def __exit__(self, exc_type, exc_val: BaseException, tb) -> bool:
@@ -114,6 +116,7 @@ class CodeWrapper:
         self._pos_idx = None
         self.line_no = None
         self.line_start = None
+        self.line_code_start = None
         return self.suppress_error
 
     def advance_pos(self) -> bool:
@@ -134,6 +137,12 @@ class CodeWrapper:
         if self.line_no is not None and self.line_start is not None:
             self.line_no += 1
             self.line_start = self._pos_idx
+            self.line_code_start = self._pos_idx
+    
+    def update_line_code_start(self):
+        """Line has leading whitespace"""
+        if self.line_no is not None and self.line_start is not None:
+            self.line_code_start = self._pos_idx
 
     def validate_type(self, char_type: CharacterType) -> bool:
         """

@@ -7,7 +7,6 @@ from pyaspparsing.ast.tokenizer.state_machine import tokenize
 @pytest.mark.parametrize(
     "codeblock,exp_type",
     [
-        ("\n", TokenType.NEWLINE),
         ("(", TokenType.SYMBOL),
         (".", TokenType.SYMBOL),
         ("&", TokenType.SYMBOL),
@@ -80,27 +79,27 @@ def test_comment(comment_delim: str):
     assert next(comment_iter, None) is None
 
 
-@pytest.mark.parametrize(
-    "comment_delim,newline",
-    [
-        ("'", ":"),
-        ("'", "\r"),
-        ("'", "\n"),
-        ("'", "\r\n"),
-        ("Rem", ":"),
-        ("Rem", "\r"),
-        ("Rem", "\n"),
-        ("Rem", "\r\n"),
-    ],
-)
-def test_comment_newline(comment_delim: str, newline: str):
-    comment_iter = tokenize(f"{comment_delim} This is a terminated comment{newline}")
-    # next(comment_iter)
-    match next(comment_iter, None):
-        case Token(x):
-            assert x == TokenType.NEWLINE
-        case None:
-            pytest.fail("First token was None, should be a NEWLINE Token")
+# @pytest.mark.parametrize(
+#     "comment_delim,newline",
+#     [
+#         ("'", ":"),
+#         ("'", "\r"),
+#         ("'", "\n"),
+#         ("'", "\r\n"),
+#         ("Rem", ":"),
+#         ("Rem", "\r"),
+#         ("Rem", "\n"),
+#         ("Rem", "\r\n"),
+#     ],
+# )
+# def test_comment_newline(comment_delim: str, newline: str):
+#     comment_iter = tokenize(f"{comment_delim} This is a terminated comment{newline}")
+#     # next(comment_iter)
+#     match next(comment_iter, None):
+#         case Token(x):
+#             assert x == TokenType.NEWLINE
+#         case None:
+#             pytest.fail("First token was None, should be a NEWLINE Token")
 
 
 def test_trailing_whitespace():

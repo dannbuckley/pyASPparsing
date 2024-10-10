@@ -41,7 +41,8 @@ class ExpressionParser:
             return ExpressionParser.parse_const_expr(tkzr)
 
         # try left expression
-        if tkzr.try_token_type(TokenType.IDENTIFIER):
+        # if tkzr.try_token_type(TokenType.IDENTIFIER):
+        if tkzr.try_multiple_token_type([TokenType.IDENTIFIER, TokenType.IDENTIFIER_IDDOT]):
             return ExpressionParser.parse_left_expr(tkzr)
 
         raise ParserError("Invalid token in value expression")

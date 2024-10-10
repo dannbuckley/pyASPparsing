@@ -21,6 +21,192 @@ class Parser:
     """"""
 
     @staticmethod
+    def parse_global_stmt(tkzr: Tokenizer) -> GlobalStmt:
+        """
+
+        Returns
+        -------
+        GlobalStmt
+
+        Raises
+        ------
+        ParserError
+        """
+        assert tkzr.try_multiple_token_type(
+            [
+                TokenType.IDENTIFIER,
+                TokenType.IDENTIFIER_IDDOT,
+                TokenType.IDENTIFIER_DOTID,
+                TokenType.IDENTIFIER_DOTIDDOT,
+            ]
+        ), "Global statement should start with an identifier or dotted identifier"
+        # AssignStmt and SubCallStmt could start with a dotted identifier
+        match tkzr.get_token_code():
+            case "option":
+                return OptionExplicit.from_tokenizer(tkzr)
+            case "class" | "const" | "sub" | "function":
+                # does not have an access modifier
+                return Parser.parse_global_decl(tkzr)
+            case "public" | "private":
+                return Parser.parse_access_modifier(tkzr)
+            case _:
+                # try to parse as a block statement
+                return Parser.parse_block_stmt(tkzr)
+
+    @staticmethod
+    def parse_method_stmt(tkzr: Tokenizer) -> MethodStmt:
+        """
+
+        Returns
+        -------
+        MethodStmt
+        """
+        if tkzr.try_token_type(TokenType.IDENTIFIER) and tkzr.get_token_code() in [
+            "const",
+            "public",
+            "private",
+        ]:
+            if tkzr.try_consume(TokenType.IDENTIFIER, "public"):
+                access_mod = AccessModifierType.PUBLIC
+            elif tkzr.try_consume(TokenType.IDENTIFIER, "private"):
+                access_mod = AccessModifierType.PRIVATE
+            else:
+                access_mod = None
+            return ConstDecl.from_tokenizer(tkzr, access_mod)
+        # assume block statement
+        return Parser.parse_block_stmt(tkzr)
+
+    @staticmethod
+    def parse_block_stmt(tkzr: Tokenizer) -> BlockStmt:
+        """
+
+        Returns
+        -------
+        GlobalStmt
+
+        Raises
+        ------
+        ParserError
+        """
+        assert tkzr.try_multiple_token_type(
+            [
+                TokenType.IDENTIFIER,
+                TokenType.IDENTIFIER_IDDOT,
+                TokenType.IDENTIFIER_DOTID,
+                TokenType.IDENTIFIER_DOTIDDOT,
+            ]
+        ), "Block statement should start with an identifier or dotted identifier"
+        # AssignStmt and SubCallStmt could start with a dotted identifier
+        match tkzr.get_token_code():
+            case "dim":
+                return VarDecl.from_tokenizer(tkzr)
+            case "redim":
+                return RedimStmt.from_tokenizer(tkzr)
+            case "if":
+                return Parser.parse_if_stmt(tkzr)
+            case "with":
+                return Parser.parse_with_stmt(tkzr)
+            case "select":
+                return Parser.parse_select_stmt(tkzr)
+            case "do" | "while":
+                return Parser.parse_loop_stmt(tkzr)
+            case "for":
+                return Parser.parse_for_stmt(tkzr)
+
+        # try to parse as inline statement
+        ret_inline = Parser.parse_inline_stmt(tkzr, TokenType.NEWLINE)
+        tkzr.assert_consume(TokenType.NEWLINE)
+        return ret_inline
+
+    @staticmethod
+    def parse_inline_stmt(
+        tkzr: Tokenizer,
+        terminal_type: typing.Optional[TokenType] = None,
+        terminal_code: typing.Optional[str] = None,
+        terminal_casefold: bool = True,
+        *,
+        terminal_pairs: typing.List[typing.Tuple[TokenType, typing.Optional[str]]] = [],
+    ) -> InlineStmt:
+        """If inline statement is a subcall statement, uses the given terminal token type
+        to determine the where the statement ends
+
+        Does not consume the terminal token
+
+        Parameters
+        ----------
+        terminal_type : TokenType
+        terminal_code : str | None, default=None
+        terminal_casefold : bool, default=True
+
+        Returns
+        -------
+        GlobalStmt
+
+        Raises
+        ------
+        ParserError
+        """
+        assert tkzr.try_multiple_token_type(
+            [
+                TokenType.IDENTIFIER,
+                TokenType.IDENTIFIER_IDDOT,
+                TokenType.IDENTIFIER_DOTID,
+                TokenType.IDENTIFIER_DOTIDDOT,
+            ]
+        ), "Inline statement should start with an identifier or dotted identifier"
+        # AssignStmt and SubCallStmt could start with a dotted identifier
+        match tkzr.get_token_code():
+            case "set":
+                # 'Set' is optional for AssignStmt
+                # need to also handle assignment without leading 'Set'
+                return AssignStmt.from_tokenizer(tkzr)
+            case "call":
+                return CallStmt.from_tokenizer(tkzr)
+            case "on":
+                return ErrorStmt.from_tokenizer(tkzr)
+            case "exit":
+                return ExitStmt.from_tokenizer(tkzr)
+            case "erase":
+                return EraseStmt.from_tokenizer(tkzr)
+
+        # no leading keyword, try parsing a left expression
+        left_expr = ExpressionParser.parse_left_expr(tkzr)
+
+        # assign statement?
+        if tkzr.try_consume(TokenType.SYMBOL, "="):
+            assign_expr = ExpressionParser.parse_expr(tkzr)
+            return AssignStmt(left_expr, assign_expr)
+
+        # must be a subcall statement
+        return SubCallStmt.from_tokenizer(
+            tkzr,
+            left_expr,
+            terminal_type,
+            terminal_code,
+            terminal_casefold,
+            terminal_pairs=terminal_pairs,
+        )
+
+    @staticmethod
+    def parse_class_decl(tkzr: Tokenizer) -> ClassDecl:
+        """"""
+        tkzr.assert_consume(TokenType.IDENTIFIER, "class")
+        class_id = ExtendedID.from_tokenizer(tkzr)
+        tkzr.assert_consume(TokenType.NEWLINE)
+
+        # member declaration list could be empty
+        member_decl_list: typing.List[MemberDecl] = []
+        while not (
+            tkzr.try_token_type(TokenType.IDENTIFIER) and tkzr.get_token_code() == "end"
+        ):
+            member_decl_list.append(Parser.parse_member_decl(tkzr))
+
+        tkzr.assert_consume(TokenType.IDENTIFIER, "end")
+        tkzr.assert_consume(TokenType.IDENTIFIER, "class")
+        tkzr.assert_consume(TokenType.NEWLINE)
+        return ClassDecl(class_id, member_decl_list)
+
+    @staticmethod
     def parse_member_decl(tkzr: Tokenizer) -> MemberDecl:
         """
         Could be one of:
@@ -66,25 +252,6 @@ class Parser:
         # assume this is a field declaration
         assert access_mod is not None, "Expected access modifier in field declaration"
         return FieldDecl.from_tokenizer(tkzr, access_mod)
-
-    @staticmethod
-    def parse_class_decl(tkzr: Tokenizer) -> ClassDecl:
-        """"""
-        tkzr.assert_consume(TokenType.IDENTIFIER, "class")
-        class_id = ExtendedID.from_tokenizer(tkzr)
-        tkzr.assert_consume(TokenType.NEWLINE)
-
-        # member declaration list could be empty
-        member_decl_list: typing.List[MemberDecl] = []
-        while not (
-            tkzr.try_token_type(TokenType.IDENTIFIER) and tkzr.get_token_code() == "end"
-        ):
-            member_decl_list.append(Parser.parse_member_decl(tkzr))
-
-        tkzr.assert_consume(TokenType.IDENTIFIER, "end")
-        tkzr.assert_consume(TokenType.IDENTIFIER, "class")
-        tkzr.assert_consume(TokenType.NEWLINE)
-        return ClassDecl(class_id, member_decl_list)
 
     @staticmethod
     def parse_sub_decl(
@@ -442,49 +609,6 @@ class Parser:
         return WithStmt(with_expr, block_stmt_list)
 
     @staticmethod
-    def parse_select_stmt(tkzr: Tokenizer) -> SelectStmt:
-        """"""
-        tkzr.assert_consume(TokenType.IDENTIFIER, "select")
-        tkzr.assert_consume(TokenType.IDENTIFIER, "case")
-        select_case_expr = ExpressionParser.parse_expr(tkzr)
-        tkzr.assert_consume(TokenType.NEWLINE)
-        case_stmt_list: typing.List[CaseStmt] = []
-        while not (
-            tkzr.try_token_type(TokenType.IDENTIFIER) and tkzr.get_token_code() == "end"
-        ):
-            tkzr.assert_consume(TokenType.IDENTIFIER, "case")
-            is_else: bool = tkzr.try_consume(TokenType.IDENTIFIER, "else")
-            case_expr_list: typing.List[Expr] = []
-            if not is_else:
-                # parse expression list
-                parse_case_expr: bool = True
-                while parse_case_expr:
-                    case_expr_list.append(ExpressionParser.parse_expr(tkzr))
-                    parse_case_expr = tkzr.try_consume(TokenType.SYMBOL, ",")
-                del parse_case_expr
-            # check for optional newline
-            if tkzr.try_token_type(TokenType.NEWLINE):
-                tkzr.advance_pos()  # consume newline
-            # check for block statements
-            block_stmt_list: typing.List[BlockStmt] = []
-            while not (
-                tkzr.try_token_type(TokenType.IDENTIFIER)
-                and tkzr.get_token_code() in ["case", "end"]
-            ):
-                block_stmt_list.append(Parser.parse_block_stmt(tkzr))
-            case_stmt_list.append(
-                CaseStmt(block_stmt_list, case_expr_list, is_else=is_else)
-            )
-            del is_else, case_expr_list, block_stmt_list
-            if case_stmt_list[-1].is_else:
-                # 'Case' 'Else' must be the last case statement
-                break
-        tkzr.assert_consume(TokenType.IDENTIFIER, "end")
-        tkzr.assert_consume(TokenType.IDENTIFIER, "select")
-        tkzr.assert_consume(TokenType.NEWLINE)
-        return SelectStmt(select_case_expr, case_stmt_list)
-
-    @staticmethod
     def parse_loop_stmt(tkzr: Tokenizer) -> LoopStmt:
         """"""
         assert tkzr.try_token_type(TokenType.IDENTIFIER) and tkzr.get_token_code() in [
@@ -593,171 +717,47 @@ class Parser:
         )
 
     @staticmethod
-    def parse_inline_stmt(
-        tkzr: Tokenizer,
-        terminal_type: typing.Optional[TokenType] = None,
-        terminal_code: typing.Optional[str] = None,
-        terminal_casefold: bool = True,
-        *,
-        terminal_pairs: typing.List[typing.Tuple[TokenType, typing.Optional[str]]] = [],
-    ) -> InlineStmt:
-        """If inline statement is a subcall statement, uses the given terminal token type
-        to determine the where the statement ends
-
-        Does not consume the terminal token
-
-        Parameters
-        ----------
-        terminal_type : TokenType
-        terminal_code : str | None, default=None
-        terminal_casefold : bool, default=True
-
-        Returns
-        -------
-        GlobalStmt
-
-        Raises
-        ------
-        ParserError
-        """
-        assert tkzr.try_multiple_token_type(
-            [
-                TokenType.IDENTIFIER,
-                TokenType.IDENTIFIER_IDDOT,
-                TokenType.IDENTIFIER_DOTID,
-                TokenType.IDENTIFIER_DOTIDDOT,
-            ]
-        ), "Inline statement should start with an identifier or dotted identifier"
-        # AssignStmt and SubCallStmt could start with a dotted identifier
-        match tkzr.get_token_code():
-            case "set":
-                # 'Set' is optional for AssignStmt
-                # need to also handle assignment without leading 'Set'
-                return AssignStmt.from_tokenizer(tkzr)
-            case "call":
-                return CallStmt.from_tokenizer(tkzr)
-            case "on":
-                return ErrorStmt.from_tokenizer(tkzr)
-            case "exit":
-                return ExitStmt.from_tokenizer(tkzr)
-            case "erase":
-                return EraseStmt.from_tokenizer(tkzr)
-
-        # no leading keyword, try parsing a left expression
-        left_expr = ExpressionParser.parse_left_expr(tkzr)
-
-        # assign statement?
-        if tkzr.try_consume(TokenType.SYMBOL, "="):
-            assign_expr = ExpressionParser.parse_expr(tkzr)
-            return AssignStmt(left_expr, assign_expr)
-
-        # must be a subcall statement
-        return SubCallStmt.from_tokenizer(
-            tkzr,
-            left_expr,
-            terminal_type,
-            terminal_code,
-            terminal_casefold,
-            terminal_pairs=terminal_pairs,
-        )
-
-    @staticmethod
-    def parse_block_stmt(tkzr: Tokenizer) -> BlockStmt:
-        """
-
-        Returns
-        -------
-        GlobalStmt
-
-        Raises
-        ------
-        ParserError
-        """
-        assert tkzr.try_multiple_token_type(
-            [
-                TokenType.IDENTIFIER,
-                TokenType.IDENTIFIER_IDDOT,
-                TokenType.IDENTIFIER_DOTID,
-                TokenType.IDENTIFIER_DOTIDDOT,
-            ]
-        ), "Block statement should start with an identifier or dotted identifier"
-        # AssignStmt and SubCallStmt could start with a dotted identifier
-        match tkzr.get_token_code():
-            case "dim":
-                return VarDecl.from_tokenizer(tkzr)
-            case "redim":
-                return RedimStmt.from_tokenizer(tkzr)
-            case "if":
-                return Parser.parse_if_stmt(tkzr)
-            case "with":
-                return Parser.parse_with_stmt(tkzr)
-            case "select":
-                return Parser.parse_select_stmt(tkzr)
-            case "do" | "while":
-                return Parser.parse_loop_stmt(tkzr)
-            case "for":
-                return Parser.parse_for_stmt(tkzr)
-
-        # try to parse as inline statement
-        ret_inline = Parser.parse_inline_stmt(tkzr, TokenType.NEWLINE)
+    def parse_select_stmt(tkzr: Tokenizer) -> SelectStmt:
+        """"""
+        tkzr.assert_consume(TokenType.IDENTIFIER, "select")
+        tkzr.assert_consume(TokenType.IDENTIFIER, "case")
+        select_case_expr = ExpressionParser.parse_expr(tkzr)
         tkzr.assert_consume(TokenType.NEWLINE)
-        return ret_inline
-
-    @staticmethod
-    def parse_method_stmt(tkzr: Tokenizer) -> MethodStmt:
-        """
-
-        Returns
-        -------
-        MethodStmt
-        """
-        if tkzr.try_token_type(TokenType.IDENTIFIER) and tkzr.get_token_code() in [
-            "const",
-            "public",
-            "private",
-        ]:
-            if tkzr.try_consume(TokenType.IDENTIFIER, "public"):
-                access_mod = AccessModifierType.PUBLIC
-            elif tkzr.try_consume(TokenType.IDENTIFIER, "private"):
-                access_mod = AccessModifierType.PRIVATE
-            else:
-                access_mod = None
-            return ConstDecl.from_tokenizer(tkzr, access_mod)
-        # assume block statement
-        return Parser.parse_block_stmt(tkzr)
-
-    @staticmethod
-    def parse_global_stmt(tkzr: Tokenizer) -> GlobalStmt:
-        """
-
-        Returns
-        -------
-        GlobalStmt
-
-        Raises
-        ------
-        ParserError
-        """
-        assert tkzr.try_multiple_token_type(
-            [
-                TokenType.IDENTIFIER,
-                TokenType.IDENTIFIER_IDDOT,
-                TokenType.IDENTIFIER_DOTID,
-                TokenType.IDENTIFIER_DOTIDDOT,
-            ]
-        ), "Global statement should start with an identifier or dotted identifier"
-        # AssignStmt and SubCallStmt could start with a dotted identifier
-        match tkzr.get_token_code():
-            case "option":
-                return OptionExplicit.from_tokenizer(tkzr)
-            case "class" | "const" | "sub" | "function":
-                # does not have an access modifier
-                return Parser.parse_global_decl(tkzr)
-            case "public" | "private":
-                return Parser.parse_access_modifier(tkzr)
-            case _:
-                # try to parse as a block statement
-                return Parser.parse_block_stmt(tkzr)
+        case_stmt_list: typing.List[CaseStmt] = []
+        while not (
+            tkzr.try_token_type(TokenType.IDENTIFIER) and tkzr.get_token_code() == "end"
+        ):
+            tkzr.assert_consume(TokenType.IDENTIFIER, "case")
+            is_else: bool = tkzr.try_consume(TokenType.IDENTIFIER, "else")
+            case_expr_list: typing.List[Expr] = []
+            if not is_else:
+                # parse expression list
+                parse_case_expr: bool = True
+                while parse_case_expr:
+                    case_expr_list.append(ExpressionParser.parse_expr(tkzr))
+                    parse_case_expr = tkzr.try_consume(TokenType.SYMBOL, ",")
+                del parse_case_expr
+            # check for optional newline
+            if tkzr.try_token_type(TokenType.NEWLINE):
+                tkzr.advance_pos()  # consume newline
+            # check for block statements
+            block_stmt_list: typing.List[BlockStmt] = []
+            while not (
+                tkzr.try_token_type(TokenType.IDENTIFIER)
+                and tkzr.get_token_code() in ["case", "end"]
+            ):
+                block_stmt_list.append(Parser.parse_block_stmt(tkzr))
+            case_stmt_list.append(
+                CaseStmt(block_stmt_list, case_expr_list, is_else=is_else)
+            )
+            del is_else, case_expr_list, block_stmt_list
+            if case_stmt_list[-1].is_else:
+                # 'Case' 'Else' must be the last case statement
+                break
+        tkzr.assert_consume(TokenType.IDENTIFIER, "end")
+        tkzr.assert_consume(TokenType.IDENTIFIER, "select")
+        tkzr.assert_consume(TokenType.NEWLINE)
+        return SelectStmt(select_case_expr, case_stmt_list)
 
 
 @attrs.define

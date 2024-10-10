@@ -116,9 +116,14 @@ def state_check_whitespace(sargs: StateArgs) -> TokenOpt:
     If CodeWrapper has not reached the end of the codeblock,
     check for either a comment, a newline, or the start of a terminal
     """
+    # is this leading whitespace at the beginning of a line?
+    whitespace_start = (sargs.cwrap.current_idx - sargs.cwrap.line_start) == 0
     # consume whitespace
     while sargs.cwrap.try_next(next_type=CharacterType.WS):
         pass
+    if whitespace_start:
+        # code doesn't start until after whitespace
+        sargs.cwrap.update_line_code_start()
 
     # check for line continuation
     if sargs.cwrap.try_next(next_char="_"):
@@ -130,21 +135,29 @@ def state_check_whitespace(sargs: StateArgs) -> TokenOpt:
         # update debug line info
         if carriage_return or line_feed:
             sargs.cwrap.advance_line()
+        # check for leading whitespace after line continuation
+        sargs.state_stack.persist_state()
+        return
 
     # if check_for_end(), return to CHECK_EXHAUSTED
     # else, check for comments, newlines, or terminals
     if not sargs.cwrap.check_for_end():
         if sargs.cwrap.try_next(next_char="'"):
             # need to consume "'" so that SKIP_COMMENT works the same for 'Rem' comments as well
-            sargs.state_stack.enter_state(TokenizerState.SKIP_COMMENT)
+            sargs.state_stack.enter_state(TokenizerState.SKIP_QUOTE_COMMENT)
         elif sargs.cwrap.current_char in ":\r\n":
-            sargs.state_stack.enter_state(TokenizerState.START_NEWLINE)
+            # don't return NEWLINE token if line is all whitespace
+            sargs.state_stack.enter_state(
+                TokenizerState.HANDLE_NEWLINE
+                if whitespace_start
+                else TokenizerState.START_NEWLINE
+            )
         else:
             sargs.state_stack.enter_state(TokenizerState.START_TERMINAL)
 
 
-@create_tokenizer_state(TokenizerState.SKIP_COMMENT)
-def state_skip_comment(sargs: StateArgs) -> TokenOpt:
+@create_tokenizer_state(TokenizerState.SKIP_QUOTE_COMMENT)
+def state_skip_quote_comment(sargs: StateArgs) -> TokenOpt:
     """Handler for SKIP_COMMENT tokenizer state
 
     Consume the body of a comment
@@ -152,14 +165,45 @@ def state_skip_comment(sargs: StateArgs) -> TokenOpt:
     If CodeWrapper has not reached the end of the codeblock,
     check for a newline
     """
+    # does this comment take up the whole line?
+    comment_starts_line = (
+        sargs.cwrap.current_idx - sargs.cwrap.line_code_start - 1
+    ) == 0
     # consume comment
-    while not sargs.cwrap.check_for_end() and sargs.cwrap.current_char not in ":\r\n":
+    while not sargs.cwrap.check_for_end() and sargs.cwrap.current_char not in "\r\n":
         sargs.cwrap.advance_pos()
 
     # if check_for_end(), return to CHECK_EXHAUSTED
     # else, check for newline
-    if not sargs.cwrap.check_for_end() and sargs.cwrap.current_char in ":\r\n":
-        sargs.state_stack.enter_state(TokenizerState.START_NEWLINE)
+    if not sargs.cwrap.check_for_end() and sargs.cwrap.current_char in "\r\n":
+        # don't return NEWLINE token if comment takes up entire line
+        sargs.state_stack.enter_state(
+            TokenizerState.HANDLE_NEWLINE
+            if comment_starts_line
+            else TokenizerState.START_NEWLINE
+        )
+
+
+@create_tokenizer_state(TokenizerState.SKIP_REM_COMMENT)
+def state_skip_rem_comment(sargs: StateArgs) -> TokenOpt:
+    """"""
+    # does this comment take up the whole line?
+    comment_starts_line = (
+        sargs.cwrap.current_idx - sargs.cwrap.line_code_start - 3
+    ) == 0
+    # consume comment
+    while not sargs.cwrap.check_for_end() and sargs.cwrap.current_char not in "\r\n":
+        sargs.cwrap.advance_pos()
+
+    # if check_for_end(), return to CHECK_EXHAUSTED
+    # else, check for newline
+    if not sargs.cwrap.check_for_end() and sargs.cwrap.current_char in "\r\n":
+        # don't return NEWLINE token if comment takes up entire line
+        sargs.state_stack.enter_state(
+            TokenizerState.HANDLE_NEWLINE
+            if comment_starts_line
+            else TokenizerState.START_NEWLINE
+        )
 
 
 @create_tokenizer_state(TokenizerState.START_NEWLINE, starts=True)
@@ -560,7 +604,7 @@ def state_check_id_rem(sargs: StateArgs) -> TokenOpt:
                 # SKIP_COMMENT might create a newline token,
                 # so need to clean token first
                 TokenizerState.CANCEL_ID,
-                TokenizerState.SKIP_COMMENT,
+                TokenizerState.SKIP_REM_COMMENT,
             ]
         )
     else:
