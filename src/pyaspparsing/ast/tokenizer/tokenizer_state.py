@@ -14,9 +14,25 @@ class TokenizerState(enum.IntEnum):
     # scripting <% %>
     # output directive <%= %>
     # processing directive <%@ %>
+    CHECK_DELIM_START = enum.auto()
+    CHECK_DELIM_END = enum.auto()
+    RETURN_PERC_SYMBOL = enum.auto()
+    CONSTRUCT_DELIM_SCRIPT = enum.auto()
+    CONSTRUCT_DELIM_PROCESSING = enum.auto()
+    CONSTRUCT_DELIM_OUTPUT = enum.auto()
+    CONSTRUCT_DELIM_END = enum.auto()
+    END_DELIM = enum.auto()
+
+    # generic text not wrapped by ASP delimiters
+    START_FILE_TEXT = enum.auto()
+    START_FILE_TEXT_DELAYED = enum.auto()
+    CONSUME_FILE_TEXT = enum.auto()
+    VERIFY_FILE_TEXT_END = enum.auto()
+    END_FILE_TEXT = enum.auto()
 
     # file inclusion
     # https://learn.microsoft.com/en-us/previous-versions/iis/6.0-sdk/ms524876(v=vs.90)
+    CHECK_HTML_COMMENT = enum.auto()
 
     # housekeeping states
     CHECK_EXHAUSTED = enum.auto()

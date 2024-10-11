@@ -5,6 +5,39 @@ from pyaspparsing.ast.tokenizer.state_machine import tokenize
 
 
 @pytest.mark.parametrize(
+    "codeblock,delim_type",
+    [
+        ("<%", TokenType.DELIM_START_SCRIPT),
+        ("<%=", TokenType.DELIM_START_OUTPUT),
+        # need at least one whitespace character after '@'
+        ("<%@ ", TokenType.DELIM_START_PROCESSING),
+    ],
+)
+def test_start_delimiter(codeblock: str, delim_type: TokenType):
+    tkzr = iter(tokenize(codeblock))
+    tok = next(tkzr, None)
+    assert tok is not None and tok.token_type == delim_type
+    assert next(tkzr, None) is None
+
+
+@pytest.mark.parametrize(
+    "codeblock,delim_type",
+    [
+        ("<% %>", TokenType.DELIM_START_SCRIPT),
+        ("<%= %>", TokenType.DELIM_START_OUTPUT),
+        # need at least one whitespace character after '@'
+        ("<%@ %>", TokenType.DELIM_START_PROCESSING),
+    ],
+)
+def test_start_and_end_delimiter(codeblock: str, delim_type: TokenType):
+    for tok, etok in zip(
+        tokenize(codeblock),
+        [delim_type, TokenType.DELIM_END]
+    ):
+        assert tok.token_type == etok
+
+
+@pytest.mark.parametrize(
     "codeblock,exp_type",
     [
         ("(", TokenType.SYMBOL),
@@ -40,10 +73,11 @@ from pyaspparsing.ast.tokenizer.state_machine import tokenize
     ],
 )
 def test_tokenize(codeblock: str, exp_type: TokenType):
-    tkzr = iter(tokenize(codeblock))
-    tok = next(tkzr, None)
-    assert tok is not None
-    assert tok.token_type == exp_type
+    for tok, etok in zip(
+        tokenize(f"<%{codeblock}%>"),
+        [TokenType.DELIM_START_SCRIPT, exp_type, TokenType.DELIM_END]
+    ):
+        assert tok.token_type == etok
 
 
 @pytest.mark.parametrize(
@@ -64,7 +98,7 @@ def test_tokenize(codeblock: str, exp_type: TokenType):
 )
 def test_tokenize_invalid(codeblock: str):
     with pytest.raises(TokenizerError):
-        for _ in tokenize(codeblock):
+        for _ in tokenize(f"<%{codeblock}%>"):
             pass
 
 
@@ -75,69 +109,89 @@ def test_empty_code():
 
 @pytest.mark.parametrize("comment_delim", [("'"), ("Rem")])
 def test_comment(comment_delim: str):
-    comment_iter = iter(tokenize(f"{comment_delim} This is a comment"))
-    assert next(comment_iter, None) is None
+    # should continue comment after first '%'
+    for tok, etok in zip(
+        tokenize(f"<%{comment_delim} This is a % comment%>"),
+        [TokenType.DELIM_START_SCRIPT, TokenType.DELIM_END]
+    ):
+        assert tok.token_type, etok
 
 
 def test_quote_comment_wholeline():
     # should not return NEWLINE token after comment
-    comment_iter = tokenize("' Whole-line comment\n\ta")
-    tok = next(comment_iter, None)
-    assert tok is not None and tok.token_type == TokenType.IDENTIFIER
-    assert next(comment_iter, None) is None
+    for tok, etok in zip(
+        tokenize("<%' Whole-line comment\n\ta%>"),
+        [
+            TokenType.DELIM_START_SCRIPT,
+            TokenType.IDENTIFIER,
+            TokenType.DELIM_END
+        ]
+    ):
+        assert tok.token_type == etok
 
 
 def test_quote_comment_endofline():
     # should return NEWLINE token after comment
-    comment_iter = tokenize("a ' Comment at end of line\n\tb")
-
-    def _try_token(tok_type: TokenType):
-        nonlocal comment_iter
-        tok = next(comment_iter, None)
-        assert tok is not None and tok.token_type == tok_type
-
-    _try_token(TokenType.IDENTIFIER)
-    _try_token(TokenType.NEWLINE)
-    _try_token(TokenType.IDENTIFIER)
-    assert next(comment_iter, None) is None
+    for tok, etok in zip(
+        tokenize("<%a ' Comment at end of line\n\tb%>"),
+        [
+            TokenType.DELIM_START_SCRIPT,
+            TokenType.IDENTIFIER,
+            TokenType.NEWLINE,
+            TokenType.IDENTIFIER,
+            TokenType.DELIM_END
+        ]
+    ):
+        assert tok.token_type == etok
 
 
 def test_rem_comment_wholeline():
     # should not return NEWLINE token after comment
-    comment_iter = tokenize("Rem Whole-line comment\n\tb")
-    tok = next(comment_iter, None)
-    assert tok is not None and tok.token_type == TokenType.IDENTIFIER
-    assert next(comment_iter, None) is None
+    for tok, etok in zip(
+        tokenize("<%Rem Whole-line comment\n\tb%>"),
+        [
+            TokenType.DELIM_START_SCRIPT,
+            TokenType.IDENTIFIER,
+            TokenType.DELIM_END
+        ]
+    ):
+        assert tok.token_type == etok
 
 
 def test_rem_comment_endofline():
     # should return NEWLINE token after comment
-    comment_iter = tokenize("a Rem End-of-line comment\n\tb")
-
-    def _try_token(tok_type: TokenType):
-        nonlocal comment_iter
-        tok = next(comment_iter, None)
-        assert tok is not None and tok.token_type == tok_type
-
-    _try_token(TokenType.IDENTIFIER)
-    _try_token(TokenType.NEWLINE)
-    _try_token(TokenType.IDENTIFIER)
-    assert next(comment_iter, None) is None
+    for tok, etok in zip(
+        tokenize("<%a Rem End-of-line comment\n\tb%>"),
+        [
+            TokenType.DELIM_START_SCRIPT,
+            TokenType.IDENTIFIER,
+            TokenType.NEWLINE,
+            TokenType.IDENTIFIER,
+            TokenType.DELIM_END
+        ]
+    ):
+        assert tok.token_type == etok
 
 
 def test_trailing_whitespace():
-    tkzr = tokenize('"Hello, world!"   ')
-    tok = next(tkzr, None)
-    assert tok.token_type == TokenType.LITERAL_STRING
-    tok = next(tkzr, None)
-    assert tok is None
+    for tok, etok in zip(
+        tokenize('<%"Hello, world!"   %>'),
+        [TokenType.DELIM_START_SCRIPT, TokenType.LITERAL_STRING, TokenType.DELIM_END]
+    ):
+        assert tok.token_type == etok
 
 
 def test_line_continuation():
+    # should ignore leading whitespace on second line
     for tok, etok in zip(
-        # should ignore leading whitespace on second line
-        tokenize('"Hello, " & _  \r\n  " world!"'),
-        [TokenType.LITERAL_STRING, TokenType.SYMBOL, TokenType.LITERAL_STRING],
+        tokenize('<%"Hello, " & _  \r\n  " world!"%>'),
+        [
+            TokenType.DELIM_START_SCRIPT,
+            TokenType.LITERAL_STRING,
+            TokenType.SYMBOL,
+            TokenType.LITERAL_STRING,
+            TokenType.DELIM_END,
+        ],
     ):
         assert tok.token_type == etok
 
@@ -145,7 +199,13 @@ def test_line_continuation():
 @pytest.mark.parametrize("delim", [("\r"), ("\n"), ("\r\n"), (":")])
 def test_newline(delim: str):
     for tok, etok in zip(
-        tokenize(f'"First line"{delim}"Second write"'),
-        [TokenType.LITERAL_STRING, TokenType.NEWLINE, TokenType.LITERAL_STRING],
+        tokenize(f'<%"First line"{delim}"Second write"%>'),
+        [
+            TokenType.DELIM_START_SCRIPT,
+            TokenType.LITERAL_STRING,
+            TokenType.NEWLINE,
+            TokenType.LITERAL_STRING,
+            TokenType.DELIM_END,
+        ],
     ):
         assert tok.token_type == etok

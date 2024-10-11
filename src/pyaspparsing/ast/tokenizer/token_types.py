@@ -18,6 +18,18 @@ class TokenType(enum.IntEnum):
     NEWLINE = enum.auto()
     SYMBOL = enum.auto()
 
+    # generic text outside of any ASP delimiter
+    FILE_TEXT = enum.auto()
+
+    # high-level ASP delimiters
+    DELIM_START_SCRIPT = enum.auto()
+    DELIM_START_PROCESSING = enum.auto()
+    DELIM_START_OUTPUT = enum.auto()
+    DELIM_END = enum.auto()
+
+    # file inclusion
+    INCLUDE_DIREC = enum.auto()
+
     # identifier
     IDENTIFIER = enum.auto()
     IDENTIFIER_IDDOT = enum.auto()

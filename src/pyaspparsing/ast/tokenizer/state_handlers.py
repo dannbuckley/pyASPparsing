@@ -95,6 +95,229 @@ def create_tokenizer_state(
 # States are exited automatically unless state_stack.persist_state() is called
 
 
+@create_tokenizer_state(TokenizerState.CHECK_DELIM_START)
+def state_check_delim_start(sargs: StateArgs) -> TokenOpt:
+    """"""
+    # ASP starting delimiter
+    if sargs.cwrap.try_next(next_char="<"):
+        if sargs.cwrap.try_next(next_char="%"):
+            # determine delimiter type
+            if sargs.cwrap.try_next(next_char="="):
+                sargs.state_stack.enter_multiple(
+                    [
+                        TokenizerState.CONSTRUCT_DELIM_OUTPUT,
+                        TokenizerState.CHECK_DELIM_END,
+                    ]
+                )
+            elif sargs.cwrap.try_next(next_char="@"):
+                # one whitespace character required after '@'
+                sargs.cwrap.assert_next(next_type=CharacterType.WS)
+                sargs.state_stack.enter_multiple(
+                    [
+                        TokenizerState.CONSTRUCT_DELIM_PROCESSING,
+                        TokenizerState.CHECK_DELIM_END,
+                    ]
+                )
+            else:
+                sargs.state_stack.enter_multiple(
+                    [
+                        TokenizerState.CONSTRUCT_DELIM_SCRIPT,
+                        TokenizerState.CHECK_DELIM_END,
+                    ]
+                )
+        elif sargs.cwrap.try_next(next_char="!"):
+            # HTML comment
+            sargs.cwrap.assert_next(next_char="-")
+            sargs.cwrap.assert_next(next_char="-")
+            sargs.state_stack.enter_state(TokenizerState.CHECK_HTML_COMMENT)
+        else:
+            sargs.state_stack.enter_state(TokenizerState.START_FILE_TEXT_DELAYED)
+    else:
+        sargs.state_stack.enter_state(TokenizerState.START_FILE_TEXT)
+
+
+@create_tokenizer_state(TokenizerState.CHECK_DELIM_END)
+def state_check_delim_end(sargs: StateArgs) -> TokenOpt:
+    """"""
+    if sargs.cwrap.try_next(next_char="%"):
+        if sargs.cwrap.try_next(next_char=">"):
+            sargs.state_stack.enter_state(TokenizerState.CONSTRUCT_DELIM_END)
+        else:
+            sargs.state_stack.persist_state()
+            sargs.state_stack.enter_state(TokenizerState.RETURN_PERC_SYMBOL)
+    else:
+        if not sargs.cwrap.check_for_end():
+            # sargs.state_stack.persist_state()
+            sargs.state_stack.enter_state(TokenizerState.CHECK_WHITESPACE)
+
+
+@create_tokenizer_state(
+    TokenizerState.RETURN_PERC_SYMBOL, starts=True, returns=True, cleans=True
+)
+def state_return_perc_symbol(sargs: StateArgs) -> TokenOpt:
+    """Found a '%' symbol during CHECK_DELIM_END,
+    but it did not belong to an ending delimiter"""
+    ret_token: typing.Optional[Token] = None
+    try:
+        sargs.curr_token_gen.send(sargs.cwrap.current_idx - 1)  # slice_start
+        sargs.curr_token_gen.send(TokenType.SYMBOL)  # token_type
+        sargs.curr_token_gen.send(sargs.cwrap.current_idx)  # slice_end
+        sargs.curr_token_gen.send(True)  # debug_info
+        sargs.curr_token_gen.send(sargs.cwrap.line_no)  # line_no
+        sargs.curr_token_gen.send(sargs.cwrap.line_start)  # line_start
+    except StopIteration as ex:
+        ret_token = ex.value
+    finally:
+        assert ret_token is not None, "Expected token generator to return a Token"
+
+
+@create_tokenizer_state(TokenizerState.CONSTRUCT_DELIM_SCRIPT, starts=True)
+def state_construct_delim_script(sargs: StateArgs) -> TokenOpt:
+    """"""
+    # script delimiter is '<%', doesn't require whitespace
+    sargs.cwrap.update_line_code_start()
+    sargs.curr_token_gen.send(sargs.cwrap.current_idx - 2)  # slice_start
+    sargs.curr_token_gen.send(TokenType.DELIM_START_SCRIPT)  # token_type
+    sargs.state_stack.enter_state(TokenizerState.END_DELIM)
+
+
+@create_tokenizer_state(TokenizerState.CONSTRUCT_DELIM_PROCESSING, starts=True)
+def state_construct_delim_processing(sargs: StateArgs) -> TokenOpt:
+    """"""
+    # processing delimiter is '<%@ ', requires whitespace
+    sargs.curr_token_gen.send(sargs.cwrap.current_idx - 4)  # slice_start
+    sargs.curr_token_gen.send(TokenType.DELIM_START_PROCESSING)  # token_type
+    sargs.state_stack.enter_state(TokenizerState.END_DELIM)
+
+
+@create_tokenizer_state(TokenizerState.CONSTRUCT_DELIM_OUTPUT, starts=True)
+def state_construct_delim_output(sargs: StateArgs) -> TokenOpt:
+    """"""
+    # output delimiter is '<%=', doesn't require whitespace
+    sargs.curr_token_gen.send(sargs.cwrap.current_idx - 3)  # slice_start
+    sargs.curr_token_gen.send(TokenType.DELIM_START_OUTPUT)  # token_type
+    sargs.state_stack.enter_state(TokenizerState.END_DELIM)
+
+
+@create_tokenizer_state(TokenizerState.CONSTRUCT_DELIM_END, starts=True)
+def state_construct_delim_end(sargs: StateArgs) -> TokenOpt:
+    """"""
+    # end delimiter is '%>'
+    sargs.curr_token_gen.send(sargs.cwrap.current_idx - 2)  # slice_start
+    sargs.curr_token_gen.send(TokenType.DELIM_END)  # token_type
+    sargs.state_stack.enter_state(TokenizerState.END_DELIM)
+
+
+@create_tokenizer_state(TokenizerState.END_DELIM, returns=True, cleans=True)
+def state_end_delim(sargs: StateArgs) -> TokenOpt:
+    """"""
+    ret_token: typing.Optional[Token] = None
+    try:
+        sargs.curr_token_gen.send(sargs.cwrap.current_idx)  # slice_end
+        sargs.curr_token_gen.send(False)  # debug_info
+    except StopIteration as ex:
+        ret_token = ex.value
+    finally:
+        assert ret_token is not None, "Expected token generator to return a Token"
+    return ret_token
+
+
+@create_tokenizer_state(TokenizerState.START_FILE_TEXT, starts=True)
+def state_start_file_text(sargs: StateArgs) -> TokenOpt:
+    """"""
+    sargs.curr_token_gen.send(sargs.cwrap.current_idx)  # slice_start
+    sargs.state_stack.enter_multiple(
+        [TokenizerState.CONSUME_FILE_TEXT, TokenizerState.VERIFY_FILE_TEXT_END]
+    )
+
+
+@create_tokenizer_state(TokenizerState.START_FILE_TEXT_DELAYED, starts=True)
+def state_start_file_text_delayed(sargs: StateArgs) -> TokenOpt:
+    """"""
+    # previous character was consumed when checking for a delimiter
+    sargs.curr_token_gen.send(sargs.cwrap.current_idx - 1)  # slice_start
+    sargs.state_stack.enter_multiple(
+        [TokenizerState.CONSUME_FILE_TEXT, TokenizerState.VERIFY_FILE_TEXT_END]
+    )
+
+
+@create_tokenizer_state(TokenizerState.CONSUME_FILE_TEXT)
+def state_consume_file_text(sargs: StateArgs) -> TokenOpt:
+    """"""
+    sargs.curr_token_gen.send(TokenType.FILE_TEXT)  # token_type
+    while not sargs.cwrap.check_for_end() and sargs.cwrap.current_char != "<":
+        sargs.cwrap.advance_pos()
+
+
+@create_tokenizer_state(TokenizerState.VERIFY_FILE_TEXT_END)
+def state_verify_file_text_end(sargs: StateArgs) -> TokenOpt:
+    """"""
+    # reached end of codeblock?
+    if sargs.cwrap.check_for_end():
+        sargs.state_stack.enter_state(TokenizerState.END_FILE_TEXT)
+        return
+
+    # confirm that the '<' belongs to a starting delimiter
+    sargs.cwrap.assert_next(next_char="<")
+    if sargs.cwrap.try_next(next_char="%"):
+        if sargs.cwrap.try_next(next_char="="):
+            sargs.state_stack.enter_multiple(
+                [
+                    TokenizerState.END_FILE_TEXT,
+                    TokenizerState.CONSTRUCT_DELIM_OUTPUT,
+                    TokenizerState.CHECK_DELIM_END,
+                ]
+            )
+        elif sargs.cwrap.try_next(next_char="@"):
+            # one whitespace character required after '@'
+            sargs.cwrap.assert_next(next_type=CharacterType.WS)
+            sargs.state_stack.enter_multiple(
+                [
+                    TokenizerState.END_FILE_TEXT,
+                    TokenizerState.CONSTRUCT_DELIM_PROCESSING,
+                    TokenizerState.CHECK_DELIM_END,
+                ]
+            )
+        else:
+            sargs.state_stack.enter_multiple(
+                [
+                    TokenizerState.END_FILE_TEXT,
+                    TokenizerState.CONSTRUCT_DELIM_SCRIPT,
+                    TokenizerState.CHECK_DELIM_END,
+                ]
+            )
+    elif sargs.cwrap.try_next(next_char="!"):
+        # HTML comment
+        sargs.cwrap.assert_next(next_char="-")
+        sargs.cwrap.assert_next(next_char="-")
+        sargs.state_stack.enter_multiple(
+            [TokenizerState.END_FILE_TEXT, TokenizerState.CHECK_HTML_COMMENT]
+        )
+    else:
+        # not a starting delimiter, keep consuming file text
+        sargs.state_stack.persist_state()
+        sargs.state_stack.enter_state(TokenizerState.CONSUME_FILE_TEXT)
+
+
+@create_tokenizer_state(TokenizerState.END_FILE_TEXT, returns=True, cleans=True)
+def state_end_file_text(sargs: StateArgs) -> TokenOpt:
+    """"""
+    ret_token: typing.Optional[Token] = None
+    try:
+        sargs.curr_token_gen.send(sargs.cwrap.current_idx)  # slice_end
+        sargs.curr_token_gen.send(False)  # debug_info
+    except StopIteration as ex:
+        ret_token = ex.value
+    finally:
+        assert ret_token is not None, "Expected token generator to return a Token"
+    return ret_token
+
+
+@create_tokenizer_state(TokenizerState.CHECK_HTML_COMMENT)
+def state_check_html_comment(sargs: StateArgs) -> TokenOpt:
+    """"""
+
+
 @create_tokenizer_state(TokenizerState.CHECK_EXHAUSTED)
 def state_check_exhausted(sargs: StateArgs) -> TokenOpt:
     """Handler for CHECK_EXHAUSTED tokenizer state
@@ -104,7 +327,7 @@ def state_check_exhausted(sargs: StateArgs) -> TokenOpt:
     """
     if not sargs.cwrap.check_for_end():
         sargs.state_stack.persist_state()
-        sargs.state_stack.enter_state(TokenizerState.CHECK_WHITESPACE)
+        sargs.state_stack.enter_state(TokenizerState.CHECK_DELIM_START)
 
 
 @create_tokenizer_state(TokenizerState.CHECK_WHITESPACE)
@@ -147,11 +370,19 @@ def state_check_whitespace(sargs: StateArgs) -> TokenOpt:
             sargs.state_stack.enter_state(TokenizerState.SKIP_QUOTE_COMMENT)
         elif sargs.cwrap.current_char in ":\r\n":
             # don't return NEWLINE token if line is all whitespace
-            sargs.state_stack.enter_state(
-                TokenizerState.HANDLE_NEWLINE
-                if whitespace_start
-                else TokenizerState.START_NEWLINE
+            sargs.state_stack.enter_multiple(
+                [
+                    (
+                        TokenizerState.HANDLE_NEWLINE
+                        if whitespace_start
+                        else TokenizerState.START_NEWLINE
+                    ),
+                    TokenizerState.CHECK_DELIM_END,
+                ]
             )
+        elif sargs.cwrap.current_char == "%":
+            # let CHECK_DELIM_END handle percent symbol
+            sargs.state_stack.enter_state(TokenizerState.CHECK_DELIM_END)
         else:
             sargs.state_stack.enter_state(TokenizerState.START_TERMINAL)
 
@@ -172,16 +403,26 @@ def state_skip_quote_comment(sargs: StateArgs) -> TokenOpt:
     # consume comment
     while not sargs.cwrap.check_for_end() and sargs.cwrap.current_char not in "\r\n":
         sargs.cwrap.advance_pos()
+        if sargs.cwrap.try_next(next_char="%") and sargs.cwrap.try_next(next_char=">"):
+            sargs.state_stack.enter_state(TokenizerState.CONSTRUCT_DELIM_END)
+            return
 
     # if check_for_end(), return to CHECK_EXHAUSTED
     # else, check for newline
-    if not sargs.cwrap.check_for_end() and sargs.cwrap.current_char in "\r\n":
-        # don't return NEWLINE token if comment takes up entire line
-        sargs.state_stack.enter_state(
-            TokenizerState.HANDLE_NEWLINE
-            if comment_starts_line
-            else TokenizerState.START_NEWLINE
-        )
+    if not sargs.cwrap.check_for_end():
+        if sargs.cwrap.current_char in "\r\n":
+            sargs.state_stack.enter_multiple(
+                [
+                    (
+                        TokenizerState.HANDLE_NEWLINE
+                        if comment_starts_line
+                        else TokenizerState.START_NEWLINE
+                    ),
+                    TokenizerState.CHECK_DELIM_END,
+                ]
+            )
+        else:
+            sargs.state_stack.enter_state(TokenizerState.CHECK_WHITESPACE)
 
 
 @create_tokenizer_state(TokenizerState.SKIP_REM_COMMENT)
@@ -194,16 +435,26 @@ def state_skip_rem_comment(sargs: StateArgs) -> TokenOpt:
     # consume comment
     while not sargs.cwrap.check_for_end() and sargs.cwrap.current_char not in "\r\n":
         sargs.cwrap.advance_pos()
+        if sargs.cwrap.try_next(next_char="%") and sargs.cwrap.try_next(next_char="%"):
+            sargs.state_stack.enter_state(TokenizerState.CONSTRUCT_DELIM_END)
+            return
 
     # if check_for_end(), return to CHECK_EXHAUSTED
     # else, check for newline
-    if not sargs.cwrap.check_for_end() and sargs.cwrap.current_char in "\r\n":
-        # don't return NEWLINE token if comment takes up entire line
-        sargs.state_stack.enter_state(
-            TokenizerState.HANDLE_NEWLINE
-            if comment_starts_line
-            else TokenizerState.START_NEWLINE
-        )
+    if not sargs.cwrap.check_for_end():
+        if sargs.cwrap.current_char in "\r\n":
+            sargs.state_stack.enter_multiple(
+                [
+                    (
+                        TokenizerState.HANDLE_NEWLINE
+                        if comment_starts_line
+                        else TokenizerState.START_NEWLINE
+                    ),
+                    TokenizerState.CHECK_DELIM_END,
+                ]
+            )
+        else:
+            sargs.state_stack.enter_state(TokenizerState.CHECK_WHITESPACE)
 
 
 @create_tokenizer_state(TokenizerState.START_NEWLINE, starts=True)
@@ -322,6 +573,7 @@ def state_end_terminal(sargs: StateArgs) -> TokenOpt:
         ret_token = ex.value
     finally:
         assert ret_token is not None, "Expected token generator to return a Token"
+        sargs.state_stack.enter_state(TokenizerState.CHECK_DELIM_END)
     return ret_token
 
 
@@ -353,7 +605,9 @@ def state_start_dot(sargs: StateArgs) -> TokenOpt:
     elif sargs.cwrap.validate_type(CharacterType.DIGIT):
         sargs.state_stack.enter_multiple(
             [
-                TokenizerState.CHECK_FLOAT_DEC_PT,
+                # already consumed '.'
+                # send directly to PROCESS_NUMBER_CHUNK instead of CHECK_FLOAT_DEC_PT
+                TokenizerState.PROCESS_NUMBER_CHUNK,
                 TokenizerState.CHECK_FLOAT_SCI_E,
                 TokenizerState.CONSTRUCT_FLOAT,
             ]

@@ -29,7 +29,9 @@ class FormatterMixin:
                 attr_val_iter = iter(attr_val)
                 attr_val_len = len(attr_val)
                 if attr_val_len == 0:
-                    repr_lines.append(f"{indent}{attr_name}=[]{',' if i < num_attrs - 1 else ''}")
+                    repr_lines.append(
+                        f"{indent}{attr_name}=[]{',' if i < num_attrs - 1 else ''}"
+                    )
                     continue
                 repr_lines.append(f"{indent}{attr_name}=[")
                 # apply repr to each element of attr_val individually
@@ -66,10 +68,10 @@ class FormatterMixin:
 class AccessModifierType(enum.Enum):
     """Enumeration of valid access modifiers"""
 
-    PRIVATE = 0
-    PUBLIC = 1
+    PRIVATE = enum.auto()
+    PUBLIC = enum.auto()
     # using an enum because PUBLIC DEFAULT is two tokens
-    PUBLIC_DEFAULT = 2
+    PUBLIC_DEFAULT = enum.auto()
 
 
 @enum.verify(enum.CONTINUOUS, enum.UNIQUE)
@@ -77,16 +79,16 @@ class CompareExprType(enum.Enum):
     """Enumeration of valid operators that can appear
     in a comparison expresssion (CompareExpr)"""
 
-    COMPARE_IS = 0
-    COMPARE_ISNOT = 1
-    COMPARE_GTEQ = 2
-    COMPARE_EQGT = 3
-    COMPARE_LTEQ = 4
-    COMPARE_EQLT = 5
-    COMPARE_GT = 6
-    COMPARE_LT = 7
-    COMPARE_LTGT = 8
-    COMPARE_EQ = 9
+    COMPARE_IS = enum.auto()
+    COMPARE_ISNOT = enum.auto()
+    COMPARE_GTEQ = enum.auto()
+    COMPARE_EQGT = enum.auto()
+    COMPARE_LTEQ = enum.auto()
+    COMPARE_EQLT = enum.auto()
+    COMPARE_GT = enum.auto()
+    COMPARE_LT = enum.auto()
+    COMPARE_LTGT = enum.auto()
+    COMPARE_EQ = enum.auto()
 
 
 class Expr:
