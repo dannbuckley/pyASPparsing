@@ -760,8 +760,8 @@ class Parser:
         return SelectStmt(select_case_expr, case_stmt_list)
 
 
-@attrs.define
-class Program:
+@attrs.define(repr=False, slots=False)
+class Program(FormatterMixin):
     """The starting symbol for the VBScript grammar.
     Defined on grammar line 267
 

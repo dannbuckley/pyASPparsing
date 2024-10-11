@@ -9,6 +9,15 @@ import attrs
 class TokenizerState(enum.IntEnum):
     """Enumeration of valid tokenizer states"""
 
+    # directives
+    # https://learn.microsoft.com/en-us/previous-versions/iis/6.0-sdk/ms524741(v=vs.90)#using-asp-directives
+    # scripting <% %>
+    # output directive <%= %>
+    # processing directive <%@ %>
+
+    # file inclusion
+    # https://learn.microsoft.com/en-us/previous-versions/iis/6.0-sdk/ms524876(v=vs.90)
+
     # housekeeping states
     CHECK_EXHAUSTED = enum.auto()
     CHECK_WHITESPACE = enum.auto()

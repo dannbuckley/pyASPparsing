@@ -49,7 +49,7 @@ def test_tokenize(codeblock: str, exp_type: TokenType):
 @pytest.mark.parametrize(
     "codeblock",
     [
-        ("["), # missing last ']'
+        ("["),  # missing last ']'
         ("[Invalid Escape Identifier"),  # missing last ']'
         ('"This string does not have an end'),  # missing last '"'
         ("&H"),  # need at least one hex digit
@@ -79,27 +79,50 @@ def test_comment(comment_delim: str):
     assert next(comment_iter, None) is None
 
 
-# @pytest.mark.parametrize(
-#     "comment_delim,newline",
-#     [
-#         ("'", ":"),
-#         ("'", "\r"),
-#         ("'", "\n"),
-#         ("'", "\r\n"),
-#         ("Rem", ":"),
-#         ("Rem", "\r"),
-#         ("Rem", "\n"),
-#         ("Rem", "\r\n"),
-#     ],
-# )
-# def test_comment_newline(comment_delim: str, newline: str):
-#     comment_iter = tokenize(f"{comment_delim} This is a terminated comment{newline}")
-#     # next(comment_iter)
-#     match next(comment_iter, None):
-#         case Token(x):
-#             assert x == TokenType.NEWLINE
-#         case None:
-#             pytest.fail("First token was None, should be a NEWLINE Token")
+def test_quote_comment_wholeline():
+    # should not return NEWLINE token after comment
+    comment_iter = tokenize("' Whole-line comment\n\ta")
+    tok = next(comment_iter, None)
+    assert tok is not None and tok.token_type == TokenType.IDENTIFIER
+    assert next(comment_iter, None) is None
+
+
+def test_quote_comment_endofline():
+    # should return NEWLINE token after comment
+    comment_iter = tokenize("a ' Comment at end of line\n\tb")
+
+    def _try_token(tok_type: TokenType):
+        nonlocal comment_iter
+        tok = next(comment_iter, None)
+        assert tok is not None and tok.token_type == tok_type
+
+    _try_token(TokenType.IDENTIFIER)
+    _try_token(TokenType.NEWLINE)
+    _try_token(TokenType.IDENTIFIER)
+    assert next(comment_iter, None) is None
+
+
+def test_rem_comment_wholeline():
+    # should not return NEWLINE token after comment
+    comment_iter = tokenize("Rem Whole-line comment\n\tb")
+    tok = next(comment_iter, None)
+    assert tok is not None and tok.token_type == TokenType.IDENTIFIER
+    assert next(comment_iter, None) is None
+
+
+def test_rem_comment_endofline():
+    # should return NEWLINE token after comment
+    comment_iter = tokenize("a Rem End-of-line comment\n\tb")
+
+    def _try_token(tok_type: TokenType):
+        nonlocal comment_iter
+        tok = next(comment_iter, None)
+        assert tok is not None and tok.token_type == tok_type
+
+    _try_token(TokenType.IDENTIFIER)
+    _try_token(TokenType.NEWLINE)
+    _try_token(TokenType.IDENTIFIER)
+    assert next(comment_iter, None) is None
 
 
 def test_trailing_whitespace():
@@ -112,7 +135,8 @@ def test_trailing_whitespace():
 
 def test_line_continuation():
     for tok, etok in zip(
-        tokenize('"Hello, " & _  \r\n" world!"'),
+        # should ignore leading whitespace on second line
+        tokenize('"Hello, " & _  \r\n  " world!"'),
         [TokenType.LITERAL_STRING, TokenType.SYMBOL, TokenType.LITERAL_STRING],
     ):
         assert tok.token_type == etok
