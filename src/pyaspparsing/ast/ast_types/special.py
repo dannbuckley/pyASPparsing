@@ -3,7 +3,23 @@
 import enum
 import typing
 import attrs
-from .base import FormatterMixin, Expr, BlockStmt
+from .base import FormatterMixin, Expr, GlobalStmt, BlockStmt
+from ..tokenizer.token_types import Token, TokenType
+
+
+@attrs.define(repr=False, slots=False)
+class ProcessingSetting(FormatterMixin):
+    """"""
+
+    config_kw: Token
+    config_value: Token
+
+
+@attrs.define(repr=False, slots=False)
+class ProcessingDirective(FormatterMixin, GlobalStmt):
+    """"""
+
+    settings: typing.List[ProcessingSetting] = attrs.field(default=attrs.Factory(list))
 
 
 @enum.verify(enum.CONTINUOUS, enum.UNIQUE)
@@ -48,7 +64,7 @@ class OutputText(FormatterMixin, BlockStmt):
     stitch_order : List[Tuple[OutputType, int]], default=[]
     """
 
-    chunks: typing.List[slice] = attrs.field(default=attrs.Factory(list))
+    chunks: typing.List[Token] = attrs.field(default=attrs.Factory(list))
     directives: typing.List[OutputDirective] = attrs.field(default=attrs.Factory(list))
     # stitch_order defines how the output is to be reconstructed when evaluating code
     # this will match the order in which output elements are encountered
@@ -56,32 +72,47 @@ class OutputText(FormatterMixin, BlockStmt):
         default=attrs.Factory(list), kw_only=True
     )
 
+    @chunks.validator
+    def is_file_text(self, attribute, value: typing.List[Token]):
+        try:
+            for chunk in value:
+                assert chunk.token_type == TokenType.FILE_TEXT
+        except AssertionError as ex:
+            raise ValueError(
+                "OutputText.chunks must be a list of FILE_TEXT Token objects"
+            ) from ex
+
     def __attrs_post_init__(self):
         chunks_len = len(self.chunks)
         directives_len = len(self.directives)
         if len(self.chunks) > 0 or len(self.directives) > 0:
-            # must provide reconstruction info
-            assert len(self.stitch_order) > 0
-            # verify that indices are valid, unique, and provided in increasing order
-            chunks_used: int = -1
-            directives_used: int = -1
-            for out_type, out_idx in self.stitch_order:
-                match out_type:
-                    case OutputType.OUTPUT_RAW:
-                        assert (
-                            chunks_used < out_idx < chunks_len
-                        ), f"Invalid index {out_idx} for raw output element in output text block"
-                        chunks_used = out_idx
-                    case OutputType.OUTPUT_DIRECTIVE:
-                        assert (
-                            directives_used < out_idx < directives_len
-                        ), f"Invalid index {out_idx} for output directive element in output text block"
-                        directives_used = out_idx
+            try:
+                # must provide reconstruction info
+                assert len(self.stitch_order) > 0
+                # verify that indices are valid, unique, and provided in increasing order
+                chunks_used: int = -1
+                directives_used: int = -1
+                for out_type, out_idx in self.stitch_order:
+                    match out_type:
+                        case OutputType.OUTPUT_RAW:
+                            assert (
+                                chunks_used < out_idx < chunks_len
+                            ), f"Invalid index {out_idx} for raw output element in output text block"
+                            chunks_used = out_idx
+                        case OutputType.OUTPUT_DIRECTIVE:
+                            assert (
+                                directives_used < out_idx < directives_len
+                            ), f"Invalid index {out_idx} for output directive element in output text block"
+                            directives_used = out_idx
+            except AssertionError as ex:
+                raise ValueError(
+                    "An error occurred when validating OutputText object"
+                ) from ex
 
     def stitch(
         self,
     ) -> typing.Generator[
-        typing.Tuple[OutputType, typing.Union[slice, OutputDirective]], None, None
+        typing.Tuple[OutputType, typing.Union[Token, OutputDirective]], None, None
     ]:
         """Stitch the output text block together in the order it was originally specified
 

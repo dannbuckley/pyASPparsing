@@ -277,6 +277,13 @@ class Tokenizer:
         """
         return any(map(self.try_token_type, tok_types))
 
+    def assert_newline_or_script_end(self):
+        """"""
+        if self.try_token_type(TokenType.NEWLINE):
+            self.advance_pos()
+        else:
+            assert self.try_token_type(TokenType.DELIM_END)
+
     def assert_consume(
         self,
         tok_type: TokenType,

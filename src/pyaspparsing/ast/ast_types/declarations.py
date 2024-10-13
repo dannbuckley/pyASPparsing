@@ -252,7 +252,7 @@ class VarDecl(FormatterMixin, MemberDecl, BlockStmt):
             else:
                 tkzr.advance_pos()  # consume ','
 
-        tkzr.assert_consume(TokenType.NEWLINE)
+        tkzr.assert_newline_or_script_end()
         return VarDecl(var_name)
 
 
@@ -340,7 +340,7 @@ class ConstDecl(FormatterMixin, GlobalStmt, MethodStmt, MemberDecl):
 
             # advance to next item
             tkzr.try_consume(TokenType.SYMBOL, ",")
-        tkzr.assert_consume(TokenType.NEWLINE)
+        tkzr.assert_newline_or_script_end()
         return ConstDecl(const_list, access_mod=access_mod)
 
 

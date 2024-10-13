@@ -4,4 +4,5 @@ from .base import *
 from .declarations import *
 from .expressions import *
 from .statements import *
+from .special import *
 from .program import *

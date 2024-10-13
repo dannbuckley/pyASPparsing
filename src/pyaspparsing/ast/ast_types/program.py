@@ -9,6 +9,7 @@ from .base import *
 from .declarations import *
 from .expressions import *
 from .statements import *
+from .special import *
 from .parse_expressions import ExpressionParser
 
 
@@ -19,6 +20,73 @@ __all__ = [
 
 class Parser:
     """"""
+
+    @staticmethod
+    def parse_processing_direc(tkzr: Tokenizer) -> ProcessingDirective:
+        """Parse a starting processing directive ('<%@ %>')
+
+        Returns
+        -------
+        ProcessingDirective
+        """
+        tkzr.assert_consume(TokenType.DELIM_START_PROCESSING)
+        settings: typing.List[ProcessingSetting] = []
+        while not tkzr.try_token_type(TokenType.DELIM_END):
+            assert tkzr.try_token_type(
+                TokenType.IDENTIFIER
+            ) and tkzr.get_token_code() in [
+                "language",
+                "enablesessionstate",
+                "codepage",
+                "lcid",
+                "transaction",
+            ], "Invalid identifier in processing directive"
+            config_kw = tkzr.current_token
+            tkzr.advance_pos()  # consume keyword
+            tkzr.assert_consume(TokenType.SYMBOL, "=")
+            config_value = tkzr.current_token
+            tkzr.advance_pos()
+            settings.append(ProcessingSetting(config_kw, config_value))
+            del config_kw, config_value
+        tkzr.assert_consume(TokenType.DELIM_END)
+        return ProcessingDirective(settings)
+
+    @staticmethod
+    def parse_output_text(tkzr: Tokenizer) -> OutputText:
+        """Parse text that should be written directly to the response
+
+        Returns
+        -------
+        OutputText
+        """
+        chunks: typing.List[Token] = []
+        directives: typing.List[OutputDirective] = []
+        stitch_order: typing.List[typing.Tuple[OutputType, int]] = []
+
+        while tkzr.try_multiple_token_type(
+            [TokenType.FILE_TEXT, TokenType.DELIM_START_OUTPUT]
+        ):
+            if tkzr.try_token_type(TokenType.FILE_TEXT):
+                # reconstruction info for OutputText.stitch()
+                stitch_order.append((OutputType.OUTPUT_RAW, len(chunks)))
+                chunks.append(tkzr.current_token)
+                tkzr.advance_pos()  # consume raw text block
+            else:
+                # <%= Expr %>
+                start_direc: int = tkzr.current_token.token_src.start
+                tkzr.advance_pos()  # consume delimiter
+                output_expr = ExpressionParser.parse_expr(tkzr)
+                assert tkzr.try_token_type(
+                    TokenType.DELIM_END
+                ), "Expected ending delimiter in output directive"
+                end_direc: int = tkzr.current_token.token_src.stop
+                tkzr.advance_pos()  # consume delimiter
+                # reconstruction info for OutputText.stitch()
+                stitch_order.append((OutputType.OUTPUT_DIRECTIVE, len(directives)))
+                directives.append(
+                    OutputDirective(slice(start_direc, end_direc), output_expr)
+                )
+        return OutputText(chunks, directives, stitch_order=stitch_order)
 
     @staticmethod
     def parse_global_stmt(tkzr: Tokenizer) -> GlobalStmt:
@@ -88,6 +156,19 @@ class Parser:
         ------
         ParserError
         """
+        if tkzr.try_token_type(TokenType.DELIM_END):
+            tkzr.advance_pos()  # consume delimiter
+            if not tkzr.try_token_type(TokenType.DELIM_START_SCRIPT):
+                ret_output = Parser.parse_output_text(tkzr)
+                # OutputText occurs in the middle of another statement
+                # need to return to script mode
+                tkzr.assert_consume(TokenType.DELIM_START_SCRIPT)
+                if tkzr.try_token_type(TokenType.NEWLINE):
+                    tkzr.advance_pos()
+                return ret_output
+            # no meaningful text between this end and next start
+            tkzr.assert_consume(TokenType.DELIM_START_SCRIPT)
+
         assert tkzr.try_multiple_token_type(
             [
                 TokenType.IDENTIFIER,
@@ -114,8 +195,11 @@ class Parser:
                 return Parser.parse_for_stmt(tkzr)
 
         # try to parse as inline statement
-        ret_inline = Parser.parse_inline_stmt(tkzr, TokenType.NEWLINE)
-        tkzr.assert_consume(TokenType.NEWLINE)
+        ret_inline = Parser.parse_inline_stmt(
+            tkzr,
+            terminal_pairs=[(TokenType.NEWLINE, None), (TokenType.DELIM_END, None)],
+        )
+        tkzr.assert_newline_or_script_end()
         return ret_inline
 
     @staticmethod
@@ -203,7 +287,7 @@ class Parser:
 
         tkzr.assert_consume(TokenType.IDENTIFIER, "end")
         tkzr.assert_consume(TokenType.IDENTIFIER, "class")
-        tkzr.assert_consume(TokenType.NEWLINE)
+        tkzr.assert_newline_or_script_end()
         return ClassDecl(class_id, member_decl_list)
 
     @staticmethod
@@ -284,8 +368,9 @@ class Parser:
             tkzr.assert_consume(TokenType.SYMBOL, ")")
 
         method_stmt_list: typing.List[MethodStmt] = []
-        if tkzr.try_token_type(TokenType.NEWLINE):
-            tkzr.advance_pos()  # consume newline
+        if tkzr.try_multiple_token_type([TokenType.NEWLINE, TokenType.DELIM_END]):
+            if tkzr.try_token_type(TokenType.NEWLINE):
+                tkzr.advance_pos()  # consume newline
             while not (
                 tkzr.try_token_type(TokenType.IDENTIFIER)
                 and tkzr.get_token_code() == "end"
@@ -298,7 +383,7 @@ class Parser:
 
         tkzr.assert_consume(TokenType.IDENTIFIER, "end")
         tkzr.assert_consume(TokenType.IDENTIFIER, "sub")
-        tkzr.assert_consume(TokenType.NEWLINE)
+        tkzr.assert_newline_or_script_end()
         return SubDecl(sub_id, method_arg_list, method_stmt_list, access_mod=access_mod)
 
     @staticmethod
@@ -332,8 +417,9 @@ class Parser:
             tkzr.assert_consume(TokenType.SYMBOL, ")")
 
         method_stmt_list: typing.List[MethodStmt] = []
-        if tkzr.try_token_type(TokenType.NEWLINE):
-            tkzr.advance_pos()  # consume newline
+        if tkzr.try_multiple_token_type([TokenType.NEWLINE, TokenType.DELIM_END]):
+            if tkzr.try_token_type(TokenType.NEWLINE):
+                tkzr.advance_pos()  # consume newline
             while not (
                 tkzr.try_token_type(TokenType.IDENTIFIER)
                 and tkzr.get_token_code() == "end"
@@ -346,7 +432,7 @@ class Parser:
 
         tkzr.assert_consume(TokenType.IDENTIFIER, "end")
         tkzr.assert_consume(TokenType.IDENTIFIER, "function")
-        tkzr.assert_consume(TokenType.NEWLINE)
+        tkzr.assert_newline_or_script_end()
         return FunctionDecl(
             function_id, method_arg_list, method_stmt_list, access_mod=access_mod
         )
@@ -389,7 +475,7 @@ class Parser:
             tkzr.assert_consume(TokenType.SYMBOL, ")")
 
         # property declaration requires newline after arg list
-        tkzr.assert_consume(TokenType.NEWLINE)
+        tkzr.assert_newline_or_script_end()
 
         method_stmt_list: typing.List[MethodStmt] = []
         while not (
@@ -399,7 +485,7 @@ class Parser:
 
         tkzr.assert_consume(TokenType.IDENTIFIER, "end")
         tkzr.assert_consume(TokenType.IDENTIFIER, "property")
-        tkzr.assert_consume(TokenType.NEWLINE)
+        tkzr.assert_newline_or_script_end()
         return PropertyDecl(
             prop_access_type,
             property_id,
@@ -496,8 +582,10 @@ class Parser:
 
         block_stmt_list: typing.List[BlockStmt] = []
         else_stmt_list: typing.List[ElseStmt] = []
-        if tkzr.try_token_type(TokenType.NEWLINE):
-            tkzr.advance_pos()  # consume newline
+        # if tkzr.try_token_type(TokenType.NEWLINE):
+        if tkzr.try_multiple_token_type([TokenType.NEWLINE, TokenType.DELIM_END]):
+            if tkzr.try_token_type(TokenType.NEWLINE):
+                tkzr.advance_pos()  # consume newline
             # block statement list
             while not (
                 tkzr.try_token_type(TokenType.IDENTIFIER)
@@ -517,8 +605,12 @@ class Parser:
                     tkzr.assert_consume(TokenType.IDENTIFIER, "elseif")
                     elif_expr = ExpressionParser.parse_expr(tkzr)
                     tkzr.assert_consume(TokenType.IDENTIFIER, "then")
-                    if tkzr.try_token_type(TokenType.NEWLINE):
-                        tkzr.advance_pos()  # consume newline
+                    # if tkzr.try_token_type(TokenType.NEWLINE):
+                    if tkzr.try_multiple_token_type(
+                        [TokenType.NEWLINE, TokenType.DELIM_END]
+                    ):
+                        if tkzr.try_token_type(TokenType.NEWLINE):
+                            tkzr.advance_pos()  # consume newline
                         # block statement list
                         while not (
                             tkzr.try_token_type(TokenType.IDENTIFIER)
@@ -528,16 +620,29 @@ class Parser:
                     else:
                         # inline statement
                         elif_stmt_list.append(
-                            Parser.parse_inline_stmt(tkzr, TokenType.NEWLINE)
+                            # Parser.parse_inline_stmt(tkzr, TokenType.NEWLINE)
+                            Parser.parse_inline_stmt(
+                                tkzr,
+                                terminal_pairs=[
+                                    (TokenType.NEWLINE, None),
+                                    (TokenType.DELIM_END, None),
+                                ],
+                            )
                         )
-                        tkzr.assert_consume(TokenType.NEWLINE)
+                        if tkzr.try_token_type(TokenType.NEWLINE):
+                            tkzr.advance_pos()
+                        # tkzr.assert_consume(TokenType.NEWLINE)
                     else_stmt_list.append(ElseStmt(elif_stmt_list, elif_expr=elif_expr))
                     del elif_expr, elif_stmt_list
             # check for 'Else' statement
             if tkzr.try_consume(TokenType.IDENTIFIER, "else"):
                 else_block_list: typing.List[BlockStmt] = []
-                if tkzr.try_token_type(TokenType.NEWLINE):
-                    tkzr.advance_pos()  # consume newline
+                # if tkzr.try_token_type(TokenType.NEWLINE):
+                if tkzr.try_multiple_token_type(
+                    [TokenType.NEWLINE, TokenType.DELIM_END]
+                ):
+                    if tkzr.try_token_type(TokenType.NEWLINE):
+                        tkzr.advance_pos()  # consume newline
                     # block statement list
                     while not (
                         tkzr.try_token_type(TokenType.IDENTIFIER)
@@ -547,15 +652,23 @@ class Parser:
                 else:
                     # inline statement
                     else_block_list.append(
-                        Parser.parse_inline_stmt(tkzr, TokenType.NEWLINE)
+                        Parser.parse_inline_stmt(
+                            tkzr,
+                            terminal_pairs=[
+                                (TokenType.NEWLINE, None),
+                                (TokenType.DELIM_END, None),
+                            ],
+                        )
                     )
-                    tkzr.assert_consume(TokenType.NEWLINE)
+                    if tkzr.try_token_type(TokenType.NEWLINE):
+                        tkzr.advance_pos()
+                    # tkzr.assert_consume(TokenType.NEWLINE)
                 else_stmt_list.append(ElseStmt(else_block_list, is_else=True))
                 del else_block_list
             # finish if statement
             tkzr.assert_consume(TokenType.IDENTIFIER, "end")
             tkzr.assert_consume(TokenType.IDENTIFIER, "if")
-            tkzr.assert_consume(TokenType.NEWLINE)
+            # tkzr.assert_consume(TokenType.NEWLINE)
         else:
             # inline statement
             block_stmt_list.append(
@@ -565,6 +678,7 @@ class Parser:
                         (TokenType.IDENTIFIER, "else"),
                         (TokenType.IDENTIFIER, "end"),
                         (TokenType.NEWLINE, None),
+                        (TokenType.DELIM_END, None),
                     ],
                 )
             )
@@ -578,6 +692,7 @@ class Parser:
                                 terminal_pairs=[
                                     (TokenType.IDENTIFIER, "end"),
                                     (TokenType.NEWLINE, None),
+                                    (TokenType.DELIM_END, None),
                                 ],
                             )
                         ],
@@ -588,8 +703,8 @@ class Parser:
             if tkzr.try_consume(TokenType.IDENTIFIER, "end"):
                 tkzr.assert_consume(TokenType.IDENTIFIER, "if")
             # finish if statement
-            tkzr.assert_consume(TokenType.NEWLINE)
-
+            # tkzr.assert_consume(TokenType.NEWLINE)
+        tkzr.assert_newline_or_script_end()
         return IfStmt(if_expr, block_stmt_list, else_stmt_list)
 
     @staticmethod
@@ -597,7 +712,7 @@ class Parser:
         """"""
         tkzr.assert_consume(TokenType.IDENTIFIER, "with")
         with_expr = ExpressionParser.parse_expr(tkzr)
-        tkzr.assert_consume(TokenType.NEWLINE)
+        tkzr.assert_newline_or_script_end()
         block_stmt_list: typing.List[BlockStmt] = []
         while not (
             tkzr.try_token_type(TokenType.IDENTIFIER) and tkzr.get_token_code() == "end"
@@ -605,7 +720,7 @@ class Parser:
             block_stmt_list.append(Parser.parse_block_stmt(tkzr))
         tkzr.assert_consume(TokenType.IDENTIFIER, "end")
         tkzr.assert_consume(TokenType.IDENTIFIER, "with")
-        tkzr.assert_consume(TokenType.NEWLINE)
+        tkzr.assert_newline_or_script_end()
         return WithStmt(with_expr, block_stmt_list)
 
     @staticmethod
@@ -621,14 +736,14 @@ class Parser:
             loop_type: Token = tkzr.current_token
             tkzr.advance_pos()  # consume loop type
             loop_expr = ExpressionParser.parse_expr(tkzr)
-            tkzr.assert_consume(TokenType.NEWLINE)
+            tkzr.assert_newline_or_script_end()
             while not (
                 tkzr.try_token_type(TokenType.IDENTIFIER)
                 and tkzr.get_token_code() == "wend"
             ):
                 block_stmt_list.append(Parser.parse_block_stmt(tkzr))
             tkzr.assert_consume(TokenType.IDENTIFIER, "wend")
-            tkzr.assert_consume(TokenType.NEWLINE)
+            tkzr.assert_newline_or_script_end()
             return LoopStmt(block_stmt_list, loop_type=loop_type, loop_expr=loop_expr)
 
         # must be 'Do' loop
@@ -638,7 +753,9 @@ class Parser:
 
         def _check_for_loop_type() -> bool:
             nonlocal tkzr, loop_type, loop_expr
-            if not tkzr.try_token_type(TokenType.NEWLINE):
+            if not tkzr.try_multiple_token_type(
+                [TokenType.NEWLINE, TokenType.DELIM_END]
+            ):
                 assert tkzr.try_token_type(
                     TokenType.IDENTIFIER
                 ) and tkzr.get_token_code() in [
@@ -653,7 +770,7 @@ class Parser:
 
         # check if loop type is at the beginning
         found_loop_type = _check_for_loop_type()
-        tkzr.assert_consume(TokenType.NEWLINE)
+        tkzr.assert_newline_or_script_end()
 
         # block statement list
         while not (
@@ -666,8 +783,7 @@ class Parser:
         # check if loop type is at the end
         if not found_loop_type:
             _check_for_loop_type()
-        tkzr.assert_consume(TokenType.NEWLINE)
-
+        tkzr.assert_newline_or_script_end()
         return LoopStmt(block_stmt_list, loop_type=loop_type, loop_expr=loop_expr)
 
     @staticmethod
@@ -696,7 +812,7 @@ class Parser:
             to_expr = ExpressionParser.parse_expr(tkzr)
             if tkzr.try_consume(TokenType.IDENTIFIER, "step"):
                 step_expr = ExpressionParser.parse_expr(tkzr)
-        tkzr.assert_consume(TokenType.NEWLINE)
+        tkzr.assert_newline_or_script_end()
         # parse block statement list
         block_stmt_list: typing.List[BlockStmt] = []
         while not (
@@ -706,7 +822,7 @@ class Parser:
             block_stmt_list.append(Parser.parse_block_stmt(tkzr))
         # finish for statement
         tkzr.assert_consume(TokenType.IDENTIFIER, "next")
-        tkzr.assert_consume(TokenType.NEWLINE)
+        tkzr.assert_newline_or_script_end()
         return ForStmt(
             target_id,
             block_stmt_list,
@@ -756,7 +872,7 @@ class Parser:
                 break
         tkzr.assert_consume(TokenType.IDENTIFIER, "end")
         tkzr.assert_consume(TokenType.IDENTIFIER, "select")
-        tkzr.assert_consume(TokenType.NEWLINE)
+        tkzr.assert_newline_or_script_end()
         return SelectStmt(select_case_expr, case_stmt_list)
 
 
@@ -784,13 +900,39 @@ class Program(FormatterMixin):
         -------
         Program
         """
-        # program may optionally start with a newline token
-        if tkzr.try_token_type(TokenType.NEWLINE):
-            tkzr.advance_pos()  # consume newline
-
         global_stmts: typing.List[GlobalStmt] = []
+
+        # if code has a processing directive,
+        # it must be on the first line
+        if tkzr.try_token_type(TokenType.DELIM_START_PROCESSING):
+            global_stmts.append(Parser.parse_processing_direc(tkzr))
+
         # don't catch any errors here!
         # they should be caught by the Tokenizer runtime context
+        script_mode = False
         while tkzr.current_token is not None:
-            global_stmts.append(Parser.parse_global_stmt(tkzr))
+            if tkzr.try_token_type(TokenType.DELIM_START_SCRIPT):
+                assert (
+                    script_mode is False
+                ), "Encountered starting script delimiter, but previous script delimiter was not closed"
+                script_mode = True
+                tkzr.advance_pos()  # consume delimiter
+                if tkzr.try_token_type(TokenType.NEWLINE):
+                    tkzr.advance_pos()
+            elif tkzr.try_token_type(TokenType.DELIM_END):
+                assert (
+                    script_mode is True
+                ), "Ending script delimiter does not match any starting script delimiter"
+                script_mode = False
+                tkzr.advance_pos()  # consume delimiter
+            elif tkzr.try_multiple_token_type(
+                [TokenType.DELIM_START_OUTPUT, TokenType.FILE_TEXT]
+            ):
+                # parse output text as a global statement
+                global_stmts.append(Parser.parse_output_text(tkzr))
+            else:
+                global_stmts.append(Parser.parse_global_stmt(tkzr))
+        assert (
+            script_mode is False
+        ), "Script delimiter was not closed before the end of the codeblock"
         return Program(global_stmts)

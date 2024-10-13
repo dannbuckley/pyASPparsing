@@ -177,6 +177,13 @@ class Token:
         return Token._factory(TokenType.SYMBOL, start, stop, line_info=line_info)
 
     @staticmethod
+    def file_text(
+        start: int, stop: int, *, line_info: typing.Optional[DebugLineInfo] = None
+    ):
+        """Factory method for Token of type FILE_TEXT"""
+        return Token._factory(TokenType.FILE_TEXT, start, stop, line_info=line_info)
+
+    @staticmethod
     def identifier(
         start: int,
         stop: int,

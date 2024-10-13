@@ -226,6 +226,7 @@ def state_end_delim(sargs: StateArgs) -> TokenOpt:
 def state_start_file_text(sargs: StateArgs) -> TokenOpt:
     """"""
     sargs.curr_token_gen.send(sargs.cwrap.current_idx)  # slice_start
+    sargs.curr_token_gen.send(TokenType.FILE_TEXT)  # token_type
     sargs.state_stack.enter_multiple(
         [TokenizerState.CONSUME_FILE_TEXT, TokenizerState.VERIFY_FILE_TEXT_END]
     )
@@ -236,6 +237,7 @@ def state_start_file_text_delayed(sargs: StateArgs) -> TokenOpt:
     """"""
     # previous character was consumed when checking for a delimiter
     sargs.curr_token_gen.send(sargs.cwrap.current_idx - 1)  # slice_start
+    sargs.curr_token_gen.send(TokenType.FILE_TEXT)  # token_type
     sargs.state_stack.enter_multiple(
         [TokenizerState.CONSUME_FILE_TEXT, TokenizerState.VERIFY_FILE_TEXT_END]
     )
@@ -244,7 +246,6 @@ def state_start_file_text_delayed(sargs: StateArgs) -> TokenOpt:
 @create_tokenizer_state(TokenizerState.CONSUME_FILE_TEXT)
 def state_consume_file_text(sargs: StateArgs) -> TokenOpt:
     """"""
-    sargs.curr_token_gen.send(TokenType.FILE_TEXT)  # token_type
     while not sargs.cwrap.check_for_end() and sargs.cwrap.current_char != "<":
         sargs.cwrap.advance_pos()
 
@@ -253,13 +254,18 @@ def state_consume_file_text(sargs: StateArgs) -> TokenOpt:
 def state_verify_file_text_end(sargs: StateArgs) -> TokenOpt:
     """"""
     # reached end of codeblock?
+    file_text_end = sargs.cwrap.current_idx
     if sargs.cwrap.check_for_end():
+        sargs.curr_token_gen.send(file_text_end) # slice_end
         sargs.state_stack.enter_state(TokenizerState.END_FILE_TEXT)
         return
 
     # confirm that the '<' belongs to a starting delimiter
     sargs.cwrap.assert_next(next_char="<")
     if sargs.cwrap.try_next(next_char="%"):
+        # send slice_end here instead of in END_FILE_TEXT
+        # to avoid including the start delimiter in the FILE_TEXT token source
+        sargs.curr_token_gen.send(file_text_end) # slice_end
         if sargs.cwrap.try_next(next_char="="):
             sargs.state_stack.enter_multiple(
                 [
@@ -304,7 +310,6 @@ def state_end_file_text(sargs: StateArgs) -> TokenOpt:
     """"""
     ret_token: typing.Optional[Token] = None
     try:
-        sargs.curr_token_gen.send(sargs.cwrap.current_idx)  # slice_end
         sargs.curr_token_gen.send(False)  # debug_info
     except StopIteration as ex:
         ret_token = ex.value

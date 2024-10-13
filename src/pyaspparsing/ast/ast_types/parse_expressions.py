@@ -383,7 +383,7 @@ class ExpressionParser:
 
     @staticmethod
     def parse_concat_expr(tkzr: Tokenizer, sub_safe: bool = False) -> Expr:
-        """"""
+        """Parse string concatenation expression"""
         # concatenation expression expands to the left, use a queue
         expr_queue: typing.List[Expr] = [
             ExpressionParser.parse_add_expr(tkzr, sub_safe)

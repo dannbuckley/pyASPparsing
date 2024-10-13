@@ -106,7 +106,7 @@ class RedimStmt(FormatterMixin, BlockStmt):
             redim_decl_list.append(RedimDecl(redim_id, redim_expr))
             tkzr.try_consume(TokenType.SYMBOL, ",")
             del redim_id, redim_expr
-        tkzr.assert_consume(TokenType.NEWLINE)
+        tkzr.assert_newline_or_script_end()
         return RedimStmt(redim_decl_list, preserve=preserve)
 
 
