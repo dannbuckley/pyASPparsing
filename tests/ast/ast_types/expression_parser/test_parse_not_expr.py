@@ -27,5 +27,5 @@ def test_parse_not_expr(exp_code: str, folded: bool, exp_term: Expr):
         not_expr: Expr = ExpressionParser.parse_not_expr(tkzr)
         if folded:
             assert isinstance(not_expr, FoldedExpr)
-            assert isinstance(not_expr.expr_to_fold, NotExpr)
-            assert not_expr.expr_to_fold.term == exp_term
+            assert isinstance(not_expr.wrapped_expr, NotExpr)
+            assert not_expr.wrapped_expr.term == exp_term

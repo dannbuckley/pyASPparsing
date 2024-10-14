@@ -133,7 +133,6 @@ class AddExpr(FormatterMixin, Expr):
 
     left: Expr
     right: Expr
-    op: Token
 
 
 @attrs.define(repr=False, slots=False)
@@ -167,7 +166,6 @@ class MultExpr(FormatterMixin, Expr):
 
     left: Expr
     right: Expr
-    op: Token
 
 
 @attrs.define(repr=False, slots=False)

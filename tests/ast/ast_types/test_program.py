@@ -1277,7 +1277,6 @@ def test_output_text_global():
                     AssignStmt(
                         LeftExpr(QualifiedID([Token.identifier(15, 16)])),
                         AddExpr(
-                            Token.symbol(21, 22),
                             LeftExpr(QualifiedID([Token.identifier(19, 20)])),
                             IntLiteral(Token.int_literal(23, 24)),
                         ),
@@ -1300,7 +1299,6 @@ def test_output_text_global():
                     AssignStmt(
                         LeftExpr(QualifiedID([Token.identifier(7, 8)])),
                         AddExpr(
-                            Token.symbol(13, 14),
                             LeftExpr(QualifiedID([Token.identifier(11, 12)])),
                             IntLiteral(Token.int_literal(15, 16)),
                         ),
@@ -1716,7 +1714,6 @@ def test_output_text_global():
                         IndexOrParams(
                             [
                                 MultExpr(
-                                    Token.symbol(18, 19),
                                     IntLiteral(Token.int_literal(16, 17)),
                                     IntLiteral(Token.int_literal(20, 21)),
                                 )
@@ -1735,7 +1732,6 @@ def test_output_text_global():
                         IndexOrParams(
                             [
                                 MultExpr(
-                                    Token.symbol(18, 19),
                                     IntLiteral(Token.int_literal(16, 17)),
                                     IntLiteral(Token.int_literal(20, 21)),
                                 )
@@ -1790,7 +1786,6 @@ def test_output_text_global():
                         IndexOrParams(
                             [
                                 AddExpr(
-                                    Token.symbol(18, 19),
                                     IntLiteral(Token.int_literal(16, 17)),
                                     IntLiteral(Token.int_literal(20, 21)),
                                 )
@@ -1809,7 +1804,6 @@ def test_output_text_global():
                         IndexOrParams(
                             [
                                 AddExpr(
-                                    Token.symbol(18, 19),
                                     IntLiteral(Token.int_literal(16, 17)),
                                     IntLiteral(Token.int_literal(20, 21)),
                                 )

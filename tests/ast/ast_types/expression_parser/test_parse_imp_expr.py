@@ -83,6 +83,6 @@ def test_parse_imp_expr(exp_code: str, folded: bool, exp_left: Expr, exp_right: 
         imp_expr: Expr = ExpressionParser.parse_imp_expr(tkzr)
         if folded:
             assert isinstance(imp_expr, FoldedExpr)
-            assert isinstance(imp_expr.expr_to_fold, ImpExpr)
-            assert imp_expr.expr_to_fold.left == exp_left
-            assert imp_expr.expr_to_fold.right == exp_right
+            assert isinstance(imp_expr.wrapped_expr, ImpExpr)
+            assert imp_expr.wrapped_expr.left == exp_left
+            assert imp_expr.wrapped_expr.right == exp_right

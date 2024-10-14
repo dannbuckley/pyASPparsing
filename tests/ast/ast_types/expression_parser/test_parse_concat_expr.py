@@ -25,6 +25,6 @@ def test_parse_concat_expr(
         concat_expr: Expr = ExpressionParser.parse_concat_expr(tkzr)
         if folded:
             assert isinstance(concat_expr, FoldedExpr)
-            assert isinstance(concat_expr.expr_to_fold, ConcatExpr)
-            assert concat_expr.expr_to_fold.left == exp_left
-            assert concat_expr.expr_to_fold.right == exp_right
+            assert isinstance(concat_expr.wrapped_expr, ConcatExpr)
+            assert concat_expr.wrapped_expr.left == exp_left
+            assert concat_expr.wrapped_expr.right == exp_right

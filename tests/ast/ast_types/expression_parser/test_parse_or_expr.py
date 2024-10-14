@@ -83,6 +83,6 @@ def test_parse_or_expr(exp_code: str, folded: bool, exp_left: Expr, exp_right: E
         or_expr: Expr = ExpressionParser.parse_or_expr(tkzr)
         if folded:
             assert isinstance(or_expr, FoldedExpr)
-            assert isinstance(or_expr.expr_to_fold, OrExpr)
-            assert or_expr.expr_to_fold.left == exp_left
-            assert or_expr.expr_to_fold.right == exp_right
+            assert isinstance(or_expr.wrapped_expr, OrExpr)
+            assert or_expr.wrapped_expr.left == exp_left
+            assert or_expr.wrapped_expr.right == exp_right

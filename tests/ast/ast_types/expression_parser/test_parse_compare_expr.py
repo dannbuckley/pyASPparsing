@@ -89,7 +89,7 @@ def test_parse_compare_expr(
         compare_expr: Expr = ExpressionParser.parse_compare_expr(tkzr)
         if folded:
             assert isinstance(compare_expr, FoldedExpr)
-            assert isinstance(compare_expr.expr_to_fold, CompareExpr)
-            assert compare_expr.expr_to_fold.cmp_type == exp_cmp_type
-            assert compare_expr.expr_to_fold.left == exp_left
-            assert compare_expr.expr_to_fold.right == exp_right
+            assert isinstance(compare_expr.wrapped_expr, CompareExpr)
+            assert compare_expr.wrapped_expr.cmp_type == exp_cmp_type
+            assert compare_expr.wrapped_expr.left == exp_left
+            assert compare_expr.wrapped_expr.right == exp_right

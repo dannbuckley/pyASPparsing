@@ -83,6 +83,6 @@ def test_parse_xor_expr(exp_code: str, folded: bool, exp_left: Expr, exp_right: 
         xor_expr: Expr = ExpressionParser.parse_xor_expr(tkzr)
         if folded:
             assert isinstance(xor_expr, FoldedExpr)
-            assert isinstance(xor_expr.expr_to_fold, XorExpr)
-            assert xor_expr.expr_to_fold.left == exp_left
-            assert xor_expr.expr_to_fold.right == exp_right
+            assert isinstance(xor_expr.wrapped_expr, XorExpr)
+            assert xor_expr.wrapped_expr.left == exp_left
+            assert xor_expr.wrapped_expr.right == exp_right

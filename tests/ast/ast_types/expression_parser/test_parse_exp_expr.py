@@ -113,9 +113,9 @@ def test_parse_exp_expr(exp_code: str, folded: bool, exp_left: Expr, exp_right: 
         exp_expr: Expr = ExpressionParser.parse_exp_expr(tkzr)
         if folded:
             assert isinstance(exp_expr, FoldedExpr)
-            assert isinstance(exp_expr.expr_to_fold, ExpExpr)
-            assert exp_expr.expr_to_fold.left == exp_left
-            assert exp_expr.expr_to_fold.right == exp_right
+            assert isinstance(exp_expr.wrapped_expr, ExpExpr)
+            assert exp_expr.wrapped_expr.left == exp_left
+            assert exp_expr.wrapped_expr.right == exp_right
         else:
             assert isinstance(exp_expr, ExpExpr)
             assert exp_expr.left == exp_left

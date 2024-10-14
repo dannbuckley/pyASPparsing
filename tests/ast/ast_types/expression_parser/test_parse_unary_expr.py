@@ -34,6 +34,6 @@ def test_parse_unary_expr(exp_code: str, folded: bool, exp_sign: Token, exp_term
         unary_expr: Expr = ExpressionParser.parse_unary_expr(tkzr)
         if folded:
             assert isinstance(unary_expr, FoldedExpr)
-            assert isinstance(unary_expr.expr_to_fold, UnaryExpr)
-            assert unary_expr.expr_to_fold.sign == exp_sign
-            assert unary_expr.expr_to_fold.term == exp_term
+            assert isinstance(unary_expr.wrapped_expr, UnaryExpr)
+            assert unary_expr.wrapped_expr.sign == exp_sign
+            assert unary_expr.wrapped_expr.term == exp_term

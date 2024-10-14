@@ -6,7 +6,7 @@ from ..tokenizer.token_types import Token, TokenType
 from ..tokenizer.state_machine import Tokenizer
 from .base import Expr, CompareExprType
 from .expressions import *
-from .optimize import FoldedExpr
+from .optimize import FoldedExpr, AddNegated, MultReciprocal
 
 __all__ = ["ExpressionParser"]
 
@@ -328,7 +328,7 @@ class ExpressionParser:
             return not_expr
         can_fold = isinstance(not_expr, (FoldedExpr, ConstExpr))
         if isinstance(not_expr, FoldedExpr):
-            not_expr = not_expr.expr_to_fold
+            not_expr = not_expr.wrapped_expr
         not_expr = NotExpr(not_expr)
         return FoldedExpr(not_expr) if can_fold else not_expr
 
@@ -387,7 +387,12 @@ class ExpressionParser:
             expr_left: Expr = expr_queue.pop(0)
             expr_right: Expr = expr_queue.pop(0)
             # new expression becomes left term of next CompareExpr
-            expr_queue.insert(0, FoldedExpr.try_fold(expr_left, expr_right, CompareExpr, cmp_queue.pop(0)))
+            expr_queue.insert(
+                0,
+                FoldedExpr.try_fold(
+                    expr_left, expr_right, CompareExpr, cmp_queue.pop(0)
+                ),
+            )
         return expr_queue.pop()
 
     @staticmethod
@@ -415,16 +420,20 @@ class ExpressionParser:
     def parse_add_expr(tkzr: Tokenizer, sub_safe: bool = False) -> Expr:
         """"""
         # addition/subtraction expression expands to the left, use a queue
-        op_queue: typing.List[Token] = []
         expr_queue: typing.List[Expr] = [
             ExpressionParser.parse_mod_expr(tkzr, sub_safe)
         ]
 
         # more than one term?
         while tkzr.try_token_type(TokenType.SYMBOL) and tkzr.get_token_code() in "+-":
-            op_queue.append(tkzr.current_token)
+            sub_op = tkzr.get_token_code() == "-"
             tkzr.advance_pos()  # consume operator
-            expr_queue.append(ExpressionParser.parse_mod_expr(tkzr, sub_safe))
+            if sub_op:
+                expr_queue.append(
+                    AddNegated.wrap(ExpressionParser.parse_mod_expr(tkzr, sub_safe))
+                )
+            else:
+                expr_queue.append(ExpressionParser.parse_mod_expr(tkzr, sub_safe))
 
         # combine terms into one expression
         while len(expr_queue) > 1:
@@ -432,7 +441,7 @@ class ExpressionParser:
             expr_left: Expr = expr_queue.pop(0)
             expr_right: Expr = expr_queue.pop(0)
             # new expression becomes left term of next AddExpr
-            expr_queue.insert(0, FoldedExpr.try_fold(expr_left, expr_right, AddExpr, op_queue.pop(0)))
+            expr_queue.insert(0, FoldedExpr.try_fold(expr_left, expr_right, AddExpr))
         return expr_queue.pop()
 
     @staticmethod
@@ -481,16 +490,22 @@ class ExpressionParser:
     def parse_mult_expr(tkzr: Tokenizer, sub_safe: bool = False) -> Expr:
         """"""
         # multiplication/division expression expands to the left, use a queue
-        op_queue: typing.List[Token] = []
         expr_queue: typing.List[Expr] = [
             ExpressionParser.parse_unary_expr(tkzr, sub_safe)
         ]
 
         # more than one term?
         while tkzr.try_token_type(TokenType.SYMBOL) and tkzr.get_token_code() in "*/":
-            op_queue.append(tkzr.current_token)
+            div_op = tkzr.get_token_code() == "/"
             tkzr.advance_pos()  # consume operator
-            expr_queue.append(ExpressionParser.parse_unary_expr(tkzr, sub_safe))
+            if div_op:
+                expr_queue.append(
+                    MultReciprocal.wrap(
+                        ExpressionParser.parse_unary_expr(tkzr, sub_safe)
+                    )
+                )
+            else:
+                expr_queue.append(ExpressionParser.parse_unary_expr(tkzr, sub_safe))
 
         # combine terms into one expression
         while len(expr_queue) > 1:
@@ -498,9 +513,7 @@ class ExpressionParser:
             expr_left: Expr = expr_queue.pop(0)
             expr_right: Expr = expr_queue.pop(0)
             # new expression becomes left term of next MultExpr
-            expr_queue.insert(
-                0, FoldedExpr.try_fold(expr_left, expr_right, MultExpr, op_queue.pop(0))
-            )
+            expr_queue.insert(0, FoldedExpr.try_fold(expr_left, expr_right, MultExpr))
         return expr_queue.pop()
 
     @staticmethod
@@ -515,10 +528,12 @@ class ExpressionParser:
 
         # combine signs into one expression
         ret_expr: Expr = ExpressionParser.parse_exp_expr(tkzr, sub_safe)
-        can_fold = (isinstance(ret_expr, FoldedExpr) or isinstance(ret_expr, ConstExpr)) and len(sign_stack) > 0
+        can_fold = (
+            isinstance(ret_expr, FoldedExpr) or isinstance(ret_expr, ConstExpr)
+        ) and len(sign_stack) > 0
         if isinstance(ret_expr, FoldedExpr) and len(sign_stack) > 0:
             # unwrap before processing sign stack
-            ret_expr = ret_expr.expr_to_fold
+            ret_expr = ret_expr.wrapped_expr
         while len(sign_stack) > 0:
             ret_expr = UnaryExpr(sign_stack.pop(), ret_expr)
         return FoldedExpr(ret_expr) if can_fold else ret_expr

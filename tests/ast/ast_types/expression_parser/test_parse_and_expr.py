@@ -161,6 +161,6 @@ def test_parse_and_expr(exp_code: str, folded: bool, exp_left: Expr, exp_right: 
         and_expr: Expr = ExpressionParser.parse_and_expr(tkzr)
         if folded:
             assert isinstance(and_expr, FoldedExpr)
-            assert isinstance(and_expr.expr_to_fold, AndExpr)
-            assert and_expr.expr_to_fold.left == exp_left
-            assert and_expr.expr_to_fold.right == exp_right
+            assert isinstance(and_expr.wrapped_expr, AndExpr)
+            assert and_expr.wrapped_expr.left == exp_left
+            assert and_expr.wrapped_expr.right == exp_right

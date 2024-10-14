@@ -81,6 +81,6 @@ def test_parse_mod_expr(exp_code: str, folded: bool, exp_left: Expr, exp_right: 
         mod_expr: Expr = ExpressionParser.parse_mod_expr(tkzr)
         if folded:
             assert isinstance(mod_expr, FoldedExpr)
-            assert isinstance(mod_expr.expr_to_fold, ModExpr)
-            assert mod_expr.expr_to_fold.left == exp_left
-            assert mod_expr.expr_to_fold.right == exp_right
+            assert isinstance(mod_expr.wrapped_expr, ModExpr)
+            assert mod_expr.wrapped_expr.left == exp_left
+            assert mod_expr.wrapped_expr.right == exp_right

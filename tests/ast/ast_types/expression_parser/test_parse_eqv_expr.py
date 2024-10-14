@@ -83,6 +83,6 @@ def test_parse_eqv_expr(exp_code: str, folded: bool, exp_left: Expr, exp_right: 
         eqv_expr: Expr = ExpressionParser.parse_eqv_expr(tkzr)
         if folded:
             assert isinstance(eqv_expr, FoldedExpr)
-            assert isinstance(eqv_expr.expr_to_fold, EqvExpr)
-            assert eqv_expr.expr_to_fold.left == exp_left
-            assert eqv_expr.expr_to_fold.right == exp_right
+            assert isinstance(eqv_expr.wrapped_expr, EqvExpr)
+            assert eqv_expr.wrapped_expr.left == exp_left
+            assert eqv_expr.wrapped_expr.right == exp_right

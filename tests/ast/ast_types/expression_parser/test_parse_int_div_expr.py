@@ -50,7 +50,6 @@ from pyaspparsing.ast.ast_types.expression_parser import ExpressionParser
             MultExpr(
                 IntLiteral(Token.int_literal(3, 4)),
                 IntLiteral(Token.int_literal(7, 8)),
-                Token.symbol(5, 6),
             ),
             IntLiteral(Token.int_literal(11, 12)),
         ),
@@ -61,7 +60,6 @@ from pyaspparsing.ast.ast_types.expression_parser import ExpressionParser
             MultExpr(
                 IntLiteral(Token.int_literal(7, 8)),
                 IntLiteral(Token.int_literal(11, 12)),
-                Token.symbol(9, 10),
             ),
         ),
         (
@@ -70,12 +68,10 @@ from pyaspparsing.ast.ast_types.expression_parser import ExpressionParser
             MultExpr(
                 IntLiteral(Token.int_literal(3, 4)),
                 IntLiteral(Token.int_literal(7, 8)),
-                Token.symbol(5, 6),
             ),
             MultExpr(
                 IntLiteral(Token.int_literal(11, 12)),
                 IntLiteral(Token.int_literal(15, 16)),
-                Token.symbol(13, 14),
             ),
         ),
     ],
@@ -88,6 +84,6 @@ def test_parse_int_div_expr(
         int_div_expr: Expr = ExpressionParser.parse_int_div_expr(tkzr)
         if folded:
             assert isinstance(int_div_expr, FoldedExpr)
-            assert isinstance(int_div_expr.expr_to_fold, IntDivExpr)
-            assert int_div_expr.expr_to_fold.left == exp_left
-            assert int_div_expr.expr_to_fold.right == exp_right
+            assert isinstance(int_div_expr.wrapped_expr, IntDivExpr)
+            assert int_div_expr.wrapped_expr.left == exp_left
+            assert int_div_expr.wrapped_expr.right == exp_right
