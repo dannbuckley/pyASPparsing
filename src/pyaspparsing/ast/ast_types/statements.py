@@ -9,7 +9,7 @@ from ..tokenizer.token_types import Token, TokenType
 from ..tokenizer.state_machine import Tokenizer
 from .base import FormatterMixin, GlobalStmt, Expr, BlockStmt, InlineStmt
 from .expressions import LeftExpr
-from .parse_expressions import ExpressionParser
+from .expression_parser import ExpressionParser
 
 __all__ = [
     "ExtendedID",
@@ -63,7 +63,7 @@ class OptionExplicit(FormatterMixin, GlobalStmt):
     def from_tokenizer(tkzr: Tokenizer):
         tkzr.assert_consume(TokenType.IDENTIFIER, "option")
         tkzr.assert_consume(TokenType.IDENTIFIER, "explicit")
-        tkzr.assert_consume(TokenType.NEWLINE)
+        tkzr.assert_newline_or_script_end()
         return OptionExplicit()
 
 

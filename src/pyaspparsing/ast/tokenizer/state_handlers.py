@@ -147,7 +147,6 @@ def state_check_delim_end(sargs: StateArgs) -> TokenOpt:
             sargs.state_stack.enter_state(TokenizerState.RETURN_PERC_SYMBOL)
     else:
         if not sargs.cwrap.check_for_end():
-            # sargs.state_stack.persist_state()
             sargs.state_stack.enter_state(TokenizerState.CHECK_WHITESPACE)
 
 

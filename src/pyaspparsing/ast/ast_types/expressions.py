@@ -108,9 +108,9 @@ class CompareExpr(FormatterMixin, Expr):
     ] &lt;ConcatExpr&gt;
     """
 
-    cmp_type: CompareExprType
     left: Expr
     right: Expr
+    cmp_type: CompareExprType
 
 
 @attrs.define(repr=False, slots=False)
@@ -131,9 +131,9 @@ class AddExpr(FormatterMixin, Expr):
     [ &lt;AddExpr&gt; { '+' | '-' } ] &lt;ModExpr&gt;
     """
 
-    op: Token
     left: Expr
     right: Expr
+    op: Token
 
 
 @attrs.define(repr=False, slots=False)
@@ -165,9 +165,9 @@ class MultExpr(FormatterMixin, Expr):
     [ &lt;MultExpr&gt; { '*' | '/' } ] &lt;UnaryExpr&gt;
     """
 
-    op: Token
     left: Expr
     right: Expr
+    op: Token
 
 
 @attrs.define(repr=False, slots=False)

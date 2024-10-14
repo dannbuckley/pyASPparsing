@@ -18,7 +18,7 @@ from .base import (
 )
 from .statements import ExtendedID
 from .expressions import UnaryExpr
-from .parse_expressions import ExpressionParser
+from .expression_parser import ExpressionParser
 
 __all__ = [
     "ClassDecl",
@@ -183,7 +183,7 @@ class FieldDecl(FormatterMixin, GlobalStmt, MemberDecl):
             else:
                 tkzr.advance_pos()  # consume ','
 
-        tkzr.assert_consume(TokenType.NEWLINE)
+        tkzr.assert_newline_or_script_end()
         return FieldDecl(field_name, other_vars, access_mod=access_mod)
 
 
