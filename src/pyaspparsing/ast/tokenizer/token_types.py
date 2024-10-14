@@ -27,8 +27,14 @@ class TokenType(enum.IntEnum):
     DELIM_START_OUTPUT = enum.auto()
     DELIM_END = enum.auto()
 
+    # HTML comments
+    HTML_START_COMMENT = enum.auto()
+    HTML_END_COMMENT = enum.auto()
+
     # file inclusion
-    INCLUDE_DIREC = enum.auto()
+    INCLUDE_KW = enum.auto()
+    INCLUDE_TYPE = enum.auto()
+    INCLUDE_PATH = enum.auto()
 
     # identifier
     IDENTIFIER = enum.auto()

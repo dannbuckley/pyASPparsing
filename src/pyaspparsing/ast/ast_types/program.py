@@ -6,6 +6,7 @@ from .parser import Parser
 from ..tokenizer.token_types import TokenType
 from ..tokenizer.state_machine import Tokenizer
 from .base import *
+from .special import *
 
 
 __all__ = ["Program"]
@@ -60,11 +61,32 @@ class Program(FormatterMixin):
                 ), "Ending script delimiter does not match any starting script delimiter"
                 script_mode = False
                 tkzr.advance_pos()  # consume delimiter
+            elif tkzr.try_token_type(TokenType.HTML_START_COMMENT):
+                # could be either an include directive or output text (regular HTML comment)
+                cmnt = Parser.parse_html_comment(tkzr)
+                if (
+                    len(global_stmts) > 0
+                    and isinstance(global_stmts[-1], OutputText)
+                    and isinstance(cmnt, OutputText)
+                ):
+                    prev_out: OutputText = global_stmts.pop()
+                    global_stmts.append(prev_out.merge(cmnt))
+                    del prev_out
+                else:
+                    global_stmts.append(cmnt)
+                del cmnt
             elif tkzr.try_multiple_token_type(
                 [TokenType.DELIM_START_OUTPUT, TokenType.FILE_TEXT]
             ):
                 # parse output text as a global statement
-                global_stmts.append(Parser.parse_output_text(tkzr))
+                out_text = Parser.parse_output_text(tkzr)
+                if len(global_stmts) > 0 and isinstance(global_stmts[-1], OutputText):
+                    prev_out: OutputText = global_stmts.pop()
+                    global_stmts.append(prev_out.merge(out_text))
+                    del prev_out
+                else:
+                    global_stmts.append(out_text)
+                del out_text
             else:
                 global_stmts.append(Parser.parse_global_stmt(tkzr))
         assert (

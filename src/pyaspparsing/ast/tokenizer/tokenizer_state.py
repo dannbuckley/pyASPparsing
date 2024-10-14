@@ -33,6 +33,13 @@ class TokenizerState(enum.IntEnum):
     # file inclusion
     # https://learn.microsoft.com/en-us/previous-versions/iis/6.0-sdk/ms524876(v=vs.90)
     CHECK_HTML_COMMENT = enum.auto()
+    CHECK_END_HTML_COMMENT = enum.auto()
+    CHECK_INCLUDE_KW = enum.auto()
+    RETURN_INCLUDE_KW = enum.auto()
+    CANCEL_INCLUDE_KW = enum.auto()
+    CHECK_INCLUDE_TYPE = enum.auto()
+    RETURN_EQ_SYMBOL = enum.auto()
+    CHECK_INCLUDE_PATH = enum.auto()
 
     # housekeeping states
     CHECK_EXHAUSTED = enum.auto()

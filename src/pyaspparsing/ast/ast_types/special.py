@@ -22,6 +22,23 @@ class ProcessingDirective(FormatterMixin, GlobalStmt):
     settings: typing.List[ProcessingSetting] = attrs.field(default=attrs.Factory(list))
 
 
+@attrs.define(repr=False, slots=False)
+class NonscriptBlock(FormatterMixin, BlockStmt):
+    """Intermediate type for coercing mutliple
+    IncludeFile or OutputText objects into a single return value
+
+    Should NOT be included in the AST but instead should be unwrapped
+
+    Attributes
+    ----------
+    nonscript_stmt_list : List[BlockStmt], default=[]
+    """
+
+    nonscript_stmt_list: typing.List[BlockStmt] = attrs.field(
+        default=attrs.Factory(list)
+    )
+
+
 @enum.verify(enum.CONTINUOUS, enum.UNIQUE)
 class IncludeType(enum.IntEnum):
     """"""
@@ -35,7 +52,7 @@ class IncludeFile(FormatterMixin, BlockStmt):
     """"""
 
     include_type: IncludeType
-    include_path: slice
+    include_path: Token
 
 
 @attrs.define(repr=False, slots=False)
@@ -108,6 +125,36 @@ class OutputText(FormatterMixin, BlockStmt):
                 raise ValueError(
                     "An error occurred when validating OutputText object"
                 ) from ex
+
+    def merge(self, other: typing.Self) -> typing.Self:
+        """Combines this OutputText with `other` to produce a merged OutputText object
+
+        Parameters
+        ----------
+        other : OutputText
+        """
+        num_chunks = len(self.chunks)
+        num_directives = len(self.directives)
+        return OutputText(
+            [*self.chunks, *other.chunks],
+            [*self.directives, *other.directives],
+            stitch_order=[
+                *self.stitch_order,
+                *map(
+                    lambda x: (
+                        x[0],
+                        # adjust stitch index
+                        x[1]
+                        + (
+                            num_chunks
+                            if x[0] == OutputType.OUTPUT_RAW
+                            else num_directives
+                        ),
+                    ),
+                    other.stitch_order,
+                ),
+            ],
+        )
 
     def stitch(
         self,

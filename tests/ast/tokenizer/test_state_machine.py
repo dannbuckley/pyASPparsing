@@ -30,9 +30,43 @@ def test_start_delimiter(codeblock: str, delim_type: TokenType):
     ],
 )
 def test_start_and_end_delimiter(codeblock: str, delim_type: TokenType):
+    for tok, etok in zip(tokenize(codeblock), [delim_type, TokenType.DELIM_END]):
+        assert tok.token_type == etok
+
+
+def test_empty_html_comment():
+    for tok, etok in zip(
+        tokenize("<!---->"), [TokenType.HTML_START_COMMENT, TokenType.HTML_END_COMMENT]
+    ):
+        assert tok.token_type == etok
+
+
+def test_regular_html_comment():
+    for tok, etok in zip(
+        tokenize("<!-- This is a regular HTML comment -->"),
+        [TokenType.HTML_START_COMMENT, TokenType.HTML_END_COMMENT],
+    ):
+        assert tok.token_type == etok
+
+
+@pytest.mark.parametrize(
+    "codeblock",
+    [
+        ('<!-- #include virtual ="/myapp/footer.inc" -->'),
+        ('<!-- #include file ="headers\\header1.inc" -->'),
+    ],
+)
+def test_include_directive(codeblock: str):
     for tok, etok in zip(
         tokenize(codeblock),
-        [delim_type, TokenType.DELIM_END]
+        [
+            TokenType.HTML_START_COMMENT,
+            TokenType.INCLUDE_KW,
+            TokenType.INCLUDE_TYPE,
+            TokenType.SYMBOL,
+            TokenType.INCLUDE_PATH,
+            TokenType.HTML_END_COMMENT,
+        ],
     ):
         assert tok.token_type == etok
 
@@ -75,7 +109,7 @@ def test_start_and_end_delimiter(codeblock: str, delim_type: TokenType):
 def test_tokenize(codeblock: str, exp_type: TokenType):
     for tok, etok in zip(
         tokenize(f"<%{codeblock}%>"),
-        [TokenType.DELIM_START_SCRIPT, exp_type, TokenType.DELIM_END]
+        [TokenType.DELIM_START_SCRIPT, exp_type, TokenType.DELIM_END],
     ):
         assert tok.token_type == etok
 
@@ -112,7 +146,7 @@ def test_comment(comment_delim: str):
     # should continue comment after first '%'
     for tok, etok in zip(
         tokenize(f"<%{comment_delim} This is a % comment%>"),
-        [TokenType.DELIM_START_SCRIPT, TokenType.DELIM_END]
+        [TokenType.DELIM_START_SCRIPT, TokenType.DELIM_END],
     ):
         assert tok.token_type, etok
 
@@ -121,11 +155,7 @@ def test_quote_comment_wholeline():
     # should not return NEWLINE token after comment
     for tok, etok in zip(
         tokenize("<%' Whole-line comment\n\ta%>"),
-        [
-            TokenType.DELIM_START_SCRIPT,
-            TokenType.IDENTIFIER,
-            TokenType.DELIM_END
-        ]
+        [TokenType.DELIM_START_SCRIPT, TokenType.IDENTIFIER, TokenType.DELIM_END],
     ):
         assert tok.token_type == etok
 
@@ -139,8 +169,8 @@ def test_quote_comment_endofline():
             TokenType.IDENTIFIER,
             TokenType.NEWLINE,
             TokenType.IDENTIFIER,
-            TokenType.DELIM_END
-        ]
+            TokenType.DELIM_END,
+        ],
     ):
         assert tok.token_type == etok
 
@@ -149,11 +179,7 @@ def test_rem_comment_wholeline():
     # should not return NEWLINE token after comment
     for tok, etok in zip(
         tokenize("<%Rem Whole-line comment\n\tb%>"),
-        [
-            TokenType.DELIM_START_SCRIPT,
-            TokenType.IDENTIFIER,
-            TokenType.DELIM_END
-        ]
+        [TokenType.DELIM_START_SCRIPT, TokenType.IDENTIFIER, TokenType.DELIM_END],
     ):
         assert tok.token_type == etok
 
@@ -167,8 +193,8 @@ def test_rem_comment_endofline():
             TokenType.IDENTIFIER,
             TokenType.NEWLINE,
             TokenType.IDENTIFIER,
-            TokenType.DELIM_END
-        ]
+            TokenType.DELIM_END,
+        ],
     ):
         assert tok.token_type == etok
 
@@ -176,7 +202,7 @@ def test_rem_comment_endofline():
 def test_trailing_whitespace():
     for tok, etok in zip(
         tokenize('<%"Hello, world!"   %>'),
-        [TokenType.DELIM_START_SCRIPT, TokenType.LITERAL_STRING, TokenType.DELIM_END]
+        [TokenType.DELIM_START_SCRIPT, TokenType.LITERAL_STRING, TokenType.DELIM_END],
     ):
         assert tok.token_type == etok
 

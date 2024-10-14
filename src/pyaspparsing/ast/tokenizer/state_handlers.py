@@ -255,7 +255,7 @@ def state_verify_file_text_end(sargs: StateArgs) -> TokenOpt:
     # reached end of codeblock?
     file_text_end = sargs.cwrap.current_idx
     if sargs.cwrap.check_for_end():
-        sargs.curr_token_gen.send(file_text_end) # slice_end
+        sargs.curr_token_gen.send(file_text_end)  # slice_end
         sargs.state_stack.enter_state(TokenizerState.END_FILE_TEXT)
         return
 
@@ -264,7 +264,7 @@ def state_verify_file_text_end(sargs: StateArgs) -> TokenOpt:
     if sargs.cwrap.try_next(next_char="%"):
         # send slice_end here instead of in END_FILE_TEXT
         # to avoid including the start delimiter in the FILE_TEXT token source
-        sargs.curr_token_gen.send(file_text_end) # slice_end
+        sargs.curr_token_gen.send(file_text_end)  # slice_end
         if sargs.cwrap.try_next(next_char="="):
             sargs.state_stack.enter_multiple(
                 [
@@ -293,6 +293,7 @@ def state_verify_file_text_end(sargs: StateArgs) -> TokenOpt:
             )
     elif sargs.cwrap.try_next(next_char="!"):
         # HTML comment
+        sargs.curr_token_gen.send(file_text_end)  # slice_end
         sargs.cwrap.assert_next(next_char="-")
         sargs.cwrap.assert_next(next_char="-")
         sargs.state_stack.enter_multiple(
@@ -317,9 +318,188 @@ def state_end_file_text(sargs: StateArgs) -> TokenOpt:
     return ret_token
 
 
-@create_tokenizer_state(TokenizerState.CHECK_HTML_COMMENT)
+@create_tokenizer_state(
+    TokenizerState.CHECK_HTML_COMMENT, starts=True, returns=True, cleans=True
+)
 def state_check_html_comment(sargs: StateArgs) -> TokenOpt:
     """"""
+    ret_token: typing.Optional[Token] = None
+    try:
+        sargs.curr_token_gen.send(sargs.cwrap.current_idx - 4)  # slice_start
+        sargs.curr_token_gen.send(TokenType.HTML_START_COMMENT)  # token_type
+        sargs.curr_token_gen.send(sargs.cwrap.current_idx)  # slice_end
+        sargs.curr_token_gen.send(False)  # debug_info
+    except StopIteration as ex:
+        ret_token = ex.value
+    finally:
+        assert ret_token is not None, "Expected token generator to return a Token"
+        sargs.state_stack.enter_state(TokenizerState.CHECK_INCLUDE_KW)
+    return ret_token
+
+
+@create_tokenizer_state(
+    TokenizerState.CHECK_END_HTML_COMMENT, starts=True, returns=True, cleans=True
+)
+def state_check_end_html_comment(sargs: StateArgs) -> TokenOpt:
+    """"""
+    ret_token: typing.Optional[Token] = None
+    while not sargs.cwrap.check_for_end():
+        while sargs.cwrap.current_char != "-":
+            sargs.cwrap.advance_pos()
+        tok_start = sargs.cwrap.current_idx
+        if (
+            sargs.cwrap.try_next(next_char="-")
+            and sargs.cwrap.try_next(next_char="-")
+            and sargs.cwrap.try_next(next_char=">")
+        ):
+            try:
+                sargs.curr_token_gen.send(tok_start)  # slice_start
+                sargs.curr_token_gen.send(TokenType.HTML_END_COMMENT)  # token_type
+                sargs.curr_token_gen.send(sargs.cwrap.current_idx)  # slice_end
+                sargs.curr_token_gen.send(False)  # debug_info
+            except StopIteration as ex:
+                ret_token = ex.value
+                break
+        else:
+            del tok_start
+    assert ret_token is not None, "Expected token generator to return a Token"
+    return ret_token
+
+
+@create_tokenizer_state(TokenizerState.CHECK_INCLUDE_KW, starts=True)
+def state_check_include_kw(sargs: StateArgs) -> TokenOpt:
+    """"""
+    sargs.state_stack.enter_state(TokenizerState.CHECK_END_HTML_COMMENT)
+    while not sargs.cwrap.check_for_end() and sargs.cwrap.validate_type(
+        CharacterType.WS
+    ):
+        sargs.cwrap.advance_pos()
+
+    inc_start = sargs.cwrap.current_idx
+    if (
+        sargs.cwrap.try_next(next_char="#")
+        and sargs.cwrap.try_next(next_char="i")
+        and sargs.cwrap.try_next(next_char="n")
+        and sargs.cwrap.try_next(next_char="c")
+        and sargs.cwrap.try_next(next_char="l")
+        and sargs.cwrap.try_next(next_char="u")
+        and sargs.cwrap.try_next(next_char="d")
+        and sargs.cwrap.try_next(next_char="e")
+    ):
+        sargs.curr_token_gen.send(inc_start)  # slice_start
+        sargs.curr_token_gen.send(TokenType.INCLUDE_KW)  # token_type
+        sargs.curr_token_gen.send(sargs.cwrap.current_idx)  # slice_end
+        sargs.state_stack.enter_state(TokenizerState.RETURN_INCLUDE_KW)
+    else:
+        sargs.state_stack.enter_state(TokenizerState.CANCEL_INCLUDE_KW)
+
+
+@create_tokenizer_state(TokenizerState.RETURN_INCLUDE_KW, returns=True)
+def state_return_include_kw(sargs: StateArgs) -> TokenOpt:
+    """"""
+    ret_token: typing.Optional[Token] = None
+    try:
+        sargs.curr_token_gen.send(False)  # debug_info
+    except StopIteration as ex:
+        ret_token = ex.value
+    finally:
+        assert ret_token is not None, "Expected token generator to return a Token"
+        sargs.state_stack.enter_state(TokenizerState.CHECK_INCLUDE_TYPE)
+    return ret_token
+
+
+@create_tokenizer_state(TokenizerState.CANCEL_INCLUDE_KW, cleans=True)
+def state_cancel_include_kw(sargs: StateArgs) -> TokenOpt:
+    """"""
+    sargs.curr_token_gen.close()
+
+
+@create_tokenizer_state(
+    TokenizerState.CHECK_INCLUDE_TYPE, starts=True, returns=True, cleans=True
+)
+def state_check_include_type(sargs: StateArgs) -> TokenOpt:
+    """"""
+    while not sargs.cwrap.check_for_end() and sargs.cwrap.validate_type(
+        CharacterType.WS
+    ):
+        sargs.cwrap.advance_pos()
+
+    inc_type_kws = {"f": "file", "v": "virtual"}
+    assert sargs.cwrap.current_char in inc_type_kws, "Invalid include type"
+    kw_start = sargs.cwrap.current_idx
+    for kw_char in inc_type_kws[sargs.cwrap.current_char]:
+        sargs.cwrap.assert_next(next_char=kw_char)
+
+    ret_token: typing.Optional[Token] = None
+    try:
+        sargs.curr_token_gen.send(kw_start)  # slice_start
+        sargs.curr_token_gen.send(TokenType.INCLUDE_TYPE)  # token_type
+        sargs.curr_token_gen.send(sargs.cwrap.current_idx)  # slice_end
+        sargs.curr_token_gen.send(False)  # debug_info
+    except StopIteration as ex:
+        ret_token = ex.value
+    finally:
+        assert ret_token is not None, "Expected token generator to return a Token"
+        sargs.state_stack.enter_multiple(
+            [TokenizerState.RETURN_EQ_SYMBOL, TokenizerState.CHECK_INCLUDE_PATH]
+        )
+    return ret_token
+
+
+@create_tokenizer_state(
+    TokenizerState.RETURN_EQ_SYMBOL, starts=True, returns=True, cleans=True
+)
+def state_return_eq_symbol(sargs: StateArgs) -> TokenOpt:
+    """"""
+    while not sargs.cwrap.check_for_end() and sargs.cwrap.validate_type(
+        CharacterType.WS
+    ):
+        sargs.cwrap.advance_pos()
+
+    eq_start = sargs.cwrap.current_idx
+    sargs.cwrap.assert_next(next_char="=")
+
+    ret_token: typing.Optional[Token] = None
+    try:
+        sargs.curr_token_gen.send(eq_start)  # slice_start
+        sargs.curr_token_gen.send(TokenType.SYMBOL)  # token_type
+        sargs.curr_token_gen.send(sargs.cwrap.current_idx)  # slice_end
+        sargs.curr_token_gen.send(False)  # debug_info
+    except StopIteration as ex:
+        ret_token = ex.value
+    finally:
+        assert ret_token is not None, "Expected token generator to return a Token"
+    return ret_token
+
+
+@create_tokenizer_state(
+    TokenizerState.CHECK_INCLUDE_PATH, starts=True, returns=True, cleans=True
+)
+def state_check_include_path(sargs: StateArgs) -> TokenOpt:
+    """"""
+    while not sargs.cwrap.check_for_end() and sargs.cwrap.validate_type(
+        CharacterType.WS
+    ):
+        sargs.cwrap.advance_pos()
+
+    path_start = sargs.cwrap.current_idx
+    sargs.cwrap.assert_next(next_char='"')
+    while not sargs.cwrap.check_for_end() and sargs.cwrap.current_char != '"':
+        # consume path, validate in parser
+        sargs.cwrap.advance_pos()
+    sargs.cwrap.assert_next(next_char='"')
+
+    ret_token: typing.Optional[Token] = None
+    try:
+        sargs.curr_token_gen.send(path_start)  # slice_start
+        sargs.curr_token_gen.send(TokenType.INCLUDE_PATH)  # token_type
+        sargs.curr_token_gen.send(sargs.cwrap.current_idx)  # slice_end
+        sargs.curr_token_gen.send(False)  # debug_info
+    except StopIteration as ex:
+        ret_token = ex.value
+    finally:
+        assert ret_token is not None, "Expected token generator to return a Token"
+    return ret_token
 
 
 @create_tokenizer_state(TokenizerState.CHECK_EXHAUSTED)
