@@ -80,7 +80,7 @@ class FieldDecl(FormatterMixin, GlobalStmt, MemberDecl):
     )
 
     @staticmethod
-    def from_tokenizer(tkzr: Tokenizer, access_mod: AccessModifierType):
+    def from_tokenizer(tkzr: Tokenizer, access_mod: AccessModifierType) -> typing.Self:
         assert (
             access_mod != AccessModifierType.PUBLIC_DEFAULT
         ), "'Public Default' access modifier cannot be used with field declaration"
@@ -288,7 +288,7 @@ class ConstDecl(FormatterMixin, GlobalStmt, MethodStmt, MemberDecl):
     ):
         tkzr.assert_consume(TokenType.IDENTIFIER, "const")
         const_list: typing.List[ConstListItem] = []
-        while not tkzr.try_token_type(TokenType.NEWLINE):
+        while not tkzr.try_multiple_token_type([TokenType.NEWLINE, TokenType.DELIM_END]):
             const_id = ExtendedID.from_tokenizer(tkzr)
             tkzr.assert_consume(TokenType.SYMBOL, "=")
             const_expr: typing.Optional[Expr] = None
@@ -296,7 +296,7 @@ class ConstDecl(FormatterMixin, GlobalStmt, MethodStmt, MemberDecl):
             # signs expand to the right, use a stack
             sign_stack: typing.List[Token] = []
             while not (
-                tkzr.try_token_type(TokenType.NEWLINE)
+                tkzr.try_multiple_token_type([TokenType.NEWLINE, TokenType.DELIM_END])
                 or (
                     tkzr.try_token_type(TokenType.SYMBOL)
                     and (tkzr.get_token_code() == ",")
