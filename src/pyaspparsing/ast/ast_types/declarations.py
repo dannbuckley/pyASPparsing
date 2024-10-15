@@ -80,7 +80,7 @@ class FieldDecl(FormatterMixin, GlobalStmt, MemberDecl):
     )
 
     @staticmethod
-    def from_tokenizer(tkzr: Tokenizer, access_mod: AccessModifierType) -> typing.Self:
+    def from_tokenizer(tkzr: Tokenizer, access_mod: AccessModifierType):
         assert (
             access_mod != AccessModifierType.PUBLIC_DEFAULT
         ), "'Public Default' access modifier cannot be used with field declaration"
