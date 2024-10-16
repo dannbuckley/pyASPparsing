@@ -1,3 +1,7 @@
+from pyaspparsing.ast.ast_types import *
+from pyaspparsing.ast.tokenizer.state_machine import Tokenizer
+
+
 # https://learn.microsoft.com/en-us/previous-versions/iis/6.0-sdk/ms524741(v=vs.90)#example-2
 codeblock = """<%@ Language= "VBScript" %>  
 <html> 
@@ -35,3 +39,22 @@ codeblock = """<%@ Language= "VBScript" %>
 </body> 
 </html>
 """
+
+
+def test_program_ex2():
+    with Tokenizer(codeblock, False) as tkzr:
+        prog = Program.from_tokenizer(tkzr)
+        for act_st, exp_st in zip(
+            prog.global_stmt_list,
+            [
+                ProcessingDirective,
+                OutputText,
+                VarDecl,
+                VarDecl,
+                AssignStmt,
+                AssignStmt,
+                ForStmt,
+                OutputText,
+            ],
+        ):
+            assert isinstance(act_st, exp_st)
