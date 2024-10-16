@@ -7,16 +7,189 @@ from pyaspparsing.ast.ast_types.parser import Parser
 
 
 @pytest.mark.parametrize(
-    ["codeblock", "exp_extended_id", "exp_method_arg_list", "exp_method_stmt_list", "exp_access_mod"],
+    [
+        "codeblock",
+        "exp_extended_id",
+        "exp_method_arg_list",
+        "exp_method_stmt_list",
+        "exp_access_mod",
+    ],
     [
         (
+            # sub declaration
             "Sub my_subroutine\nEnd Sub\n",
             ExtendedID(Token.identifier(6, 19)),
             [],
             [],
-            None
-        )
-    ]
+            None,
+        ),
+        (
+            # sub declaration with parentheses
+            "Sub my_subroutine()\nEnd Sub\n",
+            ExtendedID(Token.identifier(6, 19)),
+            [],
+            [],
+            None,
+        ),
+        (
+            # sub declaration with arg
+            "Sub my_subroutine(first)\nEnd Sub\n",
+            ExtendedID(Token.identifier(6, 19)),
+            [Arg(ExtendedID(Token.identifier(20, 25)))],
+            [],
+            None,
+        ),
+        (
+            # sub declaration with paren arg
+            "Sub my_subroutine(first())\nEnd Sub\n",
+            ExtendedID(Token.identifier(6, 19)),
+            [Arg(ExtendedID(Token.identifier(20, 25)), has_paren=True)],
+            [],
+            None,
+        ),
+        (
+            # sub declaration with byval arg
+            "Sub my_subroutine(ByVal first)\nEnd Sub\n",
+            ExtendedID(Token.identifier(6, 19)),
+            [
+                Arg(
+                    ExtendedID(Token.identifier(26, 31)),
+                    arg_modifier=Token.identifier(20, 25),
+                )
+            ],
+            [],
+            None,
+        ),
+        (
+            # sub declaration with byref arg
+            "Sub my_subroutine(ByRef first)\nEnd Sub\n",
+            ExtendedID(Token.identifier(6, 19)),
+            [
+                Arg(
+                    ExtendedID(Token.identifier(26, 31)),
+                    arg_modifier=Token.identifier(20, 25),
+                )
+            ],
+            [],
+            None,
+        ),
+        (
+            # sub declaration with multiple args
+            "Sub my_subroutine(first, second)\nEnd Sub\n",
+            ExtendedID(Token.identifier(6, 19)),
+            [
+                Arg(ExtendedID(Token.identifier(20, 25))),
+                Arg(ExtendedID(Token.identifier(27, 33))),
+            ],
+            [],
+            None,
+        ),
+        (
+            # private sub
+            "Private Sub my_subroutine\nEnd Sub\n",
+            ExtendedID(Token.identifier(14, 27)),
+            [],
+            [],
+            AccessModifierType.PRIVATE,
+        ),
+        (
+            # public sub
+            "Public Sub my_subroutine\nEnd Sub\n",
+            ExtendedID(Token.identifier(13, 26)),
+            [],
+            [],
+            AccessModifierType.PUBLIC,
+        ),
+        (
+            # public default sub
+            "Public Default Sub my_subroutine\nEnd Sub\n",
+            ExtendedID(Token.identifier(21, 34)),
+            [],
+            [],
+            AccessModifierType.PUBLIC_DEFAULT,
+        ),
+        (
+            # sub with inline statement
+            "Sub my_subroutine Set a = 1 End Sub\n",
+            ExtendedID(Token.identifier(6, 19)),
+            [],
+            [
+                AssignStmt(
+                    LeftExpr(QualifiedID([Token.identifier(24, 25)])),
+                    IntLiteral(Token.int_literal(28, 29)),
+                )
+            ],
+            None,
+        ),
+        (
+            # sub with statement list
+            "Sub my_subroutine\nDim c, d\nEnd Sub\n",
+            ExtendedID(Token.identifier(6, 19)),
+            [],
+            [
+                VarDecl(
+                    [
+                        VarName(ExtendedID(Token.identifier(24, 25))),
+                        VarName(ExtendedID(Token.identifier(27, 28))),
+                    ]
+                )
+            ],
+            None,
+        ),
+        (
+            # const declaration as method statement
+            "Sub my_subroutine\nConst a = 42\nEnd Sub\n",
+            ExtendedID(Token.identifier(6, 19)),
+            [],
+            [
+                ConstDecl(
+                    [
+                        ConstListItem(
+                            ExtendedID(Token.identifier(26, 27)),
+                            IntLiteral(Token.int_literal(30, 32)),
+                        )
+                    ]
+                )
+            ],
+            None,
+        ),
+        (
+            # public const declaration as method statement
+            "Sub my_subroutine\nPublic Const a = 42\nEnd Sub\n",
+            ExtendedID(Token.identifier(6, 19)),
+            [],
+            [
+                ConstDecl(
+                    [
+                        ConstListItem(
+                            ExtendedID(Token.identifier(33, 34)),
+                            IntLiteral(Token.int_literal(37, 39)),
+                        )
+                    ],
+                    access_mod=AccessModifierType.PUBLIC,
+                )
+            ],
+            None,
+        ),
+        (
+            # private const declaration as method statement
+            "Sub my_subroutine\nPrivate Const a = 42\nEnd Sub\n",
+            ExtendedID(Token.identifier(6, 19)),
+            [],
+            [
+                ConstDecl(
+                    [
+                        ConstListItem(
+                            ExtendedID(Token.identifier(34, 35)),
+                            IntLiteral(Token.int_literal(38, 40)),
+                        )
+                    ],
+                    access_mod=AccessModifierType.PRIVATE,
+                )
+            ],
+            None,
+        ),
+    ],
 )
 def test_parse_sub_decl(
     codeblock: str,
@@ -27,6 +200,10 @@ def test_parse_sub_decl(
 ):
     with Tokenizer(f"<%{codeblock}%>", False) as tkzr:
         tkzr.advance_pos()
+        if exp_access_mod is not None:
+            tkzr.advance_pos()
+            if exp_access_mod == AccessModifierType.PUBLIC_DEFAULT:
+                tkzr.advance_pos()
         sub_decl = Parser.parse_sub_decl(tkzr, exp_access_mod)
         assert sub_decl.extended_id == exp_extended_id
         assert sub_decl.method_arg_list == exp_method_arg_list
