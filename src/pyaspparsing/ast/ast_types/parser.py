@@ -121,6 +121,44 @@ class Parser:
         )
 
     @staticmethod
+    def parse_nonscript_block(tkzr: Tokenizer) -> typing.List[BlockStmt]:
+        """"""
+        nonscript_stmts: typing.List[BlockStmt] = []
+        while tkzr.current_token is not None and not tkzr.try_token_type(
+            TokenType.DELIM_START_SCRIPT
+        ):
+            if tkzr.try_token_type(TokenType.HTML_START_COMMENT):
+                cmnt = Parser.parse_html_comment(tkzr)
+                if (
+                    isinstance(cmnt, OutputText)
+                    and len(nonscript_stmts) > 0
+                    and isinstance(nonscript_stmts[-1], OutputText)
+                ):
+                    prev_out: OutputText = nonscript_stmts.pop()
+                    nonscript_stmts.append(prev_out.merge(cmnt))
+                    del prev_out
+                else:
+                    nonscript_stmts.append(cmnt)
+                del cmnt
+            else:
+                out_text: OutputText = Parser.parse_output_text(tkzr)
+                if len(nonscript_stmts) > 0 and isinstance(
+                    nonscript_stmts[-1], OutputText
+                ):
+                    prev_out: OutputText = nonscript_stmts.pop()
+                    nonscript_stmts.append(prev_out.merge(out_text))
+                    del prev_out
+                else:
+                    nonscript_stmts.append(out_text)
+                del out_text
+        # nonscript block occurred in the middle of a statement
+        # need to return to script mode
+        tkzr.assert_consume(TokenType.DELIM_START_SCRIPT)
+        if tkzr.try_token_type(TokenType.NEWLINE):
+            tkzr.advance_pos()
+        return nonscript_stmts
+
+    @staticmethod
     def parse_global_stmt(tkzr: Tokenizer) -> GlobalStmt:
         """
 
@@ -188,50 +226,6 @@ class Parser:
         ------
         ParserError
         """
-        if tkzr.try_token_type(TokenType.DELIM_END):
-            tkzr.advance_pos()  # consume delimiter
-            if tkzr.try_token_type(TokenType.DELIM_START_SCRIPT):
-                tkzr.assert_consume(TokenType.DELIM_START_SCRIPT)
-            else:
-                nonscript_stmts: typing.List[BlockStmt] = []
-                while tkzr.current_token is not None and not tkzr.try_token_type(
-                    TokenType.DELIM_START_SCRIPT
-                ):
-                    if tkzr.try_token_type(TokenType.HTML_START_COMMENT):
-                        cmnt = Parser.parse_html_comment(tkzr)
-                        if (
-                            len(nonscript_stmts) > 0
-                            and isinstance(nonscript_stmts[-1], OutputText)
-                            and isinstance(cmnt, OutputText)
-                        ):
-                            prev_out: OutputText = nonscript_stmts.pop()
-                            nonscript_stmts.append(prev_out.merge(cmnt))
-                            del prev_out
-                        else:
-                            nonscript_stmts.append(cmnt)
-                        del cmnt
-                    else:
-                        out_text: OutputText = Parser.parse_output_text(tkzr)
-                        if len(nonscript_stmts) > 0 and isinstance(
-                            nonscript_stmts[-1], OutputText
-                        ):
-                            prev_out: OutputText = nonscript_stmts.pop()
-                            nonscript_stmts.append(prev_out.merge(out_text))
-                            del prev_out
-                        else:
-                            nonscript_stmts.append(out_text)
-                        del out_text
-                # nonscript statements occured in the middle of a statement
-                # need to return to script mode
-                tkzr.assert_consume(TokenType.DELIM_START_SCRIPT)
-                if tkzr.try_token_type(TokenType.NEWLINE):
-                    tkzr.advance_pos()
-                if len(nonscript_stmts) == 1:
-                    return nonscript_stmts.pop()
-                if len(nonscript_stmts) > 1:
-                    return NonscriptBlock(nonscript_stmts)
-                # else, len(nonscript_stmts) == 0
-
         assert tkzr.try_multiple_token_type(
             [
                 TokenType.IDENTIFIER,
@@ -438,12 +432,14 @@ class Parser:
                 tkzr.try_token_type(TokenType.IDENTIFIER)
                 and tkzr.get_token_code() == "end"
             ):
-                new_stmt = Parser.parse_method_stmt(tkzr)
-                if isinstance(new_stmt, NonscriptBlock):
-                    method_stmt_list.extend(new_stmt.nonscript_stmt_list)
+                if tkzr.try_token_type(TokenType.DELIM_END):
+                    tkzr.advance_pos()
+                    if tkzr.try_token_type(TokenType.DELIM_START_SCRIPT):
+                        tkzr.advance_pos()
+                        continue
+                    method_stmt_list.extend(Parser.parse_nonscript_block(tkzr))
                 else:
-                    method_stmt_list.append(new_stmt)
-                del new_stmt
+                    method_stmt_list.append(Parser.parse_method_stmt(tkzr))
         else:
             method_stmt_list.append(
                 Parser.parse_inline_stmt(tkzr, TokenType.IDENTIFIER, "end")
@@ -492,12 +488,14 @@ class Parser:
                 tkzr.try_token_type(TokenType.IDENTIFIER)
                 and tkzr.get_token_code() == "end"
             ):
-                new_stmt = Parser.parse_method_stmt(tkzr)
-                if isinstance(new_stmt, NonscriptBlock):
-                    method_stmt_list.extend(new_stmt.nonscript_stmt_list)
+                if tkzr.try_token_type(TokenType.DELIM_END):
+                    tkzr.advance_pos()
+                    if tkzr.try_token_type(TokenType.DELIM_START_SCRIPT):
+                        tkzr.advance_pos()
+                        continue
+                    method_stmt_list.extend(Parser.parse_nonscript_block(tkzr))
                 else:
-                    method_stmt_list.append(new_stmt)
-                del new_stmt
+                    method_stmt_list.append(Parser.parse_method_stmt(tkzr))
         else:
             method_stmt_list.append(
                 Parser.parse_inline_stmt(tkzr, TokenType.IDENTIFIER, "end")
@@ -554,12 +552,14 @@ class Parser:
         while not (
             tkzr.try_token_type(TokenType.IDENTIFIER) and tkzr.get_token_code() == "end"
         ):
-            new_stmt = Parser.parse_method_stmt(tkzr)
-            if isinstance(new_stmt, NonscriptBlock):
-                method_stmt_list.extend(new_stmt.nonscript_stmt_list)
+            if tkzr.try_token_type(TokenType.DELIM_END):
+                tkzr.advance_pos()
+                if tkzr.try_token_type(TokenType.DELIM_START_SCRIPT):
+                    tkzr.advance_pos()
+                    continue
+                method_stmt_list.extend(Parser.parse_nonscript_block(tkzr))
             else:
-                method_stmt_list.append(new_stmt)
-            del new_stmt
+                method_stmt_list.append(Parser.parse_method_stmt(tkzr))
 
         tkzr.assert_consume(TokenType.IDENTIFIER, "end")
         tkzr.assert_consume(TokenType.IDENTIFIER, "property")
@@ -668,12 +668,14 @@ class Parser:
                 tkzr.try_token_type(TokenType.IDENTIFIER)
                 and tkzr.get_token_code() in ["elseif", "else", "end"]
             ):
-                new_block = Parser.parse_block_stmt(tkzr)
-                if isinstance(new_block, NonscriptBlock):
-                    block_stmt_list.extend(new_block.nonscript_stmt_list)
+                if tkzr.try_token_type(TokenType.DELIM_END):
+                    tkzr.advance_pos()
+                    if tkzr.try_token_type(TokenType.DELIM_START_SCRIPT):
+                        tkzr.advance_pos()
+                        continue
+                    block_stmt_list.extend(Parser.parse_nonscript_block(tkzr))
                 else:
-                    block_stmt_list.append(new_block)
-                del new_block
+                    block_stmt_list.append(Parser.parse_block_stmt(tkzr))
             # check for 'ElseIf' statements
             if (
                 tkzr.try_token_type(TokenType.IDENTIFIER)
@@ -697,12 +699,16 @@ class Parser:
                             tkzr.try_token_type(TokenType.IDENTIFIER)
                             and tkzr.get_token_code() in ["elseif", "else", "end"]
                         ):
-                            new_block = Parser.parse_block_stmt(tkzr)
-                            if isinstance(new_block, NonscriptBlock):
-                                elif_stmt_list.extend(new_block.nonscript_stmt_list)
+                            if tkzr.try_token_type(TokenType.DELIM_END):
+                                tkzr.advance_pos()
+                                if tkzr.try_token_type(TokenType.DELIM_START_SCRIPT):
+                                    tkzr.advance_pos()
+                                    continue
+                                elif_stmt_list.extend(
+                                    Parser.parse_nonscript_block(tkzr)
+                                )
                             else:
-                                elif_stmt_list.append(new_block)
-                            del new_block
+                                elif_stmt_list.append(Parser.parse_block_stmt(tkzr))
                     else:
                         # inline statement
                         elif_stmt_list.append(
@@ -731,12 +737,14 @@ class Parser:
                         tkzr.try_token_type(TokenType.IDENTIFIER)
                         and tkzr.get_token_code() == "end"
                     ):
-                        new_block = Parser.parse_block_stmt(tkzr)
-                        if isinstance(new_block, NonscriptBlock):
-                            else_block_list.extend(new_block.nonscript_stmt_list)
+                        if tkzr.try_token_type(TokenType.DELIM_END):
+                            tkzr.advance_pos()
+                            if tkzr.try_token_type(TokenType.DELIM_START_SCRIPT):
+                                tkzr.advance_pos()
+                                continue
+                            else_block_list.extend(Parser.parse_nonscript_block(tkzr))
                         else:
-                            else_block_list.append(new_block)
-                        del new_block
+                            else_block_list.append(Parser.parse_block_stmt(tkzr))
                 else:
                     # inline statement
                     else_block_list.append(
@@ -802,12 +810,14 @@ class Parser:
         while not (
             tkzr.try_token_type(TokenType.IDENTIFIER) and tkzr.get_token_code() == "end"
         ):
-            new_block = Parser.parse_block_stmt(tkzr)
-            if isinstance(new_block, NonscriptBlock):
-                block_stmt_list.extend(new_block.nonscript_stmt_list)
+            if tkzr.try_token_type(TokenType.DELIM_END):
+                tkzr.advance_pos()
+                if tkzr.try_token_type(TokenType.DELIM_START_SCRIPT):
+                    tkzr.advance_pos()
+                    continue
+                block_stmt_list.extend(Parser.parse_nonscript_block(tkzr))
             else:
-                block_stmt_list.append(new_block)
-            del new_block
+                block_stmt_list.append(Parser.parse_block_stmt(tkzr))
         tkzr.assert_consume(TokenType.IDENTIFIER, "end")
         tkzr.assert_consume(TokenType.IDENTIFIER, "with")
         tkzr.assert_newline_or_script_end()
@@ -831,12 +841,14 @@ class Parser:
                 tkzr.try_token_type(TokenType.IDENTIFIER)
                 and tkzr.get_token_code() == "wend"
             ):
-                new_block = Parser.parse_block_stmt(tkzr)
-                if isinstance(new_block, NonscriptBlock):
-                    block_stmt_list.extend(new_block.nonscript_stmt_list)
+                if tkzr.try_token_type(TokenType.DELIM_END):
+                    tkzr.advance_pos()
+                    if tkzr.try_token_type(TokenType.DELIM_START_SCRIPT):
+                        tkzr.advance_pos()
+                        continue
+                    block_stmt_list.extend(Parser.parse_nonscript_block(tkzr))
                 else:
-                    block_stmt_list.append(new_block)
-                del new_block
+                    block_stmt_list.append(Parser.parse_block_stmt(tkzr))
             tkzr.assert_consume(TokenType.IDENTIFIER, "wend")
             tkzr.assert_newline_or_script_end()
             return LoopStmt(block_stmt_list, loop_type=loop_type, loop_expr=loop_expr)
@@ -872,12 +884,14 @@ class Parser:
             tkzr.try_token_type(TokenType.IDENTIFIER)
             and tkzr.get_token_code() == "loop"
         ):
-            new_block = Parser.parse_block_stmt(tkzr)
-            if isinstance(new_block, NonscriptBlock):
-                block_stmt_list.extend(new_block.nonscript_stmt_list)
+            if tkzr.try_token_type(TokenType.DELIM_END):
+                tkzr.advance_pos()
+                if tkzr.try_token_type(TokenType.DELIM_START_SCRIPT):
+                    tkzr.advance_pos()
+                    continue
+                block_stmt_list.extend(Parser.parse_nonscript_block(tkzr))
             else:
-                block_stmt_list.append(new_block)
-            del new_block
+                block_stmt_list.append(Parser.parse_block_stmt(tkzr))
         tkzr.assert_consume(TokenType.IDENTIFIER, "loop")
 
         # check if loop type is at the end
@@ -919,12 +933,14 @@ class Parser:
             tkzr.try_token_type(TokenType.IDENTIFIER)
             and tkzr.get_token_code() == "next"
         ):
-            new_block = Parser.parse_block_stmt(tkzr)
-            if isinstance(new_block, NonscriptBlock):
-                block_stmt_list.extend(new_block.nonscript_stmt_list)
+            if tkzr.try_token_type(TokenType.DELIM_END):
+                tkzr.advance_pos()
+                if tkzr.try_token_type(TokenType.DELIM_START_SCRIPT):
+                    tkzr.advance_pos()
+                    continue
+                block_stmt_list.extend(Parser.parse_nonscript_block(tkzr))
             else:
-                block_stmt_list.append(new_block)
-            del new_block
+                block_stmt_list.append(Parser.parse_block_stmt(tkzr))
         # finish for statement
         tkzr.assert_consume(TokenType.IDENTIFIER, "next")
         tkzr.assert_newline_or_script_end()
@@ -974,11 +990,14 @@ class Parser:
                 tkzr.try_token_type(TokenType.IDENTIFIER)
                 and tkzr.get_token_code() in ["case", "end"]
             ):
-                new_block = Parser.parse_block_stmt(tkzr)
-                if isinstance(new_block, NonscriptBlock):
-                    block_stmt_list.extend(new_block.nonscript_stmt_list)
+                if tkzr.try_token_type(TokenType.DELIM_END):
+                    tkzr.advance_pos()
+                    if tkzr.try_token_type(TokenType.DELIM_START_SCRIPT):
+                        tkzr.advance_pos()
+                        continue
+                    block_stmt_list.extend(Parser.parse_nonscript_block(tkzr))
                 else:
-                    block_stmt_list.append(new_block)
+                    block_stmt_list.append(Parser.parse_block_stmt(tkzr))
             case_stmt_list.append(
                 CaseStmt(block_stmt_list, case_expr_list, is_else=is_else)
             )

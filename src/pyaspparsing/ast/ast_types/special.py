@@ -22,23 +22,6 @@ class ProcessingDirective(FormatterMixin, GlobalStmt):
     settings: typing.List[ProcessingSetting] = attrs.field(default=attrs.Factory(list))
 
 
-@attrs.define(repr=False, slots=False)
-class NonscriptBlock(FormatterMixin, BlockStmt):
-    """Intermediate type for coercing mutliple
-    IncludeFile or OutputText objects into a single return value
-
-    Should NOT be included in the AST but instead should be unwrapped
-
-    Attributes
-    ----------
-    nonscript_stmt_list : List[BlockStmt], default=[]
-    """
-
-    nonscript_stmt_list: typing.List[BlockStmt] = attrs.field(
-        default=attrs.Factory(list)
-    )
-
-
 @enum.verify(enum.CONTINUOUS, enum.UNIQUE)
 class IncludeType(enum.IntEnum):
     """"""

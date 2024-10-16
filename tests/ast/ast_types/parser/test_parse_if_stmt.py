@@ -266,11 +266,3 @@ def test_parse_if_stmt(
         assert if_stmt.block_stmt_list == exp_block_stmt_list
         assert if_stmt.else_stmt_list == exp_else_stmt_list
         tkzr.advance_pos()
-
-
-def test_nested_inline_if_stmt():
-    # TODO: test this case, currently broken
-    # affected code: iterative calls to parse_block_stmt() in the first while loop of parse_if_stmt()
-    codeblock = (
-        """<% if True then %><% if True then %>content<% end if %><% end if %>"""
-    )
