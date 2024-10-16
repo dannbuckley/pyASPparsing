@@ -1,5 +1,7 @@
 """Base AST types"""
 
+# pylint: disable=R0903
+
 import enum
 import attrs
 
@@ -19,7 +21,15 @@ __all__ = [
 
 @attrs.define(repr=False, slots=False)
 class FormatterMixin:
+    """Pretty-printing formatter for AST types
+
+    Overrides __repr__ and uses the __dict__ of the subclass
+    """
+
     def __repr__(self) -> str:
+        if len(self.__dict__) == 0:
+            # class has no attributes
+            return f"{self.__class__.__name__}()\n"
         indent = " " * 2
         repr_lines = [f"{self.__class__.__name__}("]
         num_attrs = len(self.__dict__)
@@ -52,7 +62,8 @@ class FormatterMixin:
                 # attr_val is not iterable
                 attr_repr = repr(attr_val).splitlines()
                 repr_lines.append(
-                    f"{indent}{attr_name}={attr_repr[0]}{',' if (len(attr_repr) == 1) and (i < num_attrs - 1) else ''}"
+                    f"{indent}{attr_name}={attr_repr[0]}"
+                    f"{',' if (len(attr_repr) == 1) and (i < num_attrs - 1) else ''}"
                 )
                 if len(attr_repr) > 1:
                     repr_lines.extend(map(lambda x: f"{indent}{x}", attr_repr[1:-1]))

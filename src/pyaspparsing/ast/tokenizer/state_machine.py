@@ -208,7 +208,9 @@ class Tokenizer:
         self._pos_tok = next(self._tok_iter, None)
         return self._pos_tok is not None
 
-    def get_token_code(self, casefold: bool = True) -> str:
+    def get_token_code(
+        self, casefold: bool = True, *, tok: typing.Optional[Token] = None
+    ) -> str:
         """
         Parameters
         ----------
@@ -229,6 +231,9 @@ class Tokenizer:
             raise RuntimeError(
                 "Cannot use get_token_code() outside of a runtime context"
             )
+        if tok is not None:
+            tok_code = self.codeblock[tok.token_src]
+            return tok_code.casefold() if casefold else tok_code
         if self._pos_tok is None:
             raise RuntimeError("Tried to load code string for None token")
         tok_code = self.codeblock[self._pos_tok.token_src]

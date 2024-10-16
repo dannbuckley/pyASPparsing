@@ -81,6 +81,18 @@ class FieldDecl(FormatterMixin, GlobalStmt, MemberDecl):
 
     @staticmethod
     def from_tokenizer(tkzr: Tokenizer, access_mod: AccessModifierType):
+        """Construct a FieldDecl object from an active Tokenizer
+
+        Parameters
+        ----------
+        tkzr : Tokenizer
+            Must already be in a runtime context
+        access_mod : AccessModifierType
+
+        Returns
+        -------
+        FieldDecl
+        """
         assert (
             access_mod != AccessModifierType.PUBLIC_DEFAULT
         ), "'Public Default' access modifier cannot be used with field declaration"
@@ -198,6 +210,17 @@ class VarDecl(FormatterMixin, MemberDecl, BlockStmt):
 
     @staticmethod
     def from_tokenizer(tkzr: Tokenizer):
+        """Construct a VarDecl object from an active Tokenizer
+
+        Parameters
+        ----------
+        tkzr : Tokenizer
+            Must already be in a runtime context
+
+        Returns
+        -------
+        VarDecl
+        """
         tkzr.assert_consume(TokenType.IDENTIFIER, "dim")
         var_name: typing.List[VarName] = []
         parse_var_name = True
@@ -286,9 +309,23 @@ class ConstDecl(FormatterMixin, GlobalStmt, MethodStmt, MemberDecl):
     def from_tokenizer(
         tkzr: Tokenizer, access_mod: typing.Optional[AccessModifierType] = None
     ):
+        """Construct a ConstDecl object from an active Tokenizer
+
+        Parameters
+        ----------
+        tkzr : Tokenizer
+            Must already be in a runtime context
+        access_mod : AccessModifierType | None, default=None
+
+        Returns
+        -------
+        ConstDecl
+        """
         tkzr.assert_consume(TokenType.IDENTIFIER, "const")
         const_list: typing.List[ConstListItem] = []
-        while not tkzr.try_multiple_token_type([TokenType.NEWLINE, TokenType.DELIM_END]):
+        while not tkzr.try_multiple_token_type(
+            [TokenType.NEWLINE, TokenType.DELIM_END]
+        ):
             const_id = ExtendedID.from_tokenizer(tkzr)
             tkzr.assert_consume(TokenType.SYMBOL, "=")
             const_expr: typing.Optional[Expr] = None

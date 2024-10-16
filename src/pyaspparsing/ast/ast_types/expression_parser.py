@@ -13,15 +13,24 @@ __all__ = ["ExpressionParser"]
 
 # expressions need to be handled with a class to deal with circular Value and Expr references
 class ExpressionParser:
-    """"""
+    """Collection of static expression parser functions"""
 
     @staticmethod
     def parse_value(tkzr: Tokenizer, sub_safe: bool = False) -> Expr:
-        """"""
+        """
+        Parameters
+        ----------
+        tkzr : Tokenizer
+        sub_safe : bool, default=False
+
+        Returns
+        -------
+        Expr
+        """
         if not sub_safe:
             # value could be expression wrapped in parentheses
             if tkzr.try_consume(TokenType.SYMBOL, "("):
-                ret_expr = ExpressionParser.parse_expr(tkzr, sub_safe)
+                ret_expr: Expr = ExpressionParser.parse_expr(tkzr, sub_safe)
                 tkzr.assert_consume(TokenType.SYMBOL, ")")
                 return ret_expr
 
@@ -51,9 +60,18 @@ class ExpressionParser:
         raise ParserError("Invalid token in value expression")
 
     @staticmethod
-    def parse_const_expr(tkzr: Tokenizer) -> Expr:
-        """"""
+    def parse_const_expr(tkzr: Tokenizer) -> ConstExpr:
+        """
+        Parameters
+        ----------
+        tkzr : Tokenizer
+
+        Returns
+        -------
+        Expr
+        """
         ret_token = tkzr.current_token
+        assert ret_token is not None, "Expected constant expression, found None"
         if tkzr.try_multiple_token_type(
             [TokenType.LITERAL_FLOAT, TokenType.LITERAL_STRING, TokenType.LITERAL_DATE]
         ):
@@ -79,7 +97,18 @@ class ExpressionParser:
 
     @staticmethod
     def parse_qualified_id_tail(tkzr: Tokenizer) -> Token:
-        """"""
+        """
+        Parameters
+        ----------
+        tkzr : Tokenizer
+
+        Returns
+        -------
+        Token
+        """
+        assert (
+            tkzr.current_token is not None
+        ), "Expected the tail of a qualified identifier, found None"
         if (kw_id := tkzr.try_keyword_id()) is not None:
             tkzr.advance_pos()  # consume keyword identifier
             return kw_id
@@ -96,7 +125,18 @@ class ExpressionParser:
 
     @staticmethod
     def parse_qualified_id(tkzr: Tokenizer) -> QualifiedID:
-        """"""
+        """
+        Parameters
+        ----------
+        tkzr : Tokenizer
+
+        Returns
+        -------
+        QualifiedID
+        """
+        assert (
+            tkzr.current_token is not None
+        ), "Expected a qualified identifier, found None"
         if tkzr.try_multiple_token_type(
             [TokenType.IDENTIFIER_IDDOT, TokenType.IDENTIFIER_DOTIDDOT]
         ):
@@ -121,7 +161,15 @@ class ExpressionParser:
 
     @staticmethod
     def parse_left_expr_tail(tkzr: Tokenizer) -> LeftExprTail:
-        """"""
+        """
+        Parameters
+        ----------
+        tkzr : Tokenizer
+
+        Returns
+        -------
+        LeftExprTail
+        """
         qual_id_tail: QualifiedID = ExpressionParser.parse_qualified_id(tkzr)
         # check for index or params list
         index_or_params_tail: typing.List[IndexOrParams] = []
@@ -158,7 +206,15 @@ class ExpressionParser:
 
     @staticmethod
     def parse_left_expr(tkzr: Tokenizer) -> LeftExpr:
-        """"""
+        """
+        Parameters
+        ----------
+        tkzr : Tokenizer
+
+        Returns
+        -------
+        LeftExpr
+        """
         # attempt to parse qualified identifier
         qual_id = ExpressionParser.parse_qualified_id(tkzr)
         # check for index or params list
@@ -209,11 +265,30 @@ class ExpressionParser:
 
     @staticmethod
     def parse_expr(tkzr: Tokenizer, sub_safe: bool = False) -> Expr:
+        """
+        Parameters
+        ----------
+        tkzr : Tokenizer
+        sub_safe : bool, default=False
+
+        Returns
+        -------
+        Expr
+        """
         return ExpressionParser.parse_imp_expr(tkzr, sub_safe)
 
     @staticmethod
     def parse_imp_expr(tkzr: Tokenizer, sub_safe: bool = False) -> Expr:
-        """"""
+        """
+        Parameters
+        ----------
+        tkzr : Tokenizer
+        sub_safe : bool, default=False
+
+        Returns
+        -------
+        Expr
+        """
         # 'Imp' expression expands to the left, use a queue
         expr_queue: typing.List[Expr] = [
             ExpressionParser.parse_eqv_expr(tkzr, sub_safe)
@@ -234,7 +309,16 @@ class ExpressionParser:
 
     @staticmethod
     def parse_eqv_expr(tkzr: Tokenizer, sub_safe: bool = False) -> Expr:
-        """"""
+        """
+        Parameters
+        ----------
+        tkzr : Tokenizer
+        sub_safe : bool, default=False
+
+        Returns
+        -------
+        Expr
+        """
         # 'Eqv' expression expands to the left, use a queue
         expr_queue: typing.List[Expr] = [
             ExpressionParser.parse_xor_expr(tkzr, sub_safe)
@@ -255,7 +339,16 @@ class ExpressionParser:
 
     @staticmethod
     def parse_xor_expr(tkzr: Tokenizer, sub_safe: bool = False) -> Expr:
-        """"""
+        """
+        Parameters
+        ----------
+        tkzr : Tokenizer
+        sub_safe : bool, default=False
+
+        Returns
+        -------
+        Expr
+        """
         # 'Xor' expression expands to the left, use a queue
         expr_queue: typing.List[Expr] = [ExpressionParser.parse_or_expr(tkzr, sub_safe)]
 
@@ -274,7 +367,16 @@ class ExpressionParser:
 
     @staticmethod
     def parse_or_expr(tkzr: Tokenizer, sub_safe: bool = False) -> Expr:
-        """"""
+        """
+        Parameters
+        ----------
+        tkzr : Tokenizer
+        sub_safe : bool, default=False
+
+        Returns
+        -------
+        Expr
+        """
         # 'Or' expression expands to the left, use a queue
         expr_queue: typing.List[Expr] = [
             ExpressionParser.parse_and_expr(tkzr, sub_safe)
@@ -295,7 +397,16 @@ class ExpressionParser:
 
     @staticmethod
     def parse_and_expr(tkzr: Tokenizer, sub_safe: bool = False) -> Expr:
-        """"""
+        """
+        Parameters
+        ----------
+        tkzr : Tokenizer
+        sub_safe : bool, default=False
+
+        Returns
+        -------
+        Expr
+        """
         # 'And' expression expands to the left, use a queue
         expr_queue: typing.List[Expr] = [
             ExpressionParser.parse_not_expr(tkzr, sub_safe)
@@ -316,7 +427,16 @@ class ExpressionParser:
 
     @staticmethod
     def parse_not_expr(tkzr: Tokenizer, sub_safe: bool = False) -> Expr:
-        """"""
+        """
+        Parameters
+        ----------
+        tkzr : Tokenizer
+        sub_safe : bool, default=False
+
+        Returns
+        -------
+        Expr
+        """
         # optimization: "Not Not" is a no-op
         # only use NotExpr when not_counter is odd
         not_counter = 0
@@ -334,7 +454,16 @@ class ExpressionParser:
 
     @staticmethod
     def parse_compare_expr(tkzr: Tokenizer, sub_safe: bool = False) -> Expr:
-        """"""
+        """
+        Parameters
+        ----------
+        tkzr : Tokenizer
+        sub_safe : bool, default=False
+
+        Returns
+        -------
+        Expr
+        """
         # comparison expression expands to the left, use a queue
         cmp_queue: typing.List[CompareExprType] = []
         expr_queue: typing.List[Expr] = [
@@ -397,7 +526,17 @@ class ExpressionParser:
 
     @staticmethod
     def parse_concat_expr(tkzr: Tokenizer, sub_safe: bool = False) -> Expr:
-        """Parse string concatenation expression"""
+        """Parse string concatenation expression
+
+        Parameters
+        ----------
+        tkzr : Tokenizer
+        sub_safe : bool, default=False
+
+        Returns
+        -------
+        Expr
+        """
         # concatenation expression expands to the left, use a queue
         expr_queue: typing.List[Expr] = [
             ExpressionParser.parse_add_expr(tkzr, sub_safe)
@@ -418,7 +557,16 @@ class ExpressionParser:
 
     @staticmethod
     def parse_add_expr(tkzr: Tokenizer, sub_safe: bool = False) -> Expr:
-        """"""
+        """
+        Parameters
+        ----------
+        tkzr : Tokenizer
+        sub_safe : bool
+
+        Returns
+        -------
+        Expr
+        """
         # addition/subtraction expression expands to the left, use a queue
         expr_queue: typing.List[Expr] = [
             ExpressionParser.parse_mod_expr(tkzr, sub_safe)
@@ -446,7 +594,16 @@ class ExpressionParser:
 
     @staticmethod
     def parse_mod_expr(tkzr: Tokenizer, sub_safe: bool = False) -> Expr:
-        """"""
+        """
+        Parameters
+        ----------
+        tkzr : Tokenizer
+        sub_safe : bool, default=False
+
+        Returns
+        -------
+        Expr
+        """
         # 'Mod' expression expands to the left, use a queue
         expr_queue: typing.List[Expr] = [
             ExpressionParser.parse_int_div_expr(tkzr, sub_safe)
@@ -467,7 +624,16 @@ class ExpressionParser:
 
     @staticmethod
     def parse_int_div_expr(tkzr: Tokenizer, sub_safe: bool = False) -> Expr:
-        """"""
+        """
+        Parameters
+        ----------
+        tkzr : Tokenizer
+        sub_safe : bool, default=False
+
+        Returns
+        -------
+        Expr
+        """
         # integer division expression expands to the left, use a queue
         expr_queue: typing.List[Expr] = [
             ExpressionParser.parse_mult_expr(tkzr, sub_safe)
@@ -488,7 +654,16 @@ class ExpressionParser:
 
     @staticmethod
     def parse_mult_expr(tkzr: Tokenizer, sub_safe: bool = False) -> Expr:
-        """"""
+        """
+        Parameters
+        ----------
+        tkzr : Tokenizer
+        sub_safe : bool, default=False
+
+        Returns
+        -------
+        Expr
+        """
         # multiplication/division expression expands to the left, use a queue
         expr_queue: typing.List[Expr] = [
             ExpressionParser.parse_unary_expr(tkzr, sub_safe)
@@ -518,7 +693,16 @@ class ExpressionParser:
 
     @staticmethod
     def parse_unary_expr(tkzr: Tokenizer, sub_safe: bool = False) -> Expr:
-        """"""
+        """
+        Parameters
+        ----------
+        tkzr : Tokenizer
+        sub_safe : bool, default=False
+
+        Returns
+        -------
+        Expr
+        """
         # unary expression expands to the right, use a stack
         sign_stack: typing.List[Token] = []
 
@@ -540,7 +724,16 @@ class ExpressionParser:
 
     @staticmethod
     def parse_exp_expr(tkzr: Tokenizer, sub_safe: bool = False) -> Expr:
-        """"""
+        """
+        Parameters
+        ----------
+        tkzr : Tokenizer
+        sub_safe : bool, default=False
+
+        Returns
+        -------
+        Expr
+        """
         # exponentiation expression expands to the right, use a stack
         expr_stack: typing.List[Expr] = [ExpressionParser.parse_value(tkzr, sub_safe)]
 
