@@ -3,6 +3,7 @@ import pytest
 from pyaspparsing.ast.tokenizer.token_types import Token
 from pyaspparsing.ast.tokenizer.state_machine import Tokenizer
 from pyaspparsing.ast.ast_types import *
+from pyaspparsing.ast.ast_types.expression_parser import ExpressionParser
 
 
 def test_parse_option_explicit():
@@ -276,6 +277,203 @@ def test_parse_call_stmt(codeblock: str, exp_left_expr: LeftExpr):
         tkzr.advance_pos()
         call_stmt = CallStmt.from_tokenizer(tkzr)
         assert call_stmt.left_expr == exp_left_expr
+        tkzr.advance_pos()
+
+
+@pytest.mark.parametrize(
+    "codeblock,exp_left_expr,exp_sub_safe_expr,exp_comma_expr_list",
+    [
+        (
+            # left_expr = <QualifiedID> <SubSafeExpr>
+            'Response.Write "Hello, world!"',
+            LeftExpr(
+                QualifiedID(
+                    [Token.identifier(2, 11, dot_end=True), Token.identifier(11, 16)]
+                )
+            ),
+            ConstExpr(Token.string_literal(17, 32)),
+            [],
+        ),
+        (
+            # left_expr = <QualifiedID> <SubSafeExpr> <CommaExprList>
+            'Response.Write "Hello, world!", "Second string"',
+            LeftExpr(
+                QualifiedID(
+                    [Token.identifier(2, 11, dot_end=True), Token.identifier(11, 16)]
+                )
+            ),
+            ConstExpr(Token.string_literal(17, 32)),
+            [ConstExpr(Token.string_literal(34, 49))],
+        ),
+        (
+            # left_expr = <QualifiedID> <CommaExprList>
+            'Response.Write , "Second param"',
+            LeftExpr(
+                QualifiedID(
+                    [Token.identifier(2, 11, dot_end=True), Token.identifier(11, 16)]
+                )
+            ),
+            None,
+            [ConstExpr(Token.string_literal(19, 33))],
+        ),
+        (
+            # left_expr = <QualifiedID> '(' ')'
+            "Response.Write()",
+            LeftExpr(
+                QualifiedID(
+                    [Token.identifier(2, 11, dot_end=True), Token.identifier(11, 16)]
+                ),
+                [IndexOrParams()],
+            ),
+            None,
+            [],
+        ),
+        (
+            # left_expr = <QualifiedID> '(' <Expr> ')'
+            'Response.Write("Hello, world!")',
+            LeftExpr(
+                QualifiedID(
+                    [Token.identifier(2, 11, dot_end=True), Token.identifier(11, 16)]
+                ),
+                [IndexOrParams([ConstExpr(Token.string_literal(17, 32))])],
+            ),
+            None,
+            [],
+        ),
+        (
+            # left_expr = <QualifiedID> '(' <Expr> ')' <CommaExprList>
+            'Response.Write("Hello, world!"), "String at end"',
+            LeftExpr(
+                QualifiedID(
+                    [Token.identifier(2, 11, dot_end=True), Token.identifier(11, 16)]
+                ),
+                [IndexOrParams([ConstExpr(Token.string_literal(17, 32))])],
+            ),
+            None,
+            [ConstExpr(Token.string_literal(35, 50))],
+        ),
+        (
+            # left_expr = <QualifiedID> '(' <Expr> ')' <CommaExprList>
+            'Response.Write("Hello, world!"), "First",, "Last"',
+            LeftExpr(
+                QualifiedID(
+                    [Token.identifier(2, 11, dot_end=True), Token.identifier(11, 16)]
+                ),
+                [IndexOrParams([ConstExpr(Token.string_literal(17, 32))])],
+            ),
+            None,
+            [
+                ConstExpr(Token.string_literal(35, 42)),
+                None,
+                ConstExpr(Token.string_literal(45, 51)),
+            ],
+        ),
+        (
+            # left_expr = <QualifiedID> '(' <Expr> ')' <CommaExprList>
+            'Response.Write("Hello, world!"), "String in middle", "String at end"',
+            LeftExpr(
+                QualifiedID(
+                    [Token.identifier(2, 11, dot_end=True), Token.identifier(11, 16)]
+                ),
+                [IndexOrParams([ConstExpr(Token.string_literal(17, 32))])],
+            ),
+            None,
+            [
+                ConstExpr(Token.string_literal(35, 53)),
+                ConstExpr(Token.string_literal(55, 70)),
+            ],
+        ),
+        (
+            # left_expr = <QualifiedID> { <IndexOrParamsList> '.' | <IndexOrParamsListDot> }
+            #       <LeftExprTail>
+            "Left.Expr().WithTail()",
+            LeftExpr(
+                QualifiedID(
+                    [Token.identifier(2, 7, dot_end=True), Token.identifier(7, 11)],
+                ),
+                [IndexOrParams(dot=True)],
+                [
+                    LeftExprTail(
+                        QualifiedID([Token.identifier(13, 22, dot_start=True)]),
+                        [IndexOrParams()],
+                    )
+                ],
+            ),
+            None,
+            [],
+        ),
+        (
+            # left_expr = <QualifiedID> { <IndexOrParamsList> '.' | <IndexOrParamsListDot> }
+            #       <LeftExprTail> <SubSafeExpr>
+            'Left.Expr().WithTail() "Hello, world!"',
+            LeftExpr(
+                QualifiedID(
+                    [Token.identifier(2, 7, dot_end=True), Token.identifier(7, 11)]
+                ),
+                [IndexOrParams(dot=True)],
+                [
+                    LeftExprTail(
+                        QualifiedID([Token.identifier(13, 22, dot_start=True)]),
+                        [IndexOrParams()],
+                    )
+                ],
+            ),
+            ConstExpr(Token.string_literal(25, 40)),
+            [],
+        ),
+        (
+            # left_expr = <QualifiedID> { <IndexOrParamsList> '.' | <IndexOrParamsListDot> }
+            #       <LeftExprTail> <SubSafeExpr> <CommaExprList>
+            'Left.Expr().WithTail() "Hello, world!", "Second param"',
+            LeftExpr(
+                QualifiedID(
+                    [Token.identifier(2, 7, dot_end=True), Token.identifier(7, 11)]
+                ),
+                [IndexOrParams(dot=True)],
+                [
+                    LeftExprTail(
+                        QualifiedID([Token.identifier(13, 22, dot_start=True)]),
+                        [IndexOrParams()],
+                    )
+                ],
+            ),
+            ConstExpr(Token.string_literal(25, 40)),
+            [ConstExpr(Token.string_literal(42, 56))],
+        ),
+        (
+            # left_expr = <QualifiedID> { <IndexOrParamsList> '.' | <IndexOrParamsListDot> }
+            #       <LeftExprTail> <CommaExprList>
+            'Left.Expr().WithTail() , "Second param"',
+            LeftExpr(
+                QualifiedID(
+                    [Token.identifier(2, 7, dot_end=True), Token.identifier(7, 11)],
+                ),
+                [IndexOrParams(dot=True)],
+                [
+                    LeftExprTail(
+                        QualifiedID([Token.identifier(13, 22, dot_start=True)]),
+                        [IndexOrParams()],
+                    )
+                ],
+            ),
+            None,
+            [ConstExpr(Token.string_literal(27, 41))],
+        ),
+    ],
+)
+def test_parse_subcall_stmt(
+    codeblock: str,
+    exp_left_expr: LeftExpr,
+    exp_sub_safe_expr: typing.Optional[Expr],
+    exp_comma_expr_list: typing.List[typing.Optional[Expr]],
+):
+    with Tokenizer(f"<%{codeblock}%>", False) as tkzr:
+        tkzr.advance_pos()
+        left_expr = ExpressionParser.parse_left_expr(tkzr)
+        subcall_stmt = SubCallStmt.from_tokenizer(tkzr, left_expr, TokenType.DELIM_END)
+        assert subcall_stmt.left_expr == exp_left_expr
+        assert subcall_stmt.sub_safe_expr == exp_sub_safe_expr
+        assert subcall_stmt.comma_expr_list == exp_comma_expr_list
         tkzr.advance_pos()
 
 
