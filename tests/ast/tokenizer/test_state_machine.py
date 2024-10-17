@@ -50,6 +50,20 @@ def test_regular_html_comment():
 
 
 @pytest.mark.parametrize(
+    "doctype",
+    [
+        ('<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.0 Transitional//EN">'),
+        ("<!doctype html>"),
+    ],
+)
+def test_html_doctype(doctype: str):
+    tkzr = iter(tokenize(doctype))
+    tok = next(tkzr, None)
+    assert tok is not None and tok.token_type == TokenType.FILE_TEXT
+    assert next(tkzr, None) is None
+
+
+@pytest.mark.parametrize(
     "codeblock",
     [
         ('<!-- #include virtual ="/myapp/footer.inc" -->'),

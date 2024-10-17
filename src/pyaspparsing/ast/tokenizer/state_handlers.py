@@ -127,9 +127,14 @@ def state_check_delim_start(sargs: StateArgs) -> TokenOpt:
                 )
         elif sargs.cwrap.try_next(next_char="!"):
             # HTML comment
-            sargs.cwrap.assert_next(next_char="-")
-            sargs.cwrap.assert_next(next_char="-")
-            sargs.state_stack.enter_state(TokenizerState.CHECK_HTML_COMMENT)
+            if sargs.cwrap.current_char.casefold() == "d":
+                # <!DOCTYPE ...>
+                sargs.cwrap.advance_pos()
+                sargs.state_stack.enter_state(TokenizerState.CHECK_HTML_DOCTYPE)
+            else:
+                sargs.cwrap.assert_next(next_char="-")
+                sargs.cwrap.assert_next(next_char="-")
+                sargs.state_stack.enter_state(TokenizerState.CHECK_HTML_COMMENT)
         else:
             sargs.state_stack.enter_state(TokenizerState.START_FILE_TEXT_DELAYED)
     else:
@@ -294,11 +299,18 @@ def state_verify_file_text_end(sargs: StateArgs) -> TokenOpt:
     elif sargs.cwrap.try_next(next_char="!"):
         # HTML comment
         sargs.curr_token_gen.send(file_text_end)  # slice_end
-        sargs.cwrap.assert_next(next_char="-")
-        sargs.cwrap.assert_next(next_char="-")
-        sargs.state_stack.enter_multiple(
-            [TokenizerState.END_FILE_TEXT, TokenizerState.CHECK_HTML_COMMENT]
-        )
+        if sargs.cwrap.current_char.casefold() == "d":
+            # <!DOCTYPE ...>
+            sargs.cwrap.advance_pos()
+            sargs.state_stack.enter_multiple(
+                [TokenizerState.END_FILE_TEXT, TokenizerState.CHECK_HTML_DOCTYPE]
+            )
+        else:
+            sargs.cwrap.assert_next(next_char="-")
+            sargs.cwrap.assert_next(next_char="-")
+            sargs.state_stack.enter_multiple(
+                [TokenizerState.END_FILE_TEXT, TokenizerState.CHECK_HTML_COMMENT]
+            )
     else:
         # not a starting delimiter, keep consuming file text
         sargs.state_stack.persist_state()
@@ -363,6 +375,30 @@ def state_check_end_html_comment(sargs: StateArgs) -> TokenOpt:
         else:
             del tok_start
     assert ret_token is not None, "Expected token generator to return a Token"
+    return ret_token
+
+
+@create_tokenizer_state(
+    TokenizerState.CHECK_HTML_DOCTYPE, starts=True, returns=True, cleans=True
+)
+def state_check_html_doctype(sargs: StateArgs) -> TokenOpt:
+    """"""
+    # already consumed '<!D'
+    tok_start = sargs.cwrap.current_idx - 3
+    while not (sargs.cwrap.check_for_end() or sargs.cwrap.current_char == ">"):
+        sargs.cwrap.advance_pos()
+    sargs.cwrap.assert_next(next_char=">")
+
+    ret_token: typing.Optional[Token] = None
+    try:
+        sargs.curr_token_gen.send(tok_start)  # slice_start
+        sargs.curr_token_gen.send(TokenType.FILE_TEXT)  # token_type
+        sargs.curr_token_gen.send(sargs.cwrap.current_idx)  # slice_end
+        sargs.curr_token_gen.send(False)  # debug_info
+    except StopIteration as ex:
+        ret_token = ex.value
+    finally:
+        assert ret_token is not None, "Expected token generator to return a Token"
     return ret_token
 
 

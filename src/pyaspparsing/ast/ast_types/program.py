@@ -38,8 +38,12 @@ class Program(FormatterMixin):
         """
         global_stmts: typing.List[GlobalStmt] = []
 
+        # there may be output text before processing directive
+        if tkzr.try_token_type(TokenType.FILE_TEXT):
+            global_stmts.append(Parser.parse_output_text(tkzr))
+
         # if code has a processing directive,
-        # it must be on the first line
+        # it must be on the first code line
         if tkzr.try_token_type(TokenType.DELIM_START_PROCESSING):
             global_stmts.append(Parser.parse_processing_direc(tkzr))
 

@@ -78,11 +78,15 @@ def token_generator() -> TokenGen:
     )
 
 
-def tokenize(codeblock: str) -> typing.Generator[Token, None, None]:
+def tokenize(
+    codeblock: str, suppress_exc: bool = False, output_file: typing.IO = sys.stdout
+) -> typing.Generator[Token, None, None]:
     """
     Parameters
     ----------
     codeblock : str
+    suppress_exc : bool, default=False
+    output_file : IO, default=sys.stdout
 
     Yields
     ------
@@ -90,7 +94,7 @@ def tokenize(codeblock: str) -> typing.Generator[Token, None, None]:
     """
     state_stack = TokenizerStateStack()
     try:
-        with CodeWrapper(codeblock, False) as cwrap:
+        with CodeWrapper(codeblock, suppress_exc, output_file) as cwrap:
             curr_token_gen: TokenGenOpt = None
 
             # iterate until the stack is empty
@@ -118,6 +122,8 @@ class Tokenizer:
     Attributes
     ----------
     codeblock : str
+    suppress_exc : bool, default=True
+    output_file : IO, default=sys.stdout
 
     Methods
     -------
@@ -151,7 +157,7 @@ class Tokenizer:
 
     def __enter__(self) -> typing.Self:
         """"""
-        self._tok_iter = tokenize(self.codeblock)
+        self._tok_iter = tokenize(self.codeblock, self.suppress_exc, self.output_file)
         # preload first token
         self._pos_tok = next(
             self._tok_iter, None

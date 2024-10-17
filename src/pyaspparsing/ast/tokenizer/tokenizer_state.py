@@ -34,6 +34,7 @@ class TokenizerState(enum.IntEnum):
     # https://learn.microsoft.com/en-us/previous-versions/iis/6.0-sdk/ms524876(v=vs.90)
     CHECK_HTML_COMMENT = enum.auto()
     CHECK_END_HTML_COMMENT = enum.auto()
+    CHECK_HTML_DOCTYPE = enum.auto()  # treat a <!DOCTYPE ...> as FILE_TEXT
     CHECK_INCLUDE_KW = enum.auto()
     RETURN_INCLUDE_KW = enum.auto()
     CANCEL_INCLUDE_KW = enum.auto()
