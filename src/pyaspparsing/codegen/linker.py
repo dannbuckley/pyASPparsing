@@ -3,7 +3,14 @@
 from pathlib import Path
 import typing
 import attrs
-from ..ast.ast_types import Program
+from ..ast.tokenizer.state_machine import Tokenizer
+from ..ast.ast_types import (
+    generate_program,
+    Program,
+    GlobalStmt,
+    IncludeFile,
+    IncludeType,
+)
 from .virtual_dir import VirtualDirectory
 
 
@@ -70,3 +77,34 @@ class Linker:
             root_name in self.virtual_dirs
         ), f"No virtual directory has been registered for the name '{root_name}'"
         return self.virtual_dirs[root_name].request(file_path)
+
+
+def generate_linked_program(
+    tkzr: Tokenizer, lnk: Linker
+) -> typing.Generator[GlobalStmt, None, None]:
+    """Generate a program where the IncludeFile AST types are replaced with
+    the parsed content of the included file
+
+    Parameters
+    ----------
+    tkzr : Tokenizer
+    lnk : Linker
+
+    Yields
+    ------
+    GlobalStmt
+    """
+    for stmt in generate_program(tkzr):
+        # virtual include?
+        if (
+            isinstance(stmt, IncludeFile)
+            and stmt.include_type == IncludeType.INCLUDE_VIRTUAL
+        ):
+            # make path from token source (ignore quotes on ends)
+            inc_path = Path(tkzr.get_token_code(False, tok=stmt.include_path)[1:-1])
+            if (inc_prog := lnk.request(inc_path)) is not None:
+                # replace IncludeFile with parsed include program
+                yield from inc_prog.global_stmt_list
+                continue
+        # otherwise, just yield the statement
+        yield stmt
