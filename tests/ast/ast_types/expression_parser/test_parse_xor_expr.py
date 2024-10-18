@@ -2,7 +2,7 @@ import pytest
 from pyaspparsing.ast.tokenizer.token_types import Token
 from pyaspparsing.ast.tokenizer.state_machine import Tokenizer
 from pyaspparsing.ast.ast_types import *
-from pyaspparsing.ast.ast_types.optimize import FoldedExpr
+from pyaspparsing.ast.ast_types.optimize import FoldableExpr
 from pyaspparsing.ast.ast_types.expression_parser import ExpressionParser
 
 
@@ -82,7 +82,7 @@ def test_parse_xor_expr(exp_code: str, folded: bool, exp_left: Expr, exp_right: 
         tkzr.advance_pos()
         xor_expr: Expr = ExpressionParser.parse_xor_expr(tkzr)
         if folded:
-            assert isinstance(xor_expr, FoldedExpr)
+            assert isinstance(xor_expr, FoldableExpr)
             assert isinstance(xor_expr.wrapped_expr, XorExpr)
             assert xor_expr.wrapped_expr.left == exp_left
             assert xor_expr.wrapped_expr.right == exp_right

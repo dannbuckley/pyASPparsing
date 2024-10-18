@@ -2,7 +2,7 @@ import pytest
 from pyaspparsing.ast.tokenizer.token_types import Token
 from pyaspparsing.ast.tokenizer.state_machine import Tokenizer
 from pyaspparsing.ast.ast_types import *
-from pyaspparsing.ast.ast_types.optimize import FoldedExpr
+from pyaspparsing.ast.ast_types.optimize import FoldableExpr
 from pyaspparsing.ast.ast_types.expression_parser import ExpressionParser
 
 
@@ -26,6 +26,6 @@ def test_parse_not_expr(exp_code: str, folded: bool, exp_term: Expr):
         tkzr.advance_pos()
         not_expr: Expr = ExpressionParser.parse_not_expr(tkzr)
         if folded:
-            assert isinstance(not_expr, FoldedExpr)
+            assert isinstance(not_expr, FoldableExpr)
             assert isinstance(not_expr.wrapped_expr, NotExpr)
             assert not_expr.wrapped_expr.term == exp_term

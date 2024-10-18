@@ -85,7 +85,7 @@ from pyaspparsing.ast.ast_types.expression_parser import ExpressionParser
             # no moves made, constants stay on left
             "1 + 2 + a",
             False,
-            FoldedExpr(
+            FoldableExpr(
                 AddExpr(
                     IntLiteral(Token.int_literal(3, 4)),
                     IntLiteral(Token.int_literal(7, 8)),
@@ -97,7 +97,7 @@ from pyaspparsing.ast.ast_types.expression_parser import ExpressionParser
             # 'a' and '2' swap places
             "1 + a + 2",
             False,
-            FoldedExpr(
+            FoldableExpr(
                 AddExpr(
                     IntLiteral(Token.int_literal(3, 4)),
                     IntLiteral(Token.int_literal(11, 12)),
@@ -109,7 +109,7 @@ from pyaspparsing.ast.ast_types.expression_parser import ExpressionParser
             # 'a' moved to end of expression
             "a + 1 + 2",
             False,
-            FoldedExpr(
+            FoldableExpr(
                 AddExpr(
                     IntLiteral(Token.int_literal(7, 8)),
                     IntLiteral(Token.int_literal(11, 12)),
@@ -124,7 +124,7 @@ def test_parse_add_expr(exp_code: str, folded: bool, exp_left: Expr, exp_right: 
         tkzr.advance_pos()
         add_expr: Expr = ExpressionParser.parse_add_expr(tkzr)
         if folded:
-            assert isinstance(add_expr, FoldedExpr)
+            assert isinstance(add_expr, FoldableExpr)
             assert isinstance(add_expr.wrapped_expr, AddExpr)
             assert add_expr.wrapped_expr.left == exp_left
             assert add_expr.wrapped_expr.right == exp_right

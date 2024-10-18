@@ -11,7 +11,7 @@ from pyaspparsing.ast.ast_types.parser import Parser
         (
             # if statement (BlockStmtList), empty block list
             "If 1 = 1 Then\nEnd If\n",
-            FoldedExpr(
+            FoldableExpr(
                 CompareExpr(
                     IntLiteral(Token.int_literal(5, 6)),
                     IntLiteral(Token.int_literal(9, 10)),
@@ -24,7 +24,7 @@ from pyaspparsing.ast.ast_types.parser import Parser
         (
             # if statement (BlockStmtList), one block statement
             "If 1 = 1 Then\nDim my_var\nEnd If\n",
-            FoldedExpr(
+            FoldableExpr(
                 CompareExpr(
                     IntLiteral(Token.int_literal(5, 6)),
                     IntLiteral(Token.int_literal(9, 10)),
@@ -37,7 +37,7 @@ from pyaspparsing.ast.ast_types.parser import Parser
         (
             # if statement (BlockStmtList), empty elseif (BlockStmtList)
             "If 1 = 2 Then\nElseIf 1 = 1 Then\nEnd If\n",
-            FoldedExpr(
+            FoldableExpr(
                 CompareExpr(
                     IntLiteral(Token.int_literal(5, 6)),
                     IntLiteral(Token.int_literal(9, 10)),
@@ -48,7 +48,7 @@ from pyaspparsing.ast.ast_types.parser import Parser
             [
                 ElseStmt(
                     [],
-                    elif_expr=FoldedExpr(
+                    elif_expr=FoldableExpr(
                         CompareExpr(
                             IntLiteral(Token.int_literal(23, 24)),
                             IntLiteral(Token.int_literal(27, 28)),
@@ -61,7 +61,7 @@ from pyaspparsing.ast.ast_types.parser import Parser
         (
             # if statement (BlockStmtList), elseif with block statement
             "If 1 = 2 Then\nElseIf 1 = 1 Then\nDim my_var\nEnd If\n",
-            FoldedExpr(
+            FoldableExpr(
                 CompareExpr(
                     IntLiteral(Token.int_literal(5, 6)),
                     IntLiteral(Token.int_literal(9, 10)),
@@ -72,7 +72,7 @@ from pyaspparsing.ast.ast_types.parser import Parser
             [
                 ElseStmt(
                     [VarDecl([VarName(ExtendedID(Token.identifier(38, 44)))])],
-                    elif_expr=FoldedExpr(
+                    elif_expr=FoldableExpr(
                         CompareExpr(
                             IntLiteral(Token.int_literal(23, 24)),
                             IntLiteral(Token.int_literal(27, 28)),
@@ -85,7 +85,7 @@ from pyaspparsing.ast.ast_types.parser import Parser
         (
             # if statement (BlockStmtList), elseif with inline statement
             'If 1 = 2 Then\nElseIf 1 = 1 Then Response.Write("Hello, world!")\nEnd If\n',
-            FoldedExpr(
+            FoldableExpr(
                 CompareExpr(
                     IntLiteral(Token.int_literal(5, 6)),
                     IntLiteral(Token.int_literal(9, 10)),
@@ -112,7 +112,7 @@ from pyaspparsing.ast.ast_types.parser import Parser
                             )
                         )
                     ],
-                    elif_expr=FoldedExpr(
+                    elif_expr=FoldableExpr(
                         CompareExpr(
                             IntLiteral(Token.int_literal(23, 24)),
                             IntLiteral(Token.int_literal(27, 28)),
@@ -125,7 +125,7 @@ from pyaspparsing.ast.ast_types.parser import Parser
         (
             # if statement (BlockStmtList), empty else (BlockStmtList)
             "If 1 = 2 Then\nElse\nEnd If\n",
-            FoldedExpr(
+            FoldableExpr(
                 CompareExpr(
                     IntLiteral(Token.int_literal(5, 6)),
                     IntLiteral(Token.int_literal(9, 10)),
@@ -138,7 +138,7 @@ from pyaspparsing.ast.ast_types.parser import Parser
         (
             # if statement (BlockStmtList), else with block statement
             "If 1 = 2 Then\nElse\nDim my_var\nEnd If\n",
-            FoldedExpr(
+            FoldableExpr(
                 CompareExpr(
                     IntLiteral(Token.int_literal(5, 6)),
                     IntLiteral(Token.int_literal(9, 10)),
@@ -156,7 +156,7 @@ from pyaspparsing.ast.ast_types.parser import Parser
         (
             # if statement (BlockStmtList), else with inline statement
             'If 1 = 2 Then\nElse Response.Write("Hello, world!")\nEnd If\n',
-            FoldedExpr(
+            FoldableExpr(
                 CompareExpr(
                     IntLiteral(Token.int_literal(5, 6)),
                     IntLiteral(Token.int_literal(9, 10)),
@@ -190,7 +190,7 @@ from pyaspparsing.ast.ast_types.parser import Parser
         (
             # if statement (InlineStmt), empty until newline
             "If 1 = 1 Then a = 1\n",
-            FoldedExpr(
+            FoldableExpr(
                 CompareExpr(
                     IntLiteral(Token.int_literal(5, 6)),
                     IntLiteral(Token.int_literal(9, 10)),
@@ -208,7 +208,7 @@ from pyaspparsing.ast.ast_types.parser import Parser
         (
             # if statement (InlineStmt), else
             "If 1 = 2 Then a = 1 Else a = 2\n",
-            FoldedExpr(
+            FoldableExpr(
                 CompareExpr(
                     IntLiteral(Token.int_literal(5, 6)),
                     IntLiteral(Token.int_literal(9, 10)),
@@ -236,7 +236,7 @@ from pyaspparsing.ast.ast_types.parser import Parser
         (
             # if statement (InlineStmt), end if
             "If 1 = 1 Then a = 1 End If\n",
-            FoldedExpr(
+            FoldableExpr(
                 CompareExpr(
                     IntLiteral(Token.int_literal(5, 6)),
                     IntLiteral(Token.int_literal(9, 10)),

@@ -2,7 +2,7 @@ import pytest
 from pyaspparsing.ast.tokenizer.token_types import Token
 from pyaspparsing.ast.tokenizer.state_machine import Tokenizer
 from pyaspparsing.ast.ast_types import *
-from pyaspparsing.ast.ast_types.optimize import FoldedExpr
+from pyaspparsing.ast.ast_types.optimize import FoldableExpr
 from pyaspparsing.ast.ast_types.expression_parser import ExpressionParser
 
 
@@ -83,7 +83,7 @@ def test_parse_int_div_expr(
         tkzr.advance_pos()
         int_div_expr: Expr = ExpressionParser.parse_int_div_expr(tkzr)
         if folded:
-            assert isinstance(int_div_expr, FoldedExpr)
+            assert isinstance(int_div_expr, FoldableExpr)
             assert isinstance(int_div_expr.wrapped_expr, IntDivExpr)
             assert int_div_expr.wrapped_expr.left == exp_left
             assert int_div_expr.wrapped_expr.right == exp_right

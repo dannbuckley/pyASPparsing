@@ -102,7 +102,7 @@ from pyaspparsing.ast.ast_types.expression_parser import ExpressionParser
             # no moves made, constants stay on the left
             "1 * 2 * a",
             False,
-            FoldedExpr(
+            FoldableExpr(
                 MultExpr(
                     IntLiteral(Token.int_literal(3, 4)),
                     IntLiteral(Token.int_literal(7, 8)),
@@ -114,7 +114,7 @@ from pyaspparsing.ast.ast_types.expression_parser import ExpressionParser
             # 'a' and '2' swap places
             "1 * a * 2",
             False,
-            FoldedExpr(
+            FoldableExpr(
                 MultExpr(
                     IntLiteral(Token.int_literal(3, 4)),
                     IntLiteral(Token.int_literal(11, 12)),
@@ -126,7 +126,7 @@ from pyaspparsing.ast.ast_types.expression_parser import ExpressionParser
             # 'a' moved to end of expression
             "a * 1 * 2",
             False,
-            FoldedExpr(
+            FoldableExpr(
                 MultExpr(
                     IntLiteral(Token.int_literal(7, 8)),
                     IntLiteral(Token.int_literal(11, 12)),
@@ -141,7 +141,7 @@ def test_parse_mult_expr(exp_code: str, folded: bool, exp_left: Expr, exp_right:
         tkzr.advance_pos()
         mult_expr: Expr = ExpressionParser.parse_mult_expr(tkzr)
         if folded:
-            assert isinstance(mult_expr, FoldedExpr)
+            assert isinstance(mult_expr, FoldableExpr)
             assert isinstance(mult_expr.wrapped_expr, MultExpr)
             assert mult_expr.wrapped_expr.left == exp_left
             assert mult_expr.wrapped_expr.right == exp_right

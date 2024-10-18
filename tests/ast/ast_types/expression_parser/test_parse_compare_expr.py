@@ -2,7 +2,7 @@ import pytest
 from pyaspparsing.ast.tokenizer.token_types import Token
 from pyaspparsing.ast.tokenizer.state_machine import Tokenizer
 from pyaspparsing.ast.ast_types import *
-from pyaspparsing.ast.ast_types.optimize import FoldedExpr
+from pyaspparsing.ast.ast_types.optimize import FoldableExpr
 from pyaspparsing.ast.ast_types.expression_parser import ExpressionParser
 
 
@@ -88,7 +88,7 @@ def test_parse_compare_expr(
         tkzr.advance_pos()
         compare_expr: Expr = ExpressionParser.parse_compare_expr(tkzr)
         if folded:
-            assert isinstance(compare_expr, FoldedExpr)
+            assert isinstance(compare_expr, FoldableExpr)
             assert isinstance(compare_expr.wrapped_expr, CompareExpr)
             assert compare_expr.wrapped_expr.cmp_type == exp_cmp_type
             assert compare_expr.wrapped_expr.left == exp_left

@@ -2,7 +2,7 @@ import pytest
 from pyaspparsing.ast.tokenizer.token_types import Token
 from pyaspparsing.ast.tokenizer.state_machine import Tokenizer
 from pyaspparsing.ast.ast_types import *
-from pyaspparsing.ast.ast_types.optimize import FoldedExpr
+from pyaspparsing.ast.ast_types.optimize import FoldableExpr
 from pyaspparsing.ast.ast_types.expression_parser import ExpressionParser
 
 
@@ -30,7 +30,7 @@ from pyaspparsing.ast.ast_types.expression_parser import ExpressionParser
             'a & "Hello, " & "world!"',
             False,
             LeftExpr(QualifiedID([Token.identifier(3, 4)])),
-            FoldedExpr(
+            FoldableExpr(
                 ConcatExpr(
                     ConstExpr(Token.string_literal(7, 16)),
                     ConstExpr(Token.string_literal(19, 27)),
@@ -41,7 +41,7 @@ from pyaspparsing.ast.ast_types.expression_parser import ExpressionParser
             # strings on left should be folded
             '"Hello, " & "world!" & a',
             False,
-            FoldedExpr(
+            FoldableExpr(
                 ConcatExpr(
                     ConstExpr(Token.string_literal(3, 12)),
                     ConstExpr(Token.string_literal(15, 23)),
@@ -55,7 +55,7 @@ from pyaspparsing.ast.ast_types.expression_parser import ExpressionParser
             False,
             LeftExpr(QualifiedID([Token.identifier(3, 4)])),
             ConcatExpr(
-                FoldedExpr(
+                FoldableExpr(
                     ConcatExpr(
                         ConstExpr(Token.string_literal(7, 16)),
                         ConstExpr(Token.string_literal(19, 27)),
@@ -73,7 +73,7 @@ from pyaspparsing.ast.ast_types.expression_parser import ExpressionParser
                 LeftExpr(QualifiedID([Token.identifier(13, 14)])),
             ),
             ConcatExpr(
-                FoldedExpr(
+                FoldableExpr(
                     ConcatExpr(
                         ConstExpr(Token.string_literal(17, 26)),
                         ConstExpr(Token.string_literal(29, 37)),
@@ -89,7 +89,7 @@ from pyaspparsing.ast.ast_types.expression_parser import ExpressionParser
             ConcatExpr(
                 LeftExpr(QualifiedID([Token.identifier(3, 4)])),
                 ConcatExpr(
-                    FoldedExpr(
+                    FoldableExpr(
                         ConcatExpr(
                             ConstExpr(Token.string_literal(7, 16)),
                             ConstExpr(Token.string_literal(19, 27)),
@@ -109,7 +109,7 @@ def test_parse_concat_expr(
         tkzr.advance_pos()
         concat_expr: Expr = ExpressionParser.parse_concat_expr(tkzr)
         if folded:
-            assert isinstance(concat_expr, FoldedExpr)
+            assert isinstance(concat_expr, FoldableExpr)
             assert isinstance(concat_expr.wrapped_expr, ConcatExpr)
             assert concat_expr.wrapped_expr.left == exp_left
             assert concat_expr.wrapped_expr.right == exp_right

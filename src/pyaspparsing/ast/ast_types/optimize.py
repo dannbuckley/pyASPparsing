@@ -19,7 +19,7 @@ class ExprAnnotation(FormatterMixin, Expr):
 
 
 @attrs.define(repr=False, slots=False)
-class FoldedExpr(ExprAnnotation):
+class FoldableExpr(ExprAnnotation):
     """AST annotation for constant folding
 
     The wrapped_expr is composed entirely of constant terms
@@ -44,7 +44,7 @@ class FoldedExpr(ExprAnnotation):
             is_const = eval_expr is an instance of ConstExpr;
             is_folded = eval_expr is an instance of FoldedExpr
         """
-        is_folded = isinstance(eval_expr, FoldedExpr)
+        is_folded = isinstance(eval_expr, FoldableExpr)
         if isinstance(eval_expr, ExprAnnotation) and not is_folded:
             is_const = isinstance(eval_expr.wrapped_expr, ConstExpr)
         else:
@@ -75,19 +75,19 @@ class FoldedExpr(ExprAnnotation):
         """
         assert issubclass(expr_type, Expr)
         # extract info from expressions
-        left_const, left_folded = FoldedExpr.can_fold(expr_left)
-        right_const, right_folded = FoldedExpr.can_fold(expr_right)
+        left_const, left_folded = FoldableExpr.can_fold(expr_left)
+        right_const, right_folded = FoldableExpr.can_fold(expr_right)
         # fold constant expressions
         if left_const and right_const:
-            return FoldedExpr(expr_type(expr_left, expr_right, *args))
+            return FoldableExpr(expr_type(expr_left, expr_right, *args))
         # unwrap folded child expression and wrap combined expression
         if left_const and right_folded:
-            return FoldedExpr(expr_type(expr_left, expr_right.wrapped_expr, *args))
+            return FoldableExpr(expr_type(expr_left, expr_right.wrapped_expr, *args))
         if left_folded and right_const:
-            return FoldedExpr(expr_type(expr_left.wrapped_expr, expr_right, *args))
+            return FoldableExpr(expr_type(expr_left.wrapped_expr, expr_right, *args))
         # unwrap both child expressions and wrap combined expression
         if left_folded and right_folded:
-            return FoldedExpr(
+            return FoldableExpr(
                 expr_type(expr_left.wrapped_expr, expr_right.wrapped_expr, *args)
             )
         # cannot fold the two expressions
@@ -117,9 +117,9 @@ class AddNegated(ExprAnnotation):
         ----------
         orig_expr : Expr
         """
-        if isinstance(orig_expr, FoldedExpr):
+        if isinstance(orig_expr, FoldableExpr):
             # make sure FoldedExpr annotation is on the outside
-            return FoldedExpr(AddNegated(orig_expr.wrapped_expr))
+            return FoldableExpr(AddNegated(orig_expr.wrapped_expr))
         return AddNegated(orig_expr)
 
 
@@ -146,7 +146,7 @@ class MultReciprocal(ExprAnnotation):
         ----------
         orig_expr : Expr
         """
-        if isinstance(orig_expr, FoldedExpr):
+        if isinstance(orig_expr, FoldableExpr):
             # make sure FoldedExpr annotation is on the outside
-            return FoldedExpr(MultReciprocal(orig_expr.wrapped_expr))
+            return FoldableExpr(MultReciprocal(orig_expr.wrapped_expr))
         return MultReciprocal(orig_expr)

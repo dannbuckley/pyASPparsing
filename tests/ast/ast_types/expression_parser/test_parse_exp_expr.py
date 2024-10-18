@@ -2,7 +2,7 @@ import pytest
 from pyaspparsing.ast.tokenizer.token_types import Token
 from pyaspparsing.ast.tokenizer.state_machine import Tokenizer
 from pyaspparsing.ast.ast_types import *
-from pyaspparsing.ast.ast_types.optimize import FoldedExpr
+from pyaspparsing.ast.ast_types.optimize import FoldableExpr
 from pyaspparsing.ast.ast_types.expression_parser import ExpressionParser
 
 
@@ -62,7 +62,7 @@ from pyaspparsing.ast.ast_types.expression_parser import ExpressionParser
             "a ^ 1 ^ 2",
             False,
             LeftExpr(QualifiedID([Token.identifier(3, 4)])),
-            FoldedExpr(
+            FoldableExpr(
                 ExpExpr(
                     IntLiteral(Token.int_literal(7, 8)),
                     IntLiteral(Token.int_literal(11, 12)),
@@ -93,7 +93,7 @@ from pyaspparsing.ast.ast_types.expression_parser import ExpressionParser
                             IntLiteral(Token.int_literal(19, 20)),
                             ExpExpr(
                                 LeftExpr(QualifiedID([Token.identifier(23, 24)])),
-                                FoldedExpr(
+                                FoldableExpr(
                                     ExpExpr(
                                         IntLiteral(Token.int_literal(27, 28)),
                                         IntLiteral(Token.int_literal(31, 32)),
@@ -112,7 +112,7 @@ def test_parse_exp_expr(exp_code: str, folded: bool, exp_left: Expr, exp_right: 
         tkzr.advance_pos()
         exp_expr: Expr = ExpressionParser.parse_exp_expr(tkzr)
         if folded:
-            assert isinstance(exp_expr, FoldedExpr)
+            assert isinstance(exp_expr, FoldableExpr)
             assert isinstance(exp_expr.wrapped_expr, ExpExpr)
             assert exp_expr.wrapped_expr.left == exp_left
             assert exp_expr.wrapped_expr.right == exp_right

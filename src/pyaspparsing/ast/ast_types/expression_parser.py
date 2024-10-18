@@ -29,7 +29,7 @@ from .expressions import (
     LeftExprTail,
     LeftExpr,
 )
-from .optimize import FoldedExpr, AddNegated, MultReciprocal
+from .optimize import FoldableExpr, AddNegated, MultReciprocal
 
 
 # expressions need to be handled with a class to deal with circular Value and Expr references
@@ -350,7 +350,7 @@ class ExpressionParser:
             expr_left: Expr = expr_queue.pop(0)
             expr_right: Expr = expr_queue.pop(0)
             # new expression becomes left term of next ImpExpr
-            expr_queue.insert(0, FoldedExpr.try_fold(expr_left, expr_right, ImpExpr))
+            expr_queue.insert(0, FoldableExpr.try_fold(expr_left, expr_right, ImpExpr))
         return expr_queue.pop()
 
     @staticmethod
@@ -383,7 +383,7 @@ class ExpressionParser:
             expr_left: Expr = expr_queue.pop(0)
             expr_right: Expr = expr_queue.pop(0)
             # new expression becomes left term of next EqvExpr
-            expr_queue.insert(0, FoldedExpr.try_fold(expr_left, expr_right, EqvExpr))
+            expr_queue.insert(0, FoldableExpr.try_fold(expr_left, expr_right, EqvExpr))
         return expr_queue.pop()
 
     @staticmethod
@@ -414,7 +414,7 @@ class ExpressionParser:
             expr_left: Expr = expr_queue.pop(0)
             expr_right: Expr = expr_queue.pop(0)
             # new expression becomes left term of next XorExpr
-            expr_queue.insert(0, FoldedExpr.try_fold(expr_left, expr_right, XorExpr))
+            expr_queue.insert(0, FoldableExpr.try_fold(expr_left, expr_right, XorExpr))
         return expr_queue.pop()
 
     @staticmethod
@@ -447,7 +447,7 @@ class ExpressionParser:
             expr_left: Expr = expr_queue.pop(0)
             expr_right: Expr = expr_queue.pop(0)
             # new expression becomes left term of next OrExpr
-            expr_queue.insert(0, FoldedExpr.try_fold(expr_left, expr_right, OrExpr))
+            expr_queue.insert(0, FoldableExpr.try_fold(expr_left, expr_right, OrExpr))
         return expr_queue.pop()
 
     @staticmethod
@@ -480,7 +480,7 @@ class ExpressionParser:
             expr_left: Expr = expr_queue.pop(0)
             expr_right: Expr = expr_queue.pop(0)
             # new expression becomes left term of next AndExpr
-            expr_queue.insert(0, FoldedExpr.try_fold(expr_left, expr_right, AndExpr))
+            expr_queue.insert(0, FoldableExpr.try_fold(expr_left, expr_right, AndExpr))
         return expr_queue.pop()
 
     @staticmethod
@@ -507,11 +507,11 @@ class ExpressionParser:
         not_expr = ExpressionParser.parse_compare_expr(tkzr, sub_safe)
         if not_counter % 2 == 0:
             return not_expr
-        can_fold = isinstance(not_expr, (FoldedExpr, ConstExpr))
-        if isinstance(not_expr, FoldedExpr):
+        can_fold = isinstance(not_expr, (FoldableExpr, ConstExpr))
+        if isinstance(not_expr, FoldableExpr):
             not_expr = not_expr.wrapped_expr
         not_expr = NotExpr(not_expr)
-        return FoldedExpr(not_expr) if can_fold else not_expr
+        return FoldableExpr(not_expr) if can_fold else not_expr
 
     @staticmethod
     def parse_compare_expr(tkzr: Tokenizer, sub_safe: bool = False) -> Expr:
@@ -582,7 +582,7 @@ class ExpressionParser:
             # new expression becomes left term of next CompareExpr
             expr_queue.insert(
                 0,
-                FoldedExpr.try_fold(
+                FoldableExpr.try_fold(
                     expr_left, expr_right, CompareExpr, cmp_queue.pop(0)
                 ),
             )
@@ -609,19 +609,19 @@ class ExpressionParser:
         # more than one term?
         while tkzr.try_consume(TokenType.SYMBOL, "&"):
             if isinstance(concat_expr, ConcatExpr) and any(
-                FoldedExpr.can_fold(concat_expr.right)
+                FoldableExpr.can_fold(concat_expr.right)
             ):
                 concat_expr = ConcatExpr(
                     concat_expr.left,
                     # fold adjacent strings
-                    FoldedExpr.try_fold(
+                    FoldableExpr.try_fold(
                         concat_expr.right,
                         ExpressionParser.parse_add_expr(tkzr, sub_safe),
                         ConcatExpr,
                     ),
                 )
             else:
-                concat_expr = FoldedExpr.try_fold(
+                concat_expr = FoldableExpr.try_fold(
                     concat_expr,
                     ExpressionParser.parse_add_expr(tkzr, sub_safe),
                     ConcatExpr,
@@ -662,12 +662,12 @@ class ExpressionParser:
                 # represent subtraction as addition of negative values
                 # this makes it easier to move terms around
                 mod_expr = AddNegated.wrap(mod_expr)
-            if any(FoldedExpr.can_fold(mod_expr)):
+            if any(FoldableExpr.can_fold(mod_expr)):
                 # new expression can be evaluated immediately
                 imm_expr = (
                     mod_expr
                     if imm_expr is None
-                    else FoldedExpr.try_fold(imm_expr, mod_expr, AddExpr)
+                    else FoldableExpr.try_fold(imm_expr, mod_expr, AddExpr)
                 )
             else:
                 # evaluation of new expression must be deferred
@@ -722,7 +722,7 @@ class ExpressionParser:
             expr_left: Expr = expr_queue.pop(0)
             expr_right: Expr = expr_queue.pop(0)
             # new expression becomes left term of next ModExpr
-            expr_queue.insert(0, FoldedExpr.try_fold(expr_left, expr_right, ModExpr))
+            expr_queue.insert(0, FoldableExpr.try_fold(expr_left, expr_right, ModExpr))
         return expr_queue.pop()
 
     @staticmethod
@@ -755,7 +755,7 @@ class ExpressionParser:
             expr_left: Expr = expr_queue.pop(0)
             expr_right: Expr = expr_queue.pop(0)
             # new expression becomes left term of next IntDivExpr
-            expr_queue.insert(0, FoldedExpr.try_fold(expr_left, expr_right, IntDivExpr))
+            expr_queue.insert(0, FoldableExpr.try_fold(expr_left, expr_right, IntDivExpr))
         return expr_queue.pop()
 
     @staticmethod
@@ -792,12 +792,12 @@ class ExpressionParser:
                 # represent division as multiplication of reciprocal values
                 # this makes it easier to move terms around
                 unary_expr = MultReciprocal.wrap(unary_expr)
-            if any(FoldedExpr.can_fold(unary_expr)):
+            if any(FoldableExpr.can_fold(unary_expr)):
                 # new expression can be evaluated immediately
                 imm_expr = (
                     unary_expr
                     if imm_expr is None
-                    else FoldedExpr.try_fold(imm_expr, unary_expr, MultExpr)
+                    else FoldableExpr.try_fold(imm_expr, unary_expr, MultExpr)
                 )
             else:
                 # evaluation of new expression must be deferred
@@ -849,14 +849,14 @@ class ExpressionParser:
         # combine signs into one expression
         ret_expr: Expr = ExpressionParser.parse_exp_expr(tkzr, sub_safe)
         can_fold = (
-            isinstance(ret_expr, FoldedExpr) or isinstance(ret_expr, ConstExpr)
+            isinstance(ret_expr, FoldableExpr) or isinstance(ret_expr, ConstExpr)
         ) and len(sign_stack) > 0
-        if isinstance(ret_expr, FoldedExpr) and len(sign_stack) > 0:
+        if isinstance(ret_expr, FoldableExpr) and len(sign_stack) > 0:
             # unwrap before processing sign stack
             ret_expr = ret_expr.wrapped_expr
         while len(sign_stack) > 0:
             ret_expr = UnaryExpr(sign_stack.pop(), ret_expr)
-        return FoldedExpr(ret_expr) if can_fold else ret_expr
+        return FoldableExpr(ret_expr) if can_fold else ret_expr
 
     @staticmethod
     def parse_exp_expr(tkzr: Tokenizer, sub_safe: bool = False) -> Expr:
@@ -886,5 +886,5 @@ class ExpressionParser:
             expr_right: Expr = expr_stack.pop()
             expr_left: Expr = expr_stack.pop()
             # new expression becomes right term of next ExpExpr
-            expr_stack.append(FoldedExpr.try_fold(expr_left, expr_right, ExpExpr))
+            expr_stack.append(FoldableExpr.try_fold(expr_left, expr_right, ExpExpr))
         return expr_stack.pop()
