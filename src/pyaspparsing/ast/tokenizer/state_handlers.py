@@ -97,7 +97,7 @@ def create_tokenizer_state(
 
 @create_tokenizer_state(TokenizerState.CHECK_DELIM_START)
 def state_check_delim_start(sargs: StateArgs) -> TokenOpt:
-    """"""
+    """Handler for CHECK_DELIM_START tokenizer state"""
     # ASP starting delimiter
     if sargs.cwrap.try_next(next_char="<"):
         if sargs.cwrap.try_next(next_char="%"):
@@ -143,7 +143,7 @@ def state_check_delim_start(sargs: StateArgs) -> TokenOpt:
 
 @create_tokenizer_state(TokenizerState.CHECK_DELIM_END)
 def state_check_delim_end(sargs: StateArgs) -> TokenOpt:
-    """"""
+    """Handler for CHECK_DELIM_END tokenizer state"""
     if sargs.cwrap.try_next(next_char="%"):
         if sargs.cwrap.try_next(next_char=">"):
             sargs.state_stack.enter_state(TokenizerState.CONSTRUCT_DELIM_END)
@@ -159,8 +159,15 @@ def state_check_delim_end(sargs: StateArgs) -> TokenOpt:
     TokenizerState.RETURN_PERC_SYMBOL, starts=True, returns=True, cleans=True
 )
 def state_return_perc_symbol(sargs: StateArgs) -> TokenOpt:
-    """Found a '%' symbol during CHECK_DELIM_END,
-    but it did not belong to an ending delimiter"""
+    """Handler for RETURN_PERC_SYMBOL tokenizer state
+
+    Found a '%' symbol during CHECK_DELIM_END,
+    but it did not belong to an ending delimiter
+
+    Returns
+    -------
+    Token
+    """
     ret_token: typing.Optional[Token] = None
     try:
         sargs.curr_token_gen.send(sargs.cwrap.current_idx - 1)  # slice_start
@@ -177,7 +184,7 @@ def state_return_perc_symbol(sargs: StateArgs) -> TokenOpt:
 
 @create_tokenizer_state(TokenizerState.CONSTRUCT_DELIM_SCRIPT, starts=True)
 def state_construct_delim_script(sargs: StateArgs) -> TokenOpt:
-    """"""
+    """Handler for CONSTRUCT_DELIM_SCRIPT tokenizer state"""
     # script delimiter is '<%', doesn't require whitespace
     sargs.cwrap.update_line_code_start()
     sargs.curr_token_gen.send(sargs.cwrap.current_idx - 2)  # slice_start
@@ -187,7 +194,7 @@ def state_construct_delim_script(sargs: StateArgs) -> TokenOpt:
 
 @create_tokenizer_state(TokenizerState.CONSTRUCT_DELIM_PROCESSING, starts=True)
 def state_construct_delim_processing(sargs: StateArgs) -> TokenOpt:
-    """"""
+    """Handler for CONSTRUCT_DELIM_PROCESSING tokenizer state"""
     # processing delimiter is '<%@ ', requires whitespace
     sargs.curr_token_gen.send(sargs.cwrap.current_idx - 4)  # slice_start
     sargs.curr_token_gen.send(TokenType.DELIM_START_PROCESSING)  # token_type
@@ -196,7 +203,7 @@ def state_construct_delim_processing(sargs: StateArgs) -> TokenOpt:
 
 @create_tokenizer_state(TokenizerState.CONSTRUCT_DELIM_OUTPUT, starts=True)
 def state_construct_delim_output(sargs: StateArgs) -> TokenOpt:
-    """"""
+    """Handler for CONSTRUCT_DELIM_OUTPUT tokenizer state"""
     # output delimiter is '<%=', doesn't require whitespace
     sargs.curr_token_gen.send(sargs.cwrap.current_idx - 3)  # slice_start
     sargs.curr_token_gen.send(TokenType.DELIM_START_OUTPUT)  # token_type
@@ -205,7 +212,7 @@ def state_construct_delim_output(sargs: StateArgs) -> TokenOpt:
 
 @create_tokenizer_state(TokenizerState.CONSTRUCT_DELIM_END, starts=True)
 def state_construct_delim_end(sargs: StateArgs) -> TokenOpt:
-    """"""
+    """Handler for CONSTRUCT_DELIM_END tokenizer state"""
     # end delimiter is '%>'
     sargs.curr_token_gen.send(sargs.cwrap.current_idx - 2)  # slice_start
     sargs.curr_token_gen.send(TokenType.DELIM_END)  # token_type
@@ -214,7 +221,12 @@ def state_construct_delim_end(sargs: StateArgs) -> TokenOpt:
 
 @create_tokenizer_state(TokenizerState.END_DELIM, returns=True, cleans=True)
 def state_end_delim(sargs: StateArgs) -> TokenOpt:
-    """"""
+    """Handler for END_DELIM tokenizer state
+
+    Returns
+    -------
+    Token
+    """
     ret_token: typing.Optional[Token] = None
     try:
         sargs.curr_token_gen.send(sargs.cwrap.current_idx)  # slice_end
@@ -228,7 +240,7 @@ def state_end_delim(sargs: StateArgs) -> TokenOpt:
 
 @create_tokenizer_state(TokenizerState.START_FILE_TEXT, starts=True)
 def state_start_file_text(sargs: StateArgs) -> TokenOpt:
-    """"""
+    """Handler for START_FILE_TEXT tokenizer state"""
     sargs.curr_token_gen.send(sargs.cwrap.current_idx)  # slice_start
     sargs.curr_token_gen.send(TokenType.FILE_TEXT)  # token_type
     sargs.state_stack.enter_multiple(
@@ -238,7 +250,7 @@ def state_start_file_text(sargs: StateArgs) -> TokenOpt:
 
 @create_tokenizer_state(TokenizerState.START_FILE_TEXT_DELAYED, starts=True)
 def state_start_file_text_delayed(sargs: StateArgs) -> TokenOpt:
-    """"""
+    """Handler for START_FILE_TEXT_DELAYED tokenizer state"""
     # previous character was consumed when checking for a delimiter
     sargs.curr_token_gen.send(sargs.cwrap.current_idx - 1)  # slice_start
     sargs.curr_token_gen.send(TokenType.FILE_TEXT)  # token_type
@@ -249,14 +261,14 @@ def state_start_file_text_delayed(sargs: StateArgs) -> TokenOpt:
 
 @create_tokenizer_state(TokenizerState.CONSUME_FILE_TEXT)
 def state_consume_file_text(sargs: StateArgs) -> TokenOpt:
-    """"""
+    """Handler for CONSUME_FILE_TEXT tokenizer state"""
     while not sargs.cwrap.check_for_end() and sargs.cwrap.current_char != "<":
         sargs.cwrap.advance_pos()
 
 
 @create_tokenizer_state(TokenizerState.VERIFY_FILE_TEXT_END)
 def state_verify_file_text_end(sargs: StateArgs) -> TokenOpt:
-    """"""
+    """Handler for VERIFY_FILE_TEXT_END tokenizer state"""
     # reached end of codeblock?
     file_text_end = sargs.cwrap.current_idx
     if sargs.cwrap.check_for_end():
@@ -319,7 +331,12 @@ def state_verify_file_text_end(sargs: StateArgs) -> TokenOpt:
 
 @create_tokenizer_state(TokenizerState.END_FILE_TEXT, returns=True, cleans=True)
 def state_end_file_text(sargs: StateArgs) -> TokenOpt:
-    """"""
+    """Handler for END_FILE_TEXT tokenizer state
+
+    Returns
+    -------
+    Token
+    """
     ret_token: typing.Optional[Token] = None
     try:
         sargs.curr_token_gen.send(False)  # debug_info
@@ -334,7 +351,12 @@ def state_end_file_text(sargs: StateArgs) -> TokenOpt:
     TokenizerState.CHECK_HTML_COMMENT, starts=True, returns=True, cleans=True
 )
 def state_check_html_comment(sargs: StateArgs) -> TokenOpt:
-    """"""
+    """Handler for CHECK_HTML_COMMENT tokenizer state
+
+    Returns
+    -------
+    Token
+    """
     ret_token: typing.Optional[Token] = None
     try:
         sargs.curr_token_gen.send(sargs.cwrap.current_idx - 4)  # slice_start
@@ -353,7 +375,12 @@ def state_check_html_comment(sargs: StateArgs) -> TokenOpt:
     TokenizerState.CHECK_END_HTML_COMMENT, starts=True, returns=True, cleans=True
 )
 def state_check_end_html_comment(sargs: StateArgs) -> TokenOpt:
-    """"""
+    """Handler for CHECK_END_HTML_COMMENT tokenizer state
+
+    Returns
+    -------
+    Token
+    """
     ret_token: typing.Optional[Token] = None
     while not sargs.cwrap.check_for_end():
         while sargs.cwrap.current_char != "-":
@@ -382,7 +409,12 @@ def state_check_end_html_comment(sargs: StateArgs) -> TokenOpt:
     TokenizerState.CHECK_HTML_DOCTYPE, starts=True, returns=True, cleans=True
 )
 def state_check_html_doctype(sargs: StateArgs) -> TokenOpt:
-    """"""
+    """Handler for CHECK_HTML_DOCTYPE tokenizer state
+
+    Returns
+    -------
+    Token
+    """
     # already consumed '<!D'
     tok_start = sargs.cwrap.current_idx - 3
     while not (sargs.cwrap.check_for_end() or sargs.cwrap.current_char == ">"):
@@ -404,7 +436,7 @@ def state_check_html_doctype(sargs: StateArgs) -> TokenOpt:
 
 @create_tokenizer_state(TokenizerState.CHECK_INCLUDE_KW, starts=True)
 def state_check_include_kw(sargs: StateArgs) -> TokenOpt:
-    """"""
+    """Handler for CHECK_INCLUDE_KW tokenizer state"""
     sargs.state_stack.enter_state(TokenizerState.CHECK_END_HTML_COMMENT)
     while not sargs.cwrap.check_for_end() and sargs.cwrap.validate_type(
         CharacterType.WS
@@ -432,7 +464,12 @@ def state_check_include_kw(sargs: StateArgs) -> TokenOpt:
 
 @create_tokenizer_state(TokenizerState.RETURN_INCLUDE_KW, returns=True)
 def state_return_include_kw(sargs: StateArgs) -> TokenOpt:
-    """"""
+    """Handler for RETURN_INCLUDE_KW tokenizer state
+
+    Returns
+    -------
+    Token
+    """
     ret_token: typing.Optional[Token] = None
     try:
         sargs.curr_token_gen.send(False)  # debug_info
@@ -446,7 +483,7 @@ def state_return_include_kw(sargs: StateArgs) -> TokenOpt:
 
 @create_tokenizer_state(TokenizerState.CANCEL_INCLUDE_KW, cleans=True)
 def state_cancel_include_kw(sargs: StateArgs) -> TokenOpt:
-    """"""
+    """Handler for CANCEL_INCLUDE_KW tokenizer state"""
     sargs.curr_token_gen.close()
 
 
@@ -454,7 +491,12 @@ def state_cancel_include_kw(sargs: StateArgs) -> TokenOpt:
     TokenizerState.CHECK_INCLUDE_TYPE, starts=True, returns=True, cleans=True
 )
 def state_check_include_type(sargs: StateArgs) -> TokenOpt:
-    """"""
+    """Handler for CHECK_INCLUDE_TYPE tokenizer state
+
+    Returns
+    -------
+    Token
+    """
     while not sargs.cwrap.check_for_end() and sargs.cwrap.validate_type(
         CharacterType.WS
     ):
@@ -486,7 +528,12 @@ def state_check_include_type(sargs: StateArgs) -> TokenOpt:
     TokenizerState.RETURN_EQ_SYMBOL, starts=True, returns=True, cleans=True
 )
 def state_return_eq_symbol(sargs: StateArgs) -> TokenOpt:
-    """"""
+    """Handler for RETURN_EQ_SYMBOL tokenizer state
+
+    Returns
+    -------
+    Token
+    """
     while not sargs.cwrap.check_for_end() and sargs.cwrap.validate_type(
         CharacterType.WS
     ):
@@ -512,7 +559,12 @@ def state_return_eq_symbol(sargs: StateArgs) -> TokenOpt:
     TokenizerState.CHECK_INCLUDE_PATH, starts=True, returns=True, cleans=True
 )
 def state_check_include_path(sargs: StateArgs) -> TokenOpt:
-    """"""
+    """Handler for CHECK_INCLUDE_PATH tokenizer state
+
+    Returns
+    -------
+    Token
+    """
     while not sargs.cwrap.check_for_end() and sargs.cwrap.validate_type(
         CharacterType.WS
     ):
@@ -647,7 +699,10 @@ def state_skip_quote_comment(sargs: StateArgs) -> TokenOpt:
 
 @create_tokenizer_state(TokenizerState.SKIP_REM_COMMENT)
 def state_skip_rem_comment(sargs: StateArgs) -> TokenOpt:
-    """"""
+    """Handler for SKIP_REM_COMMENT tokenizer state
+
+    Consume the body of a 'Rem' comment
+    """
     # does this comment take up the whole line?
     comment_starts_line = (
         sargs.cwrap.current_idx - sargs.cwrap.line_code_start - 3
