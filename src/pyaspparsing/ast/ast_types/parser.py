@@ -12,9 +12,6 @@ from .special import *
 from .expression_parser import ExpressionParser
 
 
-__all__ = ["Parser"]
-
-
 class Parser:
     """"""
 
@@ -266,7 +263,9 @@ class Parser:
         terminal_code: typing.Optional[str] = None,
         terminal_casefold: bool = True,
         *,
-        terminal_pairs: typing.List[typing.Tuple[TokenType, typing.Optional[str]]] = [],
+        terminal_pairs: typing.Optional[
+            typing.List[typing.Tuple[TokenType, typing.Optional[str]]]
+        ] = None,
     ) -> InlineStmt:
         """If inline statement is a subcall statement, uses the given terminal token type
         to determine the where the statement ends

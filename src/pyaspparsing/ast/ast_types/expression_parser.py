@@ -5,19 +5,61 @@ from ... import ParserError
 from ..tokenizer.token_types import Token, TokenType
 from ..tokenizer.state_machine import Tokenizer
 from .base import Expr, CompareExprType
-from .expressions import *
+from .expressions import (
+    ImpExpr,
+    EqvExpr,
+    XorExpr,
+    OrExpr,
+    AndExpr,
+    NotExpr,
+    CompareExpr,
+    ConcatExpr,
+    AddExpr,
+    ModExpr,
+    IntDivExpr,
+    MultExpr,
+    UnaryExpr,
+    ExpExpr,
+    ConstExpr,
+    BoolLiteral,
+    IntLiteral,
+    Nothing,
+    QualifiedID,
+    IndexOrParams,
+    LeftExprTail,
+    LeftExpr,
+)
 from .optimize import FoldedExpr, AddNegated, MultReciprocal
-
-__all__ = ["ExpressionParser"]
 
 
 # expressions need to be handled with a class to deal with circular Value and Expr references
 class ExpressionParser:
-    """Collection of static expression parser functions"""
+    """Collection of static expression parser functions
+
+    Expression parsing should start with a call to parse_expr()
+    """
+
+    @staticmethod
+    def parse_expr(tkzr: Tokenizer, sub_safe: bool = False) -> Expr:
+        """The entry point for expression parsing
+
+        Parameters
+        ----------
+        tkzr : Tokenizer
+        sub_safe : bool, default=False
+
+        Returns
+        -------
+        Expr
+        """
+        return ExpressionParser.parse_imp_expr(tkzr, sub_safe)
 
     @staticmethod
     def parse_value(tkzr: Tokenizer, sub_safe: bool = False) -> Expr:
-        """
+        """NOT CALLED DIRECTLY
+
+        Parse value expression
+
         Parameters
         ----------
         tkzr : Tokenizer
@@ -61,7 +103,10 @@ class ExpressionParser:
 
     @staticmethod
     def parse_const_expr(tkzr: Tokenizer) -> ConstExpr:
-        """
+        """NOT CALLED DIRECTLY
+
+        Parse constant expression
+
         Parameters
         ----------
         tkzr : Tokenizer
@@ -97,7 +142,10 @@ class ExpressionParser:
 
     @staticmethod
     def parse_qualified_id_tail(tkzr: Tokenizer) -> Token:
-        """
+        """NOT CALLED DIRECTLY
+
+        Parse a tail token for a qualified identifier
+
         Parameters
         ----------
         tkzr : Tokenizer
@@ -125,7 +173,10 @@ class ExpressionParser:
 
     @staticmethod
     def parse_qualified_id(tkzr: Tokenizer) -> QualifiedID:
-        """
+        """NOT CALLED DIRECTLY
+
+        Parse a qualified identifier
+
         Parameters
         ----------
         tkzr : Tokenizer
@@ -161,7 +212,10 @@ class ExpressionParser:
 
     @staticmethod
     def parse_left_expr_tail(tkzr: Tokenizer) -> LeftExprTail:
-        """
+        """NOT CALLED DIRECTLY
+
+        Parse the tail of a left expression
+
         Parameters
         ----------
         tkzr : Tokenizer
@@ -206,7 +260,10 @@ class ExpressionParser:
 
     @staticmethod
     def parse_left_expr(tkzr: Tokenizer) -> LeftExpr:
-        """
+        """NOT CALLED DIRECTLY
+
+        Parse a left expression
+
         Parameters
         ----------
         tkzr : Tokenizer
@@ -264,22 +321,11 @@ class ExpressionParser:
         return LeftExpr(qual_id, index_or_params, left_expr_tail)
 
     @staticmethod
-    def parse_expr(tkzr: Tokenizer, sub_safe: bool = False) -> Expr:
-        """
-        Parameters
-        ----------
-        tkzr : Tokenizer
-        sub_safe : bool, default=False
-
-        Returns
-        -------
-        Expr
-        """
-        return ExpressionParser.parse_imp_expr(tkzr, sub_safe)
-
-    @staticmethod
     def parse_imp_expr(tkzr: Tokenizer, sub_safe: bool = False) -> Expr:
-        """
+        """NOT CALLED DIRECTLY
+
+        Parse an implication expression
+
         Parameters
         ----------
         tkzr : Tokenizer
@@ -309,7 +355,10 @@ class ExpressionParser:
 
     @staticmethod
     def parse_eqv_expr(tkzr: Tokenizer, sub_safe: bool = False) -> Expr:
-        """
+        """NOT CALLED DIRECTLY
+
+        Parse an equivalence expression
+
         Parameters
         ----------
         tkzr : Tokenizer
@@ -339,7 +388,10 @@ class ExpressionParser:
 
     @staticmethod
     def parse_xor_expr(tkzr: Tokenizer, sub_safe: bool = False) -> Expr:
-        """
+        """NOT CALLED DIRECTLY
+
+        Parse an exclusive disjunction (Xor) expression
+
         Parameters
         ----------
         tkzr : Tokenizer
@@ -367,7 +419,10 @@ class ExpressionParser:
 
     @staticmethod
     def parse_or_expr(tkzr: Tokenizer, sub_safe: bool = False) -> Expr:
-        """
+        """NOT CALLED DIRECTLY
+
+        Parse an inclusive disjunction (Or) expression
+
         Parameters
         ----------
         tkzr : Tokenizer
@@ -397,7 +452,10 @@ class ExpressionParser:
 
     @staticmethod
     def parse_and_expr(tkzr: Tokenizer, sub_safe: bool = False) -> Expr:
-        """
+        """NOT CALLED DIRECTLY
+
+        Parse a conjunction (And) expression
+
         Parameters
         ----------
         tkzr : Tokenizer
@@ -427,7 +485,10 @@ class ExpressionParser:
 
     @staticmethod
     def parse_not_expr(tkzr: Tokenizer, sub_safe: bool = False) -> Expr:
-        """
+        """NOT CALLED DIRECTLY
+
+        Parse a complement (Not) expression
+
         Parameters
         ----------
         tkzr : Tokenizer
@@ -454,7 +515,10 @@ class ExpressionParser:
 
     @staticmethod
     def parse_compare_expr(tkzr: Tokenizer, sub_safe: bool = False) -> Expr:
-        """
+        """NOT CALLED DIRECTLY
+
+        Parse a comparison expression
+
         Parameters
         ----------
         tkzr : Tokenizer
@@ -526,7 +590,9 @@ class ExpressionParser:
 
     @staticmethod
     def parse_concat_expr(tkzr: Tokenizer, sub_safe: bool = False) -> Expr:
-        """Parse string concatenation expression
+        """NOT CALLED DIRECTLY
+
+        Parse a string concatenation (&) expression
 
         Parameters
         ----------
@@ -564,7 +630,10 @@ class ExpressionParser:
 
     @staticmethod
     def parse_add_expr(tkzr: Tokenizer, sub_safe: bool = False) -> Expr:
-        """
+        """NOT CALLED DIRECTLY
+
+        Parse an addition/subtraction expression
+
         Parameters
         ----------
         tkzr : Tokenizer
@@ -625,7 +694,10 @@ class ExpressionParser:
 
     @staticmethod
     def parse_mod_expr(tkzr: Tokenizer, sub_safe: bool = False) -> Expr:
-        """
+        """NOT CALLED DIRECTLY
+
+        Parse a modulo (Mod) expression
+
         Parameters
         ----------
         tkzr : Tokenizer
@@ -655,7 +727,10 @@ class ExpressionParser:
 
     @staticmethod
     def parse_int_div_expr(tkzr: Tokenizer, sub_safe: bool = False) -> Expr:
-        """
+        """NOT CALLED DIRECTLY
+
+        Parse an integer division (&#92;) expression
+
         Parameters
         ----------
         tkzr : Tokenizer
@@ -685,7 +760,10 @@ class ExpressionParser:
 
     @staticmethod
     def parse_mult_expr(tkzr: Tokenizer, sub_safe: bool = False) -> Expr:
-        """
+        """NOT CALLED DIRECTLY
+
+        Parse a multiplication/division expression
+
         Parameters
         ----------
         tkzr : Tokenizer
@@ -748,7 +826,10 @@ class ExpressionParser:
 
     @staticmethod
     def parse_unary_expr(tkzr: Tokenizer, sub_safe: bool = False) -> Expr:
-        """
+        """NOT CALLED DIRECTLY
+
+        Parse a unary signed expression
+
         Parameters
         ----------
         tkzr : Tokenizer
@@ -779,7 +860,10 @@ class ExpressionParser:
 
     @staticmethod
     def parse_exp_expr(tkzr: Tokenizer, sub_safe: bool = False) -> Expr:
-        """
+        """NOT CALLED DIRECTLY
+
+        Parse an exponentiation (^) expression
+
         Parameters
         ----------
         tkzr : Tokenizer

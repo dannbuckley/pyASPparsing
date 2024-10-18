@@ -20,32 +20,30 @@ from .statements import ExtendedID
 from .expressions import UnaryExpr
 from .expression_parser import ExpressionParser
 
-__all__ = [
-    "ClassDecl",
-    "FieldID",
-    "FieldName",
-    "VarName",
-    "FieldDecl",
-    "VarDecl",
-    "ConstListItem",
-    "ConstDecl",
-    "Arg",
-    "SubDecl",
-    "FunctionDecl",
-    "PropertyDecl",
-]
-
 
 @attrs.define(repr=False, slots=False)
 class FieldID(FormatterMixin):
-    """Defined on grammar line 291"""
+    """Defined on grammar line 291
+
+    Attributes
+    ----------
+    id_token : Token
+    """
 
     id_token: Token
 
 
 @attrs.define(repr=False, slots=False)
 class FieldName(FormatterMixin):
-    """Defined on grammar line 288"""
+    """Field name AST type
+
+    Defined on grammar line 288
+
+    Attributes
+    ----------
+    field_id : FieldID
+    array_rank_list : List[Token], default=[]
+    """
 
     field_id: FieldID
     array_rank_list: typing.List[Token] = attrs.field(default=attrs.Factory(list))
@@ -53,13 +51,20 @@ class FieldName(FormatterMixin):
 
 @attrs.define(repr=False, slots=False)
 class VarName(FormatterMixin):
-    """Defined on grammar line 300
+    """Variable name AST type
+
+    Defined on grammar line 300
 
     &lt;ExtendedID&gt; [ '(' &lt;ArrayRankList&gt; ')']
 
     Where &lt;ArrayRankList&gt; is defined as (line 306):
 
     [ &lt;IntLiteral&gt; [ ',' &lt;ArrayRankList&gt; ] ]
+
+    Attributes
+    ----------
+    extended_id : ExtendedID
+    array_rank_list : List[Token], default=[]
     """
 
     extended_id: ExtendedID
@@ -68,9 +73,21 @@ class VarName(FormatterMixin):
 
 @attrs.define(repr=False, slots=False)
 class FieldDecl(FormatterMixin, GlobalStmt, MemberDecl):
-    """Defined on grammar line 285
+    """Field declaration AST type
+
+    Defined on grammar line 285
 
     { 'Private' | 'Public' } &lt;FieldName&gt; &lt;OtherVarsOpt&gt; &lt;NEWLINE&gt;
+
+    Attributes
+    ----------
+    field_name : FieldName
+    other_vars : List[VarName], default=[]
+    access_mod : AccessModifierType | None, default=None
+
+    Methods
+    -------
+    from_tokenizer(tkzr, access_mod)
     """
 
     field_name: FieldName
@@ -201,9 +218,19 @@ class FieldDecl(FormatterMixin, GlobalStmt, MemberDecl):
 
 @attrs.define(repr=False, slots=False)
 class VarDecl(FormatterMixin, MemberDecl, BlockStmt):
-    """Defined on grammar line 298
+    """Variable declaration AST type
+
+    Defined on grammar line 298
 
     'Dim' &lt;VarName&gt; &lt;OtherVarsOpt&gt; &lt;NEWLINE&gt;
+
+    Attributes
+    ----------
+    var_name : List[VarName], default=[]
+
+    Methods
+    -------
+    from_tokenizer(tkzr)
     """
 
     var_name: typing.List[VarName] = attrs.field(default=attrs.Factory(list))
@@ -281,7 +308,15 @@ class VarDecl(FormatterMixin, MemberDecl, BlockStmt):
 
 @attrs.define(repr=False, slots=False)
 class ConstListItem(FormatterMixin):
-    """Defined on grammar line 312"""
+    """List item within a constant declaration
+
+    Defined on grammar line 312
+
+    Attributes
+    ----------
+    extended_id : ExtendedID
+    const_expr : Expr
+    """
 
     extended_id: ExtendedID
     # similar to a UnaryExpr
@@ -295,9 +330,20 @@ class ConstListItem(FormatterMixin):
 
 @attrs.define(repr=False, slots=False)
 class ConstDecl(FormatterMixin, GlobalStmt, MethodStmt, MemberDecl):
-    """Defined on grammar line 310
+    """Constant declaration AST type
+
+    Defined on grammar line 310
 
     [ 'Public' | 'Private' ] 'Const' &lt;ConstList&gt; &lt;NEWLINE&gt;
+
+    Attributes
+    ----------
+    const_list : List[ConstListItem], default=[]
+    access_mod : AccessModifierType | None, default=None
+
+    Methods
+    -------
+    from_tokenizer(tkzr, access_mod=None)
     """
 
     const_list: typing.List[ConstListItem] = attrs.field(default=attrs.Factory(list))
@@ -383,7 +429,16 @@ class ConstDecl(FormatterMixin, GlobalStmt, MethodStmt, MemberDecl):
 
 @attrs.define(repr=False, slots=False)
 class Arg(FormatterMixin):
-    """Defined on grammar line 340"""
+    """Argument AST type
+
+    Defined on grammar line 340
+
+    Attributes
+    ----------
+    extended_id : ExtendedID
+    arg_modifier : Token | None, default=None
+    has_paren : bool, default=False
+    """
 
     extended_id: ExtendedID
     arg_modifier: typing.Optional[Token] = attrs.field(default=None, kw_only=True)
@@ -392,11 +447,20 @@ class Arg(FormatterMixin):
 
 @attrs.define(repr=False, slots=False)
 class SubDecl(FormatterMixin, GlobalStmt, MemberDecl):
-    """Defined on grammar line 320
+    """Sub-procedure declaration AST type
+
+    Defined on grammar line 320
 
     { 'Public' 'Default' | [ 'Public' | 'Private' ] } <br />
     'Sub' &lt;ExtendedID&gt; &lt;MethodArgList&gt; &lt;NEWLINE&gt; <br />
     &lt;MethodStmtList&gt; 'End' 'Sub' &lt;NEWLINE&gt;
+
+    Attributes
+    ----------
+    extended_id : ExtendedID
+    method_arg_list : List[Arg], default=[]
+    method_stmt_list : List[MethodStmt], default=[]
+    access_mod : AccessModifierType | None, default=None
     """
 
     extended_id: ExtendedID
@@ -409,11 +473,20 @@ class SubDecl(FormatterMixin, GlobalStmt, MemberDecl):
 
 @attrs.define(repr=False, slots=False)
 class FunctionDecl(FormatterMixin, GlobalStmt, MemberDecl):
-    """Defined on grammar line 323
+    """Function declaration AST type
+
+    Defined on grammar line 323
 
     { 'Public' 'Default' | [ 'Public' | 'Private' ] } <br />
     'Function' &lt;ExtendedID&gt; &lt;MethodArgList&gt; &lt;NEWLINE&gt; <br />
     &lt;MethodStmtList&gt; 'End' 'Function' &lt;NEWLINE&gt;
+
+    Attributes
+    ----------
+    extended_id : ExtendedID
+    method_arg_list : List[Arg], default=[]
+    method_stmt_list : List[MethodStmt], default=[]
+    access_mod : AccessModifierType | None, default=None
     """
 
     extended_id: ExtendedID
@@ -426,12 +499,22 @@ class FunctionDecl(FormatterMixin, GlobalStmt, MemberDecl):
 
 @attrs.define(repr=False, slots=False)
 class PropertyDecl(FormatterMixin, MemberDecl):
-    """Defined on grammar line 347
+    """Property declaration AST type
+
+    Defined on grammar line 347
 
     { 'Public' 'Default' | [ 'Public' | 'Private' ] } <br />
     'Property' &lt;PropertyAccessType&gt; &lt;ExtendedID&gt; &lt;MethodArgList&gt;
     &lt;NEWLINE&gt; <br />
     &lt;MethodStmtList&gt; 'End' 'Property' &lt;NEWLINE&gt;
+
+    Attributes
+    ----------
+    prop_access_type : Token
+    extended_id : ExtendedID
+    method_arg_list : List[Arg], default=[]
+    method_stmt_list : List[MethodStmt], default=[]
+    access_mod : AccessModifierType | None, default=None
     """
 
     prop_access_type: Token
@@ -445,7 +528,9 @@ class PropertyDecl(FormatterMixin, MemberDecl):
 
 @attrs.define(repr=False, slots=False)
 class ClassDecl(FormatterMixin, GlobalStmt):
-    """Defined on grammar line 273
+    """Class declaration AST type
+
+    Defined on grammar line 273
 
     'Class' &lt;ExtendedID&gt; &lt;NEWLINE&gt; <br />
     &lt;MemberDeclList&gt; 'End' 'Class' &lt;NEWLINE&gt;

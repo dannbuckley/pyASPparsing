@@ -5,23 +5,10 @@
 import enum
 import attrs
 
-__all__ = [
-    "FormatterMixin",
-    "AccessModifierType",
-    "CompareExprType",
-    "Expr",
-    "Value",
-    "GlobalStmt",
-    "MethodStmt",
-    "BlockStmt",
-    "InlineStmt",
-    "MemberDecl",
-]
-
 
 @attrs.define(repr=False, slots=False)
 class FormatterMixin:
-    """Pretty-printing formatter for AST types
+    """Pretty-printing formatter mixin for AST types
 
     Overrides __repr__ and uses the __dict__ of the subclass
     """
@@ -103,21 +90,27 @@ class CompareExprType(enum.Enum):
 
 
 class Expr:
-    """Defined on grammar line 664
+    """Expression base class
+
+    Defined on grammar line 664
 
     &lt;ImpExpr&gt;
     """
 
 
 class Value(Expr):
-    """Defined on grammar line 720
+    """Value expression base class
+
+    Defined on grammar line 720
 
     &lt;ConstExpr&gt; | &lt;LeftExpr&gt; | { '(' &lt;Expr&gt; ')' }
     """
 
 
 class GlobalStmt:
-    """Defined on grammar line 357
+    """Global statement base class
+
+    Defined on grammar line 357
 
     Could be one of:
     - OptionExplicit
@@ -131,23 +124,56 @@ class GlobalStmt:
 
 
 class MethodStmt:
-    """Defined on grammar line 365
+    """Method statement base class
+
+    Defined on grammar line 365
 
     &lt;ConstDecl&gt; | &lt;BlockStmt&gt;
     """
 
 
 class BlockStmt(GlobalStmt, MethodStmt):
-    """Defined on grammar line 368
+    """Block statement base class
 
-    If InlineStmt, must be:
-    &lt;InlineStmt&gt; &lt;NEWLINE&gt;
+    Defined on grammar line 368
+
+    Could be one of:
+    - VarDecl
+    - RedimStmt
+    - IfStmt
+    - WithStmt
+    - SelectStmt
+    - LoopStmt
+    - ForStmt
+    - InlineStmt
     """
 
 
 class InlineStmt(BlockStmt):
-    """Defined on grammar line 377"""
+    """Inline statement base class
+
+    Defined on grammar line 377
+
+    Could be one of:
+    - AssignStmt
+    - CallStmt
+    - SubCallStmt
+    - ErrorStmt
+    - ExitStmt
+    - EraseStmt
+    """
 
 
 class MemberDecl:
-    """Defined on grammar line 278"""
+    """Member declaration base class
+
+    Defined on grammar line 278
+
+    Could be one of:
+    - FieldDecl
+    - VarDecl
+    - ConstDecl
+    - SubDecl
+    - FunctionDecl
+    - PropertyDecl
+    """

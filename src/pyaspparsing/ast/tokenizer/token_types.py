@@ -5,8 +5,6 @@ import typing
 
 import attrs
 
-__all__ = ["TokenType", "KeywordType", "DebugLineInfo", "Token"]
-
 
 @enum.verify(enum.CONTINUOUS, enum.UNIQUE)
 class TokenType(enum.IntEnum):

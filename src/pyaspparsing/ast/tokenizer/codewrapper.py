@@ -9,8 +9,6 @@ import typing
 
 import attrs
 
-__all__ = ["CharacterType", "CodeWrapper"]
-
 
 @enum.verify(enum.CONTINUOUS, enum.UNIQUE)
 class CharacterType(enum.IntEnum):
@@ -138,7 +136,7 @@ class CodeWrapper:
             self.line_no += 1
             self.line_start = self._pos_idx
             self.line_code_start = self._pos_idx
-    
+
     def update_line_code_start(self):
         """Line has leading whitespace"""
         if self.line_no is not None and self.line_start is not None:

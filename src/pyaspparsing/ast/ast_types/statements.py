@@ -11,26 +11,6 @@ from .base import FormatterMixin, GlobalStmt, Expr, BlockStmt, InlineStmt
 from .expressions import LeftExpr
 from .expression_parser import ExpressionParser
 
-__all__ = [
-    "ExtendedID",
-    "OptionExplicit",
-    "RedimDecl",
-    "RedimStmt",
-    "ElseStmt",
-    "IfStmt",
-    "WithStmt",
-    "CaseStmt",
-    "SelectStmt",
-    "LoopStmt",
-    "ForStmt",
-    "AssignStmt",
-    "CallStmt",
-    "SubCallStmt",
-    "ErrorStmt",
-    "ExitStmt",
-    "EraseStmt",
-]
-
 
 @attrs.define(repr=False, slots=False)
 class ExtendedID(FormatterMixin):
@@ -93,7 +73,9 @@ class RedimStmt(FormatterMixin, BlockStmt):
         tkzr.assert_consume(TokenType.IDENTIFIER, "redim")
         preserve = tkzr.try_consume(TokenType.IDENTIFIER, "preserve")
         redim_decl_list: typing.List[RedimDecl] = []
-        while not tkzr.try_multiple_token_type([TokenType.NEWLINE, TokenType.DELIM_END]):
+        while not tkzr.try_multiple_token_type(
+            [TokenType.NEWLINE, TokenType.DELIM_END]
+        ):
             redim_id = ExtendedID.from_tokenizer(tkzr)
             tkzr.assert_consume(TokenType.SYMBOL, "(")
             redim_expr: typing.List[Expr] = []

@@ -9,9 +9,6 @@ from .base import *
 from .special import *
 
 
-__all__ = ["generate_program", "Program"]
-
-
 def generate_program(tkzr: Tokenizer) -> typing.Generator[GlobalStmt, None, None]:
     """
     Parameters

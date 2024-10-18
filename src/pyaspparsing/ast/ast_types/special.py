@@ -73,7 +73,7 @@ class OutputText(FormatterMixin, BlockStmt):
     )
 
     @chunks.validator
-    def is_file_text(self, attribute, value: typing.List[Token]):
+    def is_file_text(self, _, value: typing.List[Token]):
         try:
             for chunk in value:
                 assert chunk.token_type == TokenType.FILE_TEXT
