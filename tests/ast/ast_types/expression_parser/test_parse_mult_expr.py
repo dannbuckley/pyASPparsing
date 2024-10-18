@@ -98,6 +98,42 @@ from pyaspparsing.ast.ast_types.expression_parser import ExpressionParser
                 IntLiteral(Token.int_literal(15, 16)),
             ),
         ),
+        (
+            # no moves made, constants stay on the left
+            "1 * 2 * a",
+            False,
+            FoldedExpr(
+                MultExpr(
+                    IntLiteral(Token.int_literal(3, 4)),
+                    IntLiteral(Token.int_literal(7, 8)),
+                )
+            ),
+            LeftExpr(QualifiedID([Token.identifier(11, 12)])),
+        ),
+        (
+            # 'a' and '2' swap places
+            "1 * a * 2",
+            False,
+            FoldedExpr(
+                MultExpr(
+                    IntLiteral(Token.int_literal(3, 4)),
+                    IntLiteral(Token.int_literal(11, 12)),
+                )
+            ),
+            LeftExpr(QualifiedID([Token.identifier(7, 8)])),
+        ),
+        (
+            # 'a' moved to end of expression
+            "a * 1 * 2",
+            False,
+            FoldedExpr(
+                MultExpr(
+                    IntLiteral(Token.int_literal(7, 8)),
+                    IntLiteral(Token.int_literal(11, 12)),
+                )
+            ),
+            LeftExpr(QualifiedID([Token.identifier(3, 4)])),
+        ),
     ],
 )
 def test_parse_mult_expr(exp_code: str, folded: bool, exp_left: Expr, exp_right: Expr):

@@ -32,23 +32,51 @@ class FoldedExpr(ExprAnnotation):
     """
 
     @staticmethod
+    def can_fold(eval_expr: Expr) -> typing.Tuple[bool, bool]:
+        """
+        Parameters
+        ----------
+        eval_expr : Expr
+
+        Returns
+        -------
+        (is_const, is_folded) : (bool, bool)
+            is_const = eval_expr is an instance of ConstExpr;
+            is_folded = eval_expr is an instance of FoldedExpr
+        """
+        is_folded = isinstance(eval_expr, FoldedExpr)
+        if isinstance(eval_expr, ExprAnnotation) and not is_folded:
+            is_const = isinstance(eval_expr.wrapped_expr, ConstExpr)
+        else:
+            is_const = isinstance(eval_expr, ConstExpr)
+        return (is_const, is_folded)
+
+    @staticmethod
     def try_fold(
         expr_left: Expr, expr_right: Expr, expr_type: type, *args: typing.Any
     ) -> Expr:
+        """
+        Parameters
+        ----------
+        expr_left : Expr
+        expr_right : Expr
+        expr_type : type
+        *args
+            Additional arguments passed to expr_type constructor
+
+        Returns
+        -------
+        Expr
+
+        Raises
+        ------
+        AssertionError
+            If expr_type is not a subclass of Expr
+        """
         assert issubclass(expr_type, Expr)
-
-        def _check_type(eval_expr: Expr) -> typing.Tuple[bool, bool]:
-            """"""
-            is_folded = isinstance(eval_expr, FoldedExpr)
-            if isinstance(eval_expr, ExprAnnotation) and not is_folded:
-                is_const = isinstance(eval_expr.wrapped_expr, ConstExpr)
-            else:
-                is_const = isinstance(eval_expr, ConstExpr)
-            return (is_const, is_folded)
-
         # extract info from expressions
-        left_const, left_folded = _check_type(expr_left)
-        right_const, right_folded = _check_type(expr_right)
+        left_const, left_folded = FoldedExpr.can_fold(expr_left)
+        right_const, right_folded = FoldedExpr.can_fold(expr_right)
         # fold constant expressions
         if left_const and right_const:
             return FoldedExpr(expr_type(expr_left, expr_right, *args))

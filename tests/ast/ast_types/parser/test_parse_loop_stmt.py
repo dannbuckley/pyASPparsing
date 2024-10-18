@@ -23,8 +23,8 @@ from pyaspparsing.ast.ast_types.parser import Parser
                 AssignStmt(
                     LeftExpr(QualifiedID([Token.identifier(9, 10)])),
                     AddExpr(
-                        LeftExpr(QualifiedID([Token.identifier(13, 14)])),
                         IntLiteral(Token.int_literal(17, 18)),
+                        LeftExpr(QualifiedID([Token.identifier(13, 14)])),
                     ),
                 )
             ],
@@ -73,8 +73,8 @@ from pyaspparsing.ast.ast_types.parser import Parser
                 AssignStmt(
                     LeftExpr(QualifiedID([Token.identifier(17, 18)])),
                     AddExpr(
-                        LeftExpr(QualifiedID([Token.identifier(21, 22)])),
                         IntLiteral(Token.int_literal(25, 26)),
+                        LeftExpr(QualifiedID([Token.identifier(21, 22)])),
                     ),
                 )
             ],

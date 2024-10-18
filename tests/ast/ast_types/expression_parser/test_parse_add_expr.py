@@ -81,11 +81,45 @@ from pyaspparsing.ast.ast_types.expression_parser import ExpressionParser
                 IntLiteral(Token.int_literal(19, 20)),
             ),
         ),
+        (
+            # no moves made, constants stay on left
+            "1 + 2 + a",
+            False,
+            FoldedExpr(
+                AddExpr(
+                    IntLiteral(Token.int_literal(3, 4)),
+                    IntLiteral(Token.int_literal(7, 8)),
+                )
+            ),
+            LeftExpr(QualifiedID([Token.identifier(11, 12)])),
+        ),
+        (
+            # 'a' and '2' swap places
+            "1 + a + 2",
+            False,
+            FoldedExpr(
+                AddExpr(
+                    IntLiteral(Token.int_literal(3, 4)),
+                    IntLiteral(Token.int_literal(11, 12)),
+                )
+            ),
+            LeftExpr(QualifiedID([Token.identifier(7, 8)])),
+        ),
+        (
+            # 'a' moved to end of expression
+            "a + 1 + 2",
+            False,
+            FoldedExpr(
+                AddExpr(
+                    IntLiteral(Token.int_literal(7, 8)),
+                    IntLiteral(Token.int_literal(11, 12)),
+                )
+            ),
+            LeftExpr(QualifiedID([Token.identifier(3, 4)])),
+        ),
     ],
 )
-def test_parse_add_expr(
-    exp_code: str, folded: bool, exp_left: Expr, exp_right: Expr
-):
+def test_parse_add_expr(exp_code: str, folded: bool, exp_left: Expr, exp_right: Expr):
     with Tokenizer(f"<%={exp_code}%>", False) as tkzr:
         tkzr.advance_pos()
         add_expr: Expr = ExpressionParser.parse_add_expr(tkzr)

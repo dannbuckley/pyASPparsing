@@ -537,23 +537,30 @@ class ExpressionParser:
         -------
         Expr
         """
-        # concatenation expression expands to the left, use a queue
-        expr_queue: typing.List[Expr] = [
-            ExpressionParser.parse_add_expr(tkzr, sub_safe)
-        ]
+        # get first expression
+        concat_expr: Expr = ExpressionParser.parse_add_expr(tkzr, sub_safe)
 
         # more than one term?
         while tkzr.try_consume(TokenType.SYMBOL, "&"):
-            expr_queue.append(ExpressionParser.parse_add_expr(tkzr, sub_safe))
-
-        # combine terms into one expression
-        while len(expr_queue) > 1:
-            # queue: pop from front
-            expr_left: Expr = expr_queue.pop(0)
-            expr_right: Expr = expr_queue.pop(0)
-            # new expression becomes left term of next ConcatExpr
-            expr_queue.insert(0, FoldedExpr.try_fold(expr_left, expr_right, ConcatExpr))
-        return expr_queue.pop()
+            if isinstance(concat_expr, ConcatExpr) and any(
+                FoldedExpr.can_fold(concat_expr.right)
+            ):
+                concat_expr = ConcatExpr(
+                    concat_expr.left,
+                    # fold adjacent strings
+                    FoldedExpr.try_fold(
+                        concat_expr.right,
+                        ExpressionParser.parse_add_expr(tkzr, sub_safe),
+                        ConcatExpr,
+                    ),
+                )
+            else:
+                concat_expr = FoldedExpr.try_fold(
+                    concat_expr,
+                    ExpressionParser.parse_add_expr(tkzr, sub_safe),
+                    ConcatExpr,
+                )
+        return concat_expr
 
     @staticmethod
     def parse_add_expr(tkzr: Tokenizer, sub_safe: bool = False) -> Expr:
@@ -567,30 +574,54 @@ class ExpressionParser:
         -------
         Expr
         """
-        # addition/subtraction expression expands to the left, use a queue
-        expr_queue: typing.List[Expr] = [
-            ExpressionParser.parse_mod_expr(tkzr, sub_safe)
-        ]
+        # terms in expression can be evaluated immediately
+        imm_expr: typing.Optional[Expr] = None
+        # expression contains terms that cannot be evaluated immediately
+        # evaluation must be deferred
+        dfr_expr: typing.Optional[Expr] = None
+
+        def _consume_mod_expr(sub_op: bool = False):
+            """
+            Parameters
+            ----------
+            sub_op : bool, default=False
+                True if previous operator was '-' (subtraction)
+            """
+            nonlocal tkzr, sub_safe, imm_expr, dfr_expr
+            mod_expr = ExpressionParser.parse_mod_expr(tkzr, sub_safe)
+            if sub_op:
+                # represent subtraction as addition of negative values
+                # this makes it easier to move terms around
+                mod_expr = AddNegated.wrap(mod_expr)
+            if any(FoldedExpr.can_fold(mod_expr)):
+                # new expression can be evaluated immediately
+                imm_expr = (
+                    mod_expr
+                    if imm_expr is None
+                    else FoldedExpr.try_fold(imm_expr, mod_expr, AddExpr)
+                )
+            else:
+                # evaluation of new expression must be deferred
+                dfr_expr = mod_expr if dfr_expr is None else AddExpr(dfr_expr, mod_expr)
+
+        # get first expression
+        _consume_mod_expr()
 
         # more than one term?
         while tkzr.try_token_type(TokenType.SYMBOL) and tkzr.get_token_code() in "+-":
             sub_op = tkzr.get_token_code() == "-"
             tkzr.advance_pos()  # consume operator
-            if sub_op:
-                expr_queue.append(
-                    AddNegated.wrap(ExpressionParser.parse_mod_expr(tkzr, sub_safe))
-                )
-            else:
-                expr_queue.append(ExpressionParser.parse_mod_expr(tkzr, sub_safe))
+            _consume_mod_expr(sub_op)
 
-        # combine terms into one expression
-        while len(expr_queue) > 1:
-            # queue: pop from front
-            expr_left: Expr = expr_queue.pop(0)
-            expr_right: Expr = expr_queue.pop(0)
-            # new expression becomes left term of next AddExpr
-            expr_queue.insert(0, FoldedExpr.try_fold(expr_left, expr_right, AddExpr))
-        return expr_queue.pop()
+        if imm_expr is not None and dfr_expr is None:
+            # pass-through: immediate expression
+            return imm_expr
+        if dfr_expr is not None and imm_expr is None:
+            # pass-through: deferred expression
+            return dfr_expr
+        # move immediate expression to left subtree
+        # and deferred expression to right subtree
+        return AddExpr(imm_expr, dfr_expr)
 
     @staticmethod
     def parse_mod_expr(tkzr: Tokenizer, sub_safe: bool = False) -> Expr:
@@ -664,32 +695,56 @@ class ExpressionParser:
         -------
         Expr
         """
-        # multiplication/division expression expands to the left, use a queue
-        expr_queue: typing.List[Expr] = [
-            ExpressionParser.parse_unary_expr(tkzr, sub_safe)
-        ]
+        # terms in expression can be evaluated immediately
+        imm_expr: typing.Optional[Expr] = None
+        # expression contains terms that cannot be evaluated immediately
+        # evaluation must be deferred
+        dfr_expr: typing.Optional[Expr] = None
+
+        def _consume_unary_expr(div_op: bool = False):
+            """
+            Parameters
+            ----------
+            div_op : bool, default=False
+                True if previous operator '/' (division)
+            """
+            nonlocal tkzr, sub_safe, imm_expr, dfr_expr
+            unary_expr = ExpressionParser.parse_unary_expr(tkzr, sub_safe)
+            if div_op:
+                # represent division as multiplication of reciprocal values
+                # this makes it easier to move terms around
+                unary_expr = MultReciprocal.wrap(unary_expr)
+            if any(FoldedExpr.can_fold(unary_expr)):
+                # new expression can be evaluated immediately
+                imm_expr = (
+                    unary_expr
+                    if imm_expr is None
+                    else FoldedExpr.try_fold(imm_expr, unary_expr, MultExpr)
+                )
+            else:
+                # evaluation of new expression must be deferred
+                dfr_expr = (
+                    unary_expr if dfr_expr is None else MultExpr(dfr_expr, unary_expr)
+                )
+
+        # get first expression
+        _consume_unary_expr()
 
         # more than one term?
         while tkzr.try_token_type(TokenType.SYMBOL) and tkzr.get_token_code() in "*/":
             div_op = tkzr.get_token_code() == "/"
             tkzr.advance_pos()  # consume operator
-            if div_op:
-                expr_queue.append(
-                    MultReciprocal.wrap(
-                        ExpressionParser.parse_unary_expr(tkzr, sub_safe)
-                    )
-                )
-            else:
-                expr_queue.append(ExpressionParser.parse_unary_expr(tkzr, sub_safe))
+            _consume_unary_expr(div_op)
 
-        # combine terms into one expression
-        while len(expr_queue) > 1:
-            # queue: pop from front
-            expr_left: Expr = expr_queue.pop(0)
-            expr_right: Expr = expr_queue.pop(0)
-            # new expression becomes left term of next MultExpr
-            expr_queue.insert(0, FoldedExpr.try_fold(expr_left, expr_right, MultExpr))
-        return expr_queue.pop()
+        if imm_expr is not None and dfr_expr is None:
+            # pass-through: immediate expression
+            return imm_expr
+        if dfr_expr is not None and imm_expr is None:
+            # pass-through: deferred expression
+            return dfr_expr
+        # move immediate expression to left subtree
+        # and deferred expression to right subtree
+        return MultExpr(imm_expr, dfr_expr)
 
     @staticmethod
     def parse_unary_expr(tkzr: Tokenizer, sub_safe: bool = False) -> Expr:
