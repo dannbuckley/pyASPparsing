@@ -116,6 +116,10 @@ class AddNegated(ExprAnnotation):
         Parameters
         ----------
         orig_expr : Expr
+
+        Returns
+        -------
+        FoldableExpr | AddNegated
         """
         if isinstance(orig_expr, FoldableExpr):
             # make sure FoldedExpr annotation is on the outside
@@ -145,6 +149,10 @@ class MultReciprocal(ExprAnnotation):
         Parameters
         ----------
         orig_expr : Expr
+
+        Returns
+        -------
+        FoldableExpr | MultReciprocal
         """
         if isinstance(orig_expr, FoldableExpr):
             # make sure FoldedExpr annotation is on the outside

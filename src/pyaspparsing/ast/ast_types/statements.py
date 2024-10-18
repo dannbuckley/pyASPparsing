@@ -14,12 +14,32 @@ from .expression_parser import ExpressionParser
 
 @attrs.define(repr=False, slots=False)
 class ExtendedID(FormatterMixin):
-    """Defined on grammar line 513"""
+    """Extended identifier AST type
+
+    Defined on grammar line 513
+
+    Attributes
+    ----------
+    id_token : Token
+
+    Methods
+    -------
+    from_tokenizer(tkzr)
+    """
 
     id_token: Token
 
     @staticmethod
     def from_tokenizer(tkzr: Tokenizer):
+        """
+        Parameters
+        ----------
+        tkzr : Tokenizer
+
+        Returns
+        -------
+        ExtendedID
+        """
         if (safe_kw := tkzr.try_safe_keyword_id()) is not None:
             tkzr.advance_pos()  # consume safe keyword
             return ExtendedID(safe_kw)
@@ -34,13 +54,28 @@ class ExtendedID(FormatterMixin):
 
 @attrs.define(repr=False, slots=False)
 class OptionExplicit(FormatterMixin, GlobalStmt):
-    """Defined on grammar line 393
+    """Explicit variable specification AST type
+
+    Defined on grammar line 393
 
     'Option' 'Explicit' &lt;NEWLINE&gt;
+
+    Methods
+    -------
+    from_tokenizer(tkzr)
     """
 
     @staticmethod
     def from_tokenizer(tkzr: Tokenizer):
+        """
+        Parameters
+        ----------
+        tkzr : Tokenizer
+
+        Returns
+        -------
+        OptionExplicit
+        """
         tkzr.assert_consume(TokenType.IDENTIFIER, "option")
         tkzr.assert_consume(TokenType.IDENTIFIER, "explicit")
         tkzr.assert_newline_or_script_end()
@@ -49,9 +84,16 @@ class OptionExplicit(FormatterMixin, GlobalStmt):
 
 @attrs.define(repr=False, slots=False)
 class RedimDecl(FormatterMixin):
-    """Defined on grammar line 545
+    """Redefinition declaration AST type
+
+    Defined on grammar line 545
 
     &lt;ExtendedID&gt; '(' &lt;ExprList&gt; ')'
+
+    Attributes
+    ----------
+    extended_id : ExtendedID
+    expr_list : List[Expr], default=[]
     """
 
     extended_id: ExtendedID
@@ -60,9 +102,20 @@ class RedimDecl(FormatterMixin):
 
 @attrs.define(repr=False, slots=False)
 class RedimStmt(FormatterMixin, BlockStmt):
-    """Defined on grammar line 539
+    """Redefinition statement AST type
+
+    Defined on grammar line 539
 
     'Redim' [ 'Preserve' ] &lt;RedimDeclList&gt; &lt;NEWLINE&gt;
+
+    Attributes
+    ----------
+    redim_decl_list : List[RedimDecl], default=[]
+    preserve : bool, default=False
+
+    Methods
+    -------
+    from_tokenizer(tkzr)
     """
 
     redim_decl_list: typing.List[RedimDecl] = attrs.field(default=attrs.Factory(list))
@@ -70,6 +123,15 @@ class RedimStmt(FormatterMixin, BlockStmt):
 
     @staticmethod
     def from_tokenizer(tkzr: Tokenizer):
+        """
+        Parameters
+        ----------
+        tkzr : Tokenizer
+
+        Returns
+        -------
+        RedimStmt
+        """
         tkzr.assert_consume(TokenType.IDENTIFIER, "redim")
         preserve = tkzr.try_consume(TokenType.IDENTIFIER, "preserve")
         redim_decl_list: typing.List[RedimDecl] = []
@@ -94,7 +156,9 @@ class RedimStmt(FormatterMixin, BlockStmt):
 
 @attrs.define(repr=False, slots=False)
 class ElseStmt(FormatterMixin):
-    """Defined on grammar line 552
+    """Else statement AST type (part of the 'If' statement)
+
+    Defined on grammar line 552
 
     Two possible definitions:
 
@@ -104,6 +168,12 @@ class ElseStmt(FormatterMixin):
 
     'Else'
     { &lt;InlineStmt&gt; &lt;NEWLINE&gt; | &lt;NEWLINE&gt; &lt;BlockStmtList&gt; }
+
+    Attributes
+    ----------
+    stmt_list : List[BlockStmt], default=[]
+    elif_expr : Expr | None, default=None
+    is_else : bool, default=False
     """
 
     stmt_list: typing.List[BlockStmt] = attrs.field(default=attrs.Factory(list))
@@ -114,7 +184,9 @@ class ElseStmt(FormatterMixin):
 
 @attrs.define(repr=False, slots=False)
 class IfStmt(FormatterMixin, BlockStmt):
-    """Defined on grammar line 549
+    """If statement AST type
+
+    Defined on grammar line 549
 
     Two possible definitions:
 
@@ -123,6 +195,12 @@ class IfStmt(FormatterMixin, BlockStmt):
 
     'If' &lt;Expr&gt; 'Then' &lt;InlineStmt&gt; <br />
     [ 'Else' &lt;InlineStmt&gt; ] [ 'End' 'If' ] &lt;NEWLINE&gt;
+
+    Attributes
+    ----------
+    if_expr : Expr
+    block_stmt_list : List[BlockStmt], default=[]
+    else_stmt_list : List[ElseStmt], default=[]
     """
 
     if_expr: Expr
@@ -132,10 +210,17 @@ class IfStmt(FormatterMixin, BlockStmt):
 
 @attrs.define(repr=False, slots=False)
 class WithStmt(FormatterMixin, BlockStmt):
-    """Defined on grammar line 566
+    """With statement AST type
+
+    Defined on grammar line 566
 
     'With' &lt;Expr&gt; &lt;NEWLINE&gt; <br />
     &lt;BlockStmtList&gt; 'End' 'With' &lt;NEWLINE&gt;
+
+    Attributes
+    ----------
+    with_expr : Expr
+    block_stmt_list : List[BlockStmt], default=[]
     """
 
     with_expr: Expr
@@ -144,7 +229,9 @@ class WithStmt(FormatterMixin, BlockStmt):
 
 @attrs.define(repr=False, slots=False)
 class CaseStmt(FormatterMixin):
-    """Defined on grammar line 590
+    """Case statement AST type (part of the 'Select' statement)
+
+    Defined on grammar line 590
 
     Two possible definitions:
 
@@ -153,6 +240,12 @@ class CaseStmt(FormatterMixin):
 
     'Case' 'Else' [ &lt;NEWLINE&gt; ] <br />
     &lt;BlockStmtList&gt;
+
+    Attributes
+    ----------
+    block_stmt_list : List[BlockStmt], default=[]
+    case_expr_list : List[Expr], default=[]
+    is_else : bool, default=False
     """
 
     block_stmt_list: typing.List[BlockStmt] = attrs.field(default=attrs.Factory(list))
@@ -162,10 +255,17 @@ class CaseStmt(FormatterMixin):
 
 @attrs.define(repr=False, slots=False)
 class SelectStmt(FormatterMixin, BlockStmt):
-    """Defined on grammar line 588
+    """Select statement AST type
+
+    Defined on grammar line 588
 
     'Select' 'Case' &lt;Expr&gt; &lt;NEWLINE&gt; <br />
     &lt;CaseStmtList&gt; 'End' 'Select' &lt;NEWLINE&gt;
+
+    Attributes
+    ----------
+    select_case_expr : Expr
+    case_stmt_list : List[CaseStmt], default=[]
     """
 
     select_case_expr: Expr
@@ -174,7 +274,9 @@ class SelectStmt(FormatterMixin, BlockStmt):
 
 @attrs.define(repr=False, slots=False)
 class LoopStmt(FormatterMixin, BlockStmt):
-    """Defined on grammar line 570
+    """Loop statement AST type
+
+    Defined on grammar line 570
 
     Several possible definitions:
 
@@ -189,6 +291,12 @@ class LoopStmt(FormatterMixin, BlockStmt):
 
     'While' &lt;Expr&gt; &lt;NEWLINE&gt; <br />
     &lt;BlockStmtList&gt; 'WEnd' &lt;NEWLINE&gt;
+
+    Attributes
+    ----------
+    block_stmt_list : List[BlockStmt], default=[]
+    loop_type : Token | None, default=None
+    loop_expr : Expr | None, default=None
     """
 
     block_stmt_list: typing.List[BlockStmt] = attrs.field(default=attrs.Factory(list))
@@ -199,7 +307,9 @@ class LoopStmt(FormatterMixin, BlockStmt):
 
 @attrs.define(repr=False, slots=False)
 class ForStmt(FormatterMixin, BlockStmt):
-    """Defined on grammar line 580
+    """For statement AST type
+
+    Defined on grammar line 580
 
     Two possible definitions:
 
@@ -209,6 +319,15 @@ class ForStmt(FormatterMixin, BlockStmt):
 
     'For 'Each' &lt;ExtendedID&gt; 'In' &lt;Expr&gt; &lt;NEWLINE&gt; <br />
     &lt;BlockStmtList&gt; 'Next' &lt;NEWLINE&gt;
+
+    Attributes
+    ----------
+    target_id : ExtendedID
+    block_stmt_list : List[BlockStmt], default=[]
+    eq_expr : Expr | None, default=None
+    to_expr : Expr | None, default=None
+    step_expr : Expr | None, default=None
+    each_in_expr : Expr | None, default=None
     """
 
     target_id: ExtendedID
@@ -247,13 +366,25 @@ class ForStmt(FormatterMixin, BlockStmt):
 
 @attrs.define(repr=False, slots=False)
 class AssignStmt(FormatterMixin, InlineStmt):
-    """Defined on grammar line 404
+    """Assignment statement AST type
+
+    Defined on grammar line 404
 
     Two possible definitions:
 
     &lt;LeftExpr&gt; '=' &lt;Expr&gt;
 
     'Set' &lt;LeftExpr&gt; '=' { &lt;Expr&gt; | 'New' &lt;LeftExpr&gt; }
+
+    Attributes
+    ----------
+    target_expr : Expr
+    assign_expr : Expr
+    is_new : bool, default=False
+
+    Methods
+    -------
+    from_tokenizer(tkzr)
     """
 
     # left side of '='
@@ -264,6 +395,15 @@ class AssignStmt(FormatterMixin, InlineStmt):
 
     @staticmethod
     def from_tokenizer(tkzr: Tokenizer):
+        """
+        Parameters
+        ----------
+        tkzr : Tokenizer
+
+        Returns
+        -------
+        AssignStmt
+        """
         # 'Set' is optional, don't throw if missing
         tkzr.try_consume(TokenType.IDENTIFIER, "set")
         target_expr = ExpressionParser.parse_left_expr(tkzr)
@@ -282,22 +422,54 @@ class AssignStmt(FormatterMixin, InlineStmt):
 
 @attrs.define(repr=False, slots=False)
 class CallStmt(FormatterMixin, InlineStmt):
-    """Defined on grammar line 428
+    """Function call statement AST type
+
+    Defined on grammar line 428
 
     'Call' &lt;LeftExpr&gt;
+
+    Attributes
+    ----------
+    left_expr : LeftExpr
+
+    Methods
+    -------
+    from_tokenizer(tkzr)
     """
 
     left_expr: LeftExpr
 
     @staticmethod
     def from_tokenizer(tkzr: Tokenizer):
+        """
+        Parameters
+        ----------
+        tkzr : Tokenizer
+
+        Returns
+        -------
+        CallStmt
+        """
         tkzr.assert_consume(TokenType.IDENTIFIER, "call")
         return CallStmt(ExpressionParser.parse_left_expr(tkzr))
 
 
 @attrs.define(repr=False, slots=False)
 class SubCallStmt(FormatterMixin, InlineStmt):
-    """Defined on grammar line 414"""
+    """Sub-procedure call statement AST type
+
+    Defined on grammar line 414
+
+    Attributes
+    ----------
+    left_expr : Expr
+    sub_safe_expr : Expr | None, default=None
+    comma_expr_list : List[Expr | None], default=[]
+
+    Methods
+    -------
+    from_tokenizer(tkzr, left_expr, ...)
+    """
 
     left_expr: Expr
     sub_safe_expr: typing.Optional[Expr] = attrs.field(default=None)
@@ -317,6 +489,20 @@ class SubCallStmt(FormatterMixin, InlineStmt):
             typing.List[typing.Tuple[TokenType, typing.Optional[str]]]
         ] = None,
     ):
+        """
+        Parameters
+        ----------
+        tkzr : Tokenizer
+        left_expr : LeftExpr
+        terminal_type : TokenType | None, default=None
+        terminal_code : str | None, default=None
+        terminal_casefold : bool, default=True
+        terminal_pairs : List[Tuple[TokenType, str | None]] | None, default=None
+
+        Returns
+        -------
+        SubCallStmt
+        """
         if terminal_pairs is None:
             terminal_pairs = []
         assert (len(terminal_pairs) > 0) or (
@@ -372,7 +558,7 @@ class SubCallStmt(FormatterMixin, InlineStmt):
             assert (
                 len(left_expr.index_or_params) == 1
                 and 0 <= len(left_expr.index_or_params[0].expr_list) <= 1
-                and left_expr.index_or_params[0].dot == False
+                and left_expr.index_or_params[0].dot is False
                 and len(left_expr.tail) == 0  # redundant check, but just in case
             ), "Expected left expression to have the form: <QualifiedID> '(' [ <Expr> ] ')'"
 
@@ -400,11 +586,22 @@ class SubCallStmt(FormatterMixin, InlineStmt):
 
 @attrs.define(repr=False, slots=False)
 class ErrorStmt(FormatterMixin, InlineStmt):
-    """Defined on grammar line 395
+    """Error handling specification AST type
+
+    Defined on grammar line 395
 
     'On' 'Error' { 'Resume' 'Next' | 'GoTo' IntLiteral }
 
     If 'GoTo' specified, IntLiteral must be 0
+
+    Attributes
+    ----------
+    resume_next : bool, default=False
+    goto_spec : Token | None, default=None
+
+    Methods
+    -------
+    from_tokenizer(tkzr)
     """
 
     resume_next: bool = attrs.field(default=False, kw_only=True)
@@ -412,6 +609,15 @@ class ErrorStmt(FormatterMixin, InlineStmt):
 
     @staticmethod
     def from_tokenizer(tkzr: Tokenizer):
+        """
+        Parameters
+        ----------
+        tkzr : Tokenizer
+
+        Returns
+        -------
+        ErrorStmt
+        """
         tkzr.assert_consume(TokenType.IDENTIFIER, "on")
         tkzr.assert_consume(TokenType.IDENTIFIER, "error")
         # check for 'Resume'
@@ -433,15 +639,34 @@ class ErrorStmt(FormatterMixin, InlineStmt):
 
 @attrs.define(repr=False, slots=False)
 class ExitStmt(FormatterMixin, InlineStmt):
-    """Defined on grammar line 398
+    """Exit statement AST type
+
+    Defined on grammar line 398
 
     'Exit' { 'Do' | 'For' | 'Function' | 'Property' | 'Sub' }
+
+    Attributes
+    ----------
+    exit_token : Token
+
+    Methods
+    -------
+    from_tokenizer(tkzr)
     """
 
     exit_token: Token
 
     @staticmethod
     def from_tokenizer(tkzr: Tokenizer):
+        """
+        Parameters
+        ----------
+        tkzr : Tokenizer
+
+        Returns
+        -------
+        ExitStmt
+        """
         tkzr.assert_consume(TokenType.IDENTIFIER, "exit")
         assert tkzr.try_token_type(TokenType.IDENTIFIER) and tkzr.get_token_code() in [
             "do",
@@ -449,7 +674,7 @@ class ExitStmt(FormatterMixin, InlineStmt):
             "function",
             "property",
             "sub",
-        ], "Expected one of the following after 'Exit': 'Do', 'For', 'Function', 'Property', or 'Sub'"
+        ], "Invalid token in 'Exit' statement"
         exit_tok = tkzr.current_token
         tkzr.advance_pos()  # consume exit type token
         return ExitStmt(exit_tok)
@@ -457,14 +682,33 @@ class ExitStmt(FormatterMixin, InlineStmt):
 
 @attrs.define(repr=False, slots=False)
 class EraseStmt(FormatterMixin, InlineStmt):
-    """Part of InlineStmt definition on line 382
+    """Erase statement AST type
+
+    Part of InlineStmt definition on line 382
 
     'Erase' &lt;ExtendedID&gt;
+
+    Attributes
+    ----------
+    extended_id : ExtendedID
+
+    Methods
+    -------
+    from_tokenizer(tkzr)
     """
 
     extended_id: ExtendedID
 
     @staticmethod
     def from_tokenizer(tkzr: Tokenizer):
+        """
+        Parameters
+        ----------
+        tkzr : Tokenizer
+
+        Returns
+        -------
+        EraseStmt
+        """
         tkzr.assert_consume(TokenType.IDENTIFIER, "erase")
         return EraseStmt(ExtendedID.from_tokenizer(tkzr))

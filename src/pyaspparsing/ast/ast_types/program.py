@@ -5,8 +5,7 @@ import attrs
 from .parser import Parser
 from ..tokenizer.token_types import TokenType
 from ..tokenizer.state_machine import Tokenizer
-from .base import *
-from .special import *
+from .base import FormatterMixin, GlobalStmt
 
 
 def generate_program(tkzr: Tokenizer) -> typing.Generator[GlobalStmt, None, None]:
@@ -14,7 +13,6 @@ def generate_program(tkzr: Tokenizer) -> typing.Generator[GlobalStmt, None, None
     Parameters
     ----------
     tkzr : Tokenizer
-        Tokenizer that has entered into a runtime context
 
     Yields
     -------
@@ -80,7 +78,6 @@ class Program(FormatterMixin):
         Parameters
         ----------
         tkzr : Tokenizer
-            Tokenizer that has entered into a runtime context
 
         Returns
         -------

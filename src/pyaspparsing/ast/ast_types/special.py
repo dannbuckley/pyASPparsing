@@ -9,7 +9,13 @@ from ..tokenizer.token_types import Token, TokenType
 
 @attrs.define(repr=False, slots=False)
 class ProcessingSetting(FormatterMixin):
-    """"""
+    """Key-value pair contained within processing directive
+
+    Attributes
+    ----------
+    config_kw : Token
+    config_value : Token
+    """
 
     config_kw: Token
     config_value: Token
@@ -17,14 +23,19 @@ class ProcessingSetting(FormatterMixin):
 
 @attrs.define(repr=False, slots=False)
 class ProcessingDirective(FormatterMixin, GlobalStmt):
-    """"""
+    """Processing directive AST type (&lt;%@ ... %&gt;)
+
+    Attributes
+    ----------
+    settings : List[ProcessingSetting], default=[]
+    """
 
     settings: typing.List[ProcessingSetting] = attrs.field(default=attrs.Factory(list))
 
 
 @enum.verify(enum.CONTINUOUS, enum.UNIQUE)
 class IncludeType(enum.IntEnum):
-    """"""
+    """Enumeration of valid include file types"""
 
     INCLUDE_FILE = enum.auto()
     INCLUDE_VIRTUAL = enum.auto()
@@ -32,7 +43,13 @@ class IncludeType(enum.IntEnum):
 
 @attrs.define(repr=False, slots=False)
 class IncludeFile(FormatterMixin, BlockStmt):
-    """"""
+    """Include file AST type
+
+    Attributes
+    ----------
+    include_type : IncludeType
+    include_path : Token
+    """
 
     include_type: IncludeType
     include_path: Token
@@ -40,7 +57,13 @@ class IncludeFile(FormatterMixin, BlockStmt):
 
 @attrs.define(repr=False, slots=False)
 class OutputDirective(FormatterMixin):
-    """"""
+    """Output directive for writing expressions directly to response (&lt;%= ... %&gt;)
+
+    Attributes
+    ----------
+    extent : slice
+    output_expr : Expr
+    """
 
     extent: slice
     output_expr: Expr
@@ -56,12 +79,22 @@ class OutputType(enum.IntEnum):
 
 @attrs.define(repr=False, slots=False)
 class OutputText(FormatterMixin, BlockStmt):
-    """
+    """Output text AST type
+
+    Represents content that is written directly to the response
+
     Attributes
     ----------
     chunks : List[slice], default=[]
     directives : List[OutputDirective], default=[]
     stitch_order : List[Tuple[OutputType, int]], default=[]
+
+    Methods
+    -------
+    merge(other)
+        Combine two output text objects
+    stitch()
+        Reconstruct the correct output
     """
 
     chunks: typing.List[Token] = attrs.field(default=attrs.Factory(list))
@@ -73,7 +106,7 @@ class OutputText(FormatterMixin, BlockStmt):
     )
 
     @chunks.validator
-    def is_file_text(self, _, value: typing.List[Token]):
+    def _check_chunks(self, _, value: typing.List[Token]):
         try:
             for chunk in value:
                 assert chunk.token_type == TokenType.FILE_TEXT
@@ -97,12 +130,12 @@ class OutputText(FormatterMixin, BlockStmt):
                         case OutputType.OUTPUT_RAW:
                             assert (
                                 chunks_used < out_idx < chunks_len
-                            ), f"Invalid index {out_idx} for raw output element in output text block"
+                            ), f"Invalid index {out_idx} for raw output element"
                             chunks_used = out_idx
                         case OutputType.OUTPUT_DIRECTIVE:
                             assert (
                                 directives_used < out_idx < directives_len
-                            ), f"Invalid index {out_idx} for output directive element in output text block"
+                            ), f"Invalid index {out_idx} for output directive element"
                             directives_used = out_idx
             except AssertionError as ex:
                 raise ValueError(

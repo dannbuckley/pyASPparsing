@@ -103,7 +103,6 @@ class FieldDecl(FormatterMixin, GlobalStmt, MemberDecl):
         Parameters
         ----------
         tkzr : Tokenizer
-            Must already be in a runtime context
         access_mod : AccessModifierType
 
         Returns
@@ -242,7 +241,6 @@ class VarDecl(FormatterMixin, MemberDecl, BlockStmt):
         Parameters
         ----------
         tkzr : Tokenizer
-            Must already be in a runtime context
 
         Returns
         -------
@@ -360,7 +358,6 @@ class ConstDecl(FormatterMixin, GlobalStmt, MethodStmt, MemberDecl):
         Parameters
         ----------
         tkzr : Tokenizer
-            Must already be in a runtime context
         access_mod : AccessModifierType | None, default=None
 
         Returns

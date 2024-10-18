@@ -4,20 +4,65 @@ import typing
 from ... import ParserError
 from ..tokenizer.token_types import Token, TokenType
 from ..tokenizer.state_machine import Tokenizer
-from .base import *
-from .declarations import *
-from .expressions import *
-from .statements import *
-from .special import *
+from .base import (
+    AccessModifierType,
+    Expr,
+    GlobalStmt,
+    MethodStmt,
+    BlockStmt,
+    InlineStmt,
+    MemberDecl,
+)
+from .declarations import (
+    FieldDecl,
+    VarDecl,
+    ConstDecl,
+    Arg,
+    SubDecl,
+    FunctionDecl,
+    PropertyDecl,
+    ClassDecl,
+)
+from .statements import (
+    ExtendedID,
+    OptionExplicit,
+    RedimStmt,
+    ElseStmt,
+    IfStmt,
+    WithStmt,
+    CaseStmt,
+    SelectStmt,
+    LoopStmt,
+    ForStmt,
+    AssignStmt,
+    CallStmt,
+    SubCallStmt,
+    ErrorStmt,
+    ExitStmt,
+    EraseStmt,
+)
+from .special import (
+    ProcessingSetting,
+    ProcessingDirective,
+    IncludeType,
+    IncludeFile,
+    OutputDirective,
+    OutputType,
+    OutputText,
+)
 from .expression_parser import ExpressionParser
 
 
 class Parser:
-    """"""
+    """Collection of static AST construction methods"""
 
     @staticmethod
     def parse_processing_direc(tkzr: Tokenizer) -> ProcessingDirective:
         """Parse a starting processing directive ('<%@ %>')
+
+        Parameters
+        ----------
+        tkzr : Tokenizer
 
         Returns
         -------
@@ -48,6 +93,10 @@ class Parser:
     @staticmethod
     def parse_output_text(tkzr: Tokenizer) -> OutputText:
         """Parse text that should be written directly to the response
+
+        Parameters
+        ----------
+        tkzr : Tokenizer
 
         Returns
         -------
@@ -84,7 +133,19 @@ class Parser:
 
     @staticmethod
     def parse_html_comment(tkzr: Tokenizer) -> typing.Union[IncludeFile, OutputText]:
-        """"""
+        """
+        Parameters
+        ----------
+        tkzr : Tokenizer
+
+        Returns
+        -------
+        IncludeFile | OutputText
+
+        Raises
+        ------
+        AssertionError, ParserError
+        """
         assert tkzr.try_token_type(TokenType.HTML_START_COMMENT)
         cmnt_start = tkzr.current_token
         tkzr.advance_pos()
@@ -119,7 +180,15 @@ class Parser:
 
     @staticmethod
     def parse_nonscript_block(tkzr: Tokenizer) -> typing.List[BlockStmt]:
-        """"""
+        """
+        Parameters
+        ----------
+        tkzr : Tokenizer
+
+        Returns
+        -------
+        List[BlockStmt]
+        """
         nonscript_stmts: typing.List[BlockStmt] = []
         while tkzr.current_token is not None and not tkzr.try_token_type(
             TokenType.DELIM_START_SCRIPT
@@ -158,6 +227,9 @@ class Parser:
     @staticmethod
     def parse_global_stmt(tkzr: Tokenizer) -> GlobalStmt:
         """
+        Parameters
+        ----------
+        tkzr : Tokenizer
 
         Returns
         -------
@@ -191,6 +263,9 @@ class Parser:
     @staticmethod
     def parse_method_stmt(tkzr: Tokenizer) -> MethodStmt:
         """
+        Parameters
+        ----------
+        tkzr : Tokenizer
 
         Returns
         -------
@@ -214,10 +289,13 @@ class Parser:
     @staticmethod
     def parse_block_stmt(tkzr: Tokenizer) -> BlockStmt:
         """
+        Parameters
+        ----------
+        tkzr : Tokenizer
 
         Returns
         -------
-        GlobalStmt
+        BlockStmt
 
         Raises
         ------
@@ -274,13 +352,14 @@ class Parser:
 
         Parameters
         ----------
+        tkzr : Tokenizer
         terminal_type : TokenType
         terminal_code : str | None, default=None
         terminal_casefold : bool, default=True
 
         Returns
         -------
-        GlobalStmt
+        InlineStmt
 
         Raises
         ------
@@ -329,7 +408,15 @@ class Parser:
 
     @staticmethod
     def parse_class_decl(tkzr: Tokenizer) -> ClassDecl:
-        """"""
+        """
+        Parameters
+        ----------
+        tkzr : Tokenizer
+
+        Returns
+        -------
+        ClassDecl
+        """
         tkzr.assert_consume(TokenType.IDENTIFIER, "class")
         class_id = ExtendedID.from_tokenizer(tkzr)
         tkzr.assert_consume(TokenType.NEWLINE)
@@ -356,6 +443,14 @@ class Parser:
         - SubDecl
         - FunctionDecl
         - PropertyDecl
+
+        Parameters
+        ----------
+        tkzr : Tokenizer
+
+        Returns
+        -------
+        MemberDecl
         """
         if tkzr.try_token_type(TokenType.IDENTIFIER) and tkzr.get_token_code() == "dim":
             return VarDecl.from_tokenizer(tkzr)
@@ -397,7 +492,16 @@ class Parser:
     def parse_sub_decl(
         tkzr: Tokenizer, access_mod: typing.Optional[AccessModifierType] = None
     ) -> SubDecl:
-        """"""
+        """
+        Parameters
+        ----------
+        tkzr : Tokenizer
+        access_mod : AccessModifierType | None, default=None
+
+        Returns
+        -------
+        SubDecl
+        """
         tkzr.assert_consume(TokenType.IDENTIFIER, "sub")
         sub_id = ExtendedID.from_tokenizer(tkzr)
         method_arg_list: typing.List[Arg] = []
@@ -453,7 +557,16 @@ class Parser:
     def parse_function_decl(
         tkzr: Tokenizer, access_mod: typing.Optional[AccessModifierType] = None
     ) -> FunctionDecl:
-        """"""
+        """
+        Parameters
+        ----------
+        tkzr : Tokenizer
+        access_mod : AccessModifierType | None, default=None
+
+        Returns
+        -------
+        FunctionDecl
+        """
         tkzr.assert_consume(TokenType.IDENTIFIER, "function")
         function_id = ExtendedID.from_tokenizer(tkzr)
         method_arg_list: typing.List[Arg] = []
@@ -511,7 +624,16 @@ class Parser:
     def parse_property_decl(
         tkzr: Tokenizer, access_mod: typing.Optional[AccessModifierType] = None
     ) -> PropertyDecl:
-        """"""
+        """
+        Parameters
+        ----------
+        tkzr : Tokenizer
+        access_mod : AccessModifierType | None, default=None
+
+        Returns
+        -------
+        PropertyDecl
+        """
         tkzr.assert_consume(TokenType.IDENTIFIER, "property")
 
         assert tkzr.try_token_type(TokenType.IDENTIFIER) and (
@@ -581,6 +703,10 @@ class Parser:
         - SubDecl
         - FunctionDecl
 
+        Parameters
+        ----------
+        tkzr : Tokenizer
+
         Returns
         -------
         GlobalStmt
@@ -598,6 +724,8 @@ class Parser:
                     access_mod = AccessModifierType.PUBLIC
             elif tkzr.try_consume(TokenType.IDENTIFIER, "private"):
                 access_mod = AccessModifierType.PRIVATE
+            else:
+                raise ParserError("Invalid access modifier token")
 
             # must have identifier after access modifier
             assert tkzr.try_token_type(
@@ -624,6 +752,10 @@ class Parser:
     @staticmethod
     def parse_global_decl(tkzr: Tokenizer) -> GlobalStmt:
         """Parse a global declaration that lacks an access modifier
+
+        Parameters
+        ----------
+        tkzr : Tokenizer
 
         Returns
         -------
@@ -652,7 +784,15 @@ class Parser:
 
     @staticmethod
     def parse_if_stmt(tkzr: Tokenizer) -> IfStmt:
-        """"""
+        """
+        Parameters
+        ----------
+        tkzr : Tokenizer
+
+        Returns
+        -------
+        IfStmt
+        """
         tkzr.assert_consume(TokenType.IDENTIFIER, "if")
         if_expr = ExpressionParser.parse_expr(tkzr)
         tkzr.assert_consume(TokenType.IDENTIFIER, "then")
@@ -801,7 +941,15 @@ class Parser:
 
     @staticmethod
     def parse_with_stmt(tkzr: Tokenizer) -> WithStmt:
-        """"""
+        """
+        Parameters
+        ----------
+        tkzr : Tokenizer
+
+        Returns
+        -------
+        WithStmt
+        """
         tkzr.assert_consume(TokenType.IDENTIFIER, "with")
         with_expr = ExpressionParser.parse_expr(tkzr)
         tkzr.assert_newline_or_script_end()
@@ -824,7 +972,15 @@ class Parser:
 
     @staticmethod
     def parse_loop_stmt(tkzr: Tokenizer) -> LoopStmt:
-        """"""
+        """
+        Parameters
+        ----------
+        tkzr : Tokenizer
+
+        Returns
+        -------
+        LoopStmt
+        """
         assert tkzr.try_token_type(TokenType.IDENTIFIER) and tkzr.get_token_code() in [
             "do",
             "while",
@@ -901,7 +1057,15 @@ class Parser:
 
     @staticmethod
     def parse_for_stmt(tkzr: Tokenizer) -> ForStmt:
-        """"""
+        """
+        Parameters
+        ----------
+        tkzr : Tokenizer
+
+        Returns
+        -------
+        ForStmt
+        """
         tkzr.assert_consume(TokenType.IDENTIFIER, "for")
 
         # 'For' target_id '=' eq_expr 'To' to_expr [ 'Step' step_expr ]
@@ -954,7 +1118,15 @@ class Parser:
 
     @staticmethod
     def parse_select_stmt(tkzr: Tokenizer) -> SelectStmt:
-        """"""
+        """
+        Parameters
+        ----------
+        tkzr : Tokenizer
+
+        Returns
+        -------
+        SelectStmt
+        """
         tkzr.assert_consume(TokenType.IDENTIFIER, "select")
         tkzr.assert_consume(TokenType.IDENTIFIER, "case")
         select_case_expr = ExpressionParser.parse_expr(tkzr)
