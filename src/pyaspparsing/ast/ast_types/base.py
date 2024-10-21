@@ -22,6 +22,9 @@ class FormatterMixin:
         num_attrs = len(self.__dict__)
         for i, (attr_name, attr_val) in enumerate(self.__dict__.items()):
             try:
+                if isinstance(attr_val, str):
+                    # don't iterate through string
+                    raise TypeError
                 # check if attr_val is a list
                 attr_val_iter = iter(attr_val)
                 attr_val_len = len(attr_val)

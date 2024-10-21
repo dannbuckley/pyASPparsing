@@ -13,3 +13,7 @@ class TokenizerError(CodetoolError):
 
 class ParserError(CodetoolError):
     """An error that occurs during Parser iteration"""
+
+
+class EvaluatorError(CodetoolError):
+    """An error that occurs during expression evaluation"""

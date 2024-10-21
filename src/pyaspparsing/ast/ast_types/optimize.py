@@ -1,5 +1,6 @@
 """Parser-level optimizations"""
 
+from __future__ import annotations
 import typing
 import attrs
 from .base import FormatterMixin, Expr
@@ -16,6 +17,21 @@ class ExprAnnotation(FormatterMixin, Expr):
     """
 
     wrapped_expr: Expr
+
+
+@attrs.define(repr=False, slots=False)
+class EvalExpr(FormatterMixin, Expr):
+    """AST type for evaluated constant expressions
+
+    Attributes
+    ----------
+    expr_value : int | float | bool | str
+    """
+
+    expr_value: typing.Union[int, float, bool, str]
+
+    def __pow__(self, other: EvalExpr):
+        return self.expr_value**other.expr_value
 
 
 @attrs.define(repr=False, slots=False)
@@ -46,9 +62,9 @@ class FoldableExpr(ExprAnnotation):
         """
         is_folded = isinstance(eval_expr, FoldableExpr)
         if isinstance(eval_expr, ExprAnnotation) and not is_folded:
-            is_const = isinstance(eval_expr.wrapped_expr, ConstExpr)
+            is_const = isinstance(eval_expr.wrapped_expr, (ConstExpr, EvalExpr))
         else:
-            is_const = isinstance(eval_expr, ConstExpr)
+            is_const = isinstance(eval_expr, (ConstExpr, EvalExpr))
         return (is_const, is_folded)
 
     @staticmethod

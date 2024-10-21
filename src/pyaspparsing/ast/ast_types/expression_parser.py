@@ -21,15 +21,13 @@ from .expressions import (
     UnaryExpr,
     ExpExpr,
     ConstExpr,
-    BoolLiteral,
-    IntLiteral,
     Nothing,
     QualifiedID,
     IndexOrParams,
     LeftExprTail,
     LeftExpr,
 )
-from .optimize import FoldableExpr, AddNegated, MultReciprocal
+from .optimize import EvalExpr, FoldableExpr, AddNegated, MultReciprocal
 
 
 # expressions need to be handled with a class to deal with circular Value and Expr references
@@ -102,7 +100,7 @@ class ExpressionParser:
         raise ParserError("Invalid token in value expression")
 
     @staticmethod
-    def parse_const_expr(tkzr: Tokenizer) -> ConstExpr:
+    def parse_const_expr(tkzr: Tokenizer) -> typing.Union[ConstExpr, EvalExpr]:
         """NOT CALLED DIRECTLY
 
         Parse constant expression
@@ -116,29 +114,50 @@ class ExpressionParser:
         Expr
         """
         ret_token = tkzr.current_token
-        assert ret_token is not None, "Expected constant expression, found None"
-        if tkzr.try_multiple_token_type(
-            [TokenType.LITERAL_FLOAT, TokenType.LITERAL_STRING, TokenType.LITERAL_DATE]
-        ):
-            tkzr.advance_pos()  # consume const expression
-            return ConstExpr(ret_token)
-        if tkzr.try_multiple_token_type(
-            [TokenType.LITERAL_INT, TokenType.LITERAL_HEX, TokenType.LITERAL_OCT]
-        ):
-            tkzr.advance_pos()  # consume int literal expression
-            return IntLiteral(ret_token)
-        # try to match as identifier
-        if tkzr.try_token_type(TokenType.IDENTIFIER):
-            match tkzr.get_token_code():
-                case "true" | "false":
-                    tkzr.advance_pos()  # consume bool literal
-                    return BoolLiteral(ret_token)
-                case "nothing" | "null" | "empty":
-                    tkzr.advance_pos()  # consume nothing symbol
-                    return Nothing(ret_token)
-                case _:
-                    raise ParserError("Invalid identifier in const expression")
-        raise ParserError("Invalid token in const expression")
+        assert (
+            ret_token is not None
+        ), "Expected token for constant expression, found None"
+        tok_code = tkzr.get_token_code(False, tok=ret_token)
+        # consume token
+        # if it's bad, it will be caught by the wildcard patterns
+        tkzr.advance_pos()
+        match ret_token.token_type:
+            case TokenType.LITERAL_INT:
+                # decimal integer
+                return EvalExpr(int(tok_code, base=10))
+            case TokenType.LITERAL_HEX:
+                # hexadecimal integer
+                return EvalExpr(
+                    int(
+                        tok_code[slice(2, -1 if tok_code[-1] == "&" else None)], base=16
+                    )
+                )
+            case TokenType.LITERAL_OCT:
+                # octal integer
+                return EvalExpr(
+                    int(tok_code[slice(1, -1 if tok_code[-1] == "&" else None)], base=8)
+                )
+            case TokenType.LITERAL_FLOAT:
+                return EvalExpr(float(tok_code))
+            case TokenType.LITERAL_STRING:
+                # ignore enclosing double quotes
+                return EvalExpr(tok_code[1:-1])
+            case TokenType.LITERAL_DATE:
+                return ConstExpr(ret_token)
+            case TokenType.IDENTIFIER:
+                match tok_code.casefold():
+                    case "true":
+                        return EvalExpr(True)
+                    case "false":
+                        return EvalExpr(False)
+                    case "nothing" | "null" | "empty":
+                        return Nothing(ret_token)
+                    case _:
+                        raise ParserError(
+                            f"Invalid identifier '{tok_code}' in constant expression"
+                        )
+            case _:
+                raise ParserError(f"Invalid token '{tok_code}' in constant expression")
 
     @staticmethod
     def parse_qualified_id_tail(tkzr: Tokenizer) -> Token:
@@ -755,7 +774,9 @@ class ExpressionParser:
             expr_left: Expr = expr_queue.pop(0)
             expr_right: Expr = expr_queue.pop(0)
             # new expression becomes left term of next IntDivExpr
-            expr_queue.insert(0, FoldableExpr.try_fold(expr_left, expr_right, IntDivExpr))
+            expr_queue.insert(
+                0, FoldableExpr.try_fold(expr_left, expr_right, IntDivExpr)
+            )
         return expr_queue.pop()
 
     @staticmethod
