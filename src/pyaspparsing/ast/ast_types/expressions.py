@@ -1,5 +1,6 @@
 """Expression AST classes"""
 
+import enum
 import typing
 
 import attrs
@@ -227,6 +228,14 @@ class MultExpr(FormatterMixin, Expr):
     right: Expr
 
 
+@enum.verify(enum.CONTINUOUS, enum.UNIQUE)
+class UnarySign(enum.IntEnum):
+    """Enumeration of valid signs for unary expression"""
+
+    SIGN_POS = enum.auto()
+    SIGN_NEG = enum.auto()
+
+
 @attrs.define(repr=False, slots=False)
 class UnaryExpr(FormatterMixin, Expr):
     """Unary signed expression AST type
@@ -237,11 +246,11 @@ class UnaryExpr(FormatterMixin, Expr):
 
     Attributes
     ----------
-    sign : Token
+    sign : UnarySign
     term : Expr
     """
 
-    sign: Token
+    sign: UnarySign
     term: Expr
 
 

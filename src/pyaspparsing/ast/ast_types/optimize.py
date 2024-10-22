@@ -1,6 +1,7 @@
 """Parser-level optimizations"""
 
 from __future__ import annotations
+import operator
 import typing
 import attrs
 from .base import FormatterMixin, Expr
@@ -30,8 +31,54 @@ class EvalExpr(FormatterMixin, Expr):
 
     expr_value: typing.Union[int, float, bool, str]
 
+    def str_cast(self):
+        """Cast expression to string for concatenation operator"""
+        if isinstance(self.expr_value, str):
+            return self
+        return EvalExpr(str(self.expr_value))
+
+    def reciprocal(self):
+        """Helper function for MultReciprocal wrapper"""
+        return EvalExpr(operator.pow(self.expr_value, -1))
+
+    def __pos__(self):
+        return EvalExpr(operator.pos(self.expr_value))
+
+    def __neg__(self):
+        return EvalExpr(operator.neg(self.expr_value))
+
+    def __floordiv__(self, other: EvalExpr):
+        return EvalExpr(operator.floordiv(self.expr_value, other.expr_value))
+
+    def __mod__(self, other: EvalExpr):
+        return EvalExpr(operator.mod(self.expr_value, other.expr_value))
+
     def __pow__(self, other: EvalExpr):
-        return self.expr_value**other.expr_value
+        return EvalExpr(operator.pow(self.expr_value, other.expr_value))
+
+    def __mul__(self, other: EvalExpr):
+        return EvalExpr(operator.mul(self.expr_value, other.expr_value))
+
+    def __add__(self, other: EvalExpr):
+        return EvalExpr(operator.add(self.expr_value, other.expr_value))
+
+    def __lt__(self, other: EvalExpr):
+        return EvalExpr(operator.lt(self.expr_value, other.expr_value))
+
+    def __le__(self, other: EvalExpr):
+        return EvalExpr(operator.le(self.expr_value, other.expr_value))
+
+    def __eq__(self, other: EvalExpr):
+        return EvalExpr(operator.eq(self.expr_value, other.expr_value))
+
+    def __ne__(self, other: EvalExpr):
+        return EvalExpr(operator.ne(self.expr_value, other.expr_value))
+
+    def __gt__(self, other: EvalExpr):
+        return EvalExpr(operator.gt(self.expr_value, other.expr_value))
+
+    def __ge__(self, other: EvalExpr):
+        return EvalExpr(operator.ge(self.expr_value, other.expr_value))
 
 
 @attrs.define(repr=False, slots=False)
