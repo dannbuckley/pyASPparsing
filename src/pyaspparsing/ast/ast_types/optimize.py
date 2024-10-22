@@ -5,7 +5,7 @@ import operator
 import typing
 import attrs
 from .base import FormatterMixin, Expr
-from .expressions import ConstExpr
+from .expressions import ConstExpr, Nothing
 
 
 @attrs.define(repr=False, slots=False)
@@ -47,6 +47,13 @@ class EvalExpr(FormatterMixin, Expr):
     def __neg__(self):
         return EvalExpr(operator.neg(self.expr_value))
 
+    def __invert__(self):
+        if isinstance(self.expr_value, bool):
+            return EvalExpr(operator.not_(self.expr_value))
+        if isinstance(self.expr_value, int):
+            return EvalExpr(operator.invert(self.expr_value))
+        return NotImplemented
+
     def __floordiv__(self, other: EvalExpr):
         return EvalExpr(operator.floordiv(self.expr_value, other.expr_value))
 
@@ -61,6 +68,15 @@ class EvalExpr(FormatterMixin, Expr):
 
     def __add__(self, other: EvalExpr):
         return EvalExpr(operator.add(self.expr_value, other.expr_value))
+
+    def __and__(self, other: EvalExpr):
+        return EvalExpr(operator.and_(self.expr_value, other.expr_value))
+
+    def __or__(self, other: EvalExpr):
+        return EvalExpr(operator.or_(self.expr_value, other.expr_value))
+
+    def __xor__(self, other: EvalExpr):
+        return EvalExpr(operator.xor(self.expr_value, other.expr_value))
 
     def __lt__(self, other: EvalExpr):
         return EvalExpr(operator.lt(self.expr_value, other.expr_value))
@@ -85,7 +101,7 @@ class EvalExpr(FormatterMixin, Expr):
 class FoldableExpr(ExprAnnotation):
     """AST annotation for constant folding
 
-    The wrapped_expr is composed entirely of constant terms
+    The `wrapped_expr` is composed entirely of constant terms
     and should be folded into a single constant for optimization
 
     Attributes
@@ -104,14 +120,18 @@ class FoldableExpr(ExprAnnotation):
         Returns
         -------
         (is_const, is_folded) : (bool, bool)
-            is_const = eval_expr is an instance of ConstExpr;
+            is_const = eval_expr is an instance of ConstExpr or EvalExpr;
             is_folded = eval_expr is an instance of FoldedExpr
         """
         is_folded = isinstance(eval_expr, FoldableExpr)
         if isinstance(eval_expr, ExprAnnotation) and not is_folded:
-            is_const = isinstance(eval_expr.wrapped_expr, (ConstExpr, EvalExpr))
+            is_const = isinstance(
+                eval_expr.wrapped_expr, (ConstExpr, EvalExpr)
+            ) and not isinstance(eval_expr.wrapped_expr, Nothing)
         else:
-            is_const = isinstance(eval_expr, (ConstExpr, EvalExpr))
+            is_const = isinstance(eval_expr, (ConstExpr, EvalExpr)) and not isinstance(
+                eval_expr, Nothing
+            )
         return (is_const, is_folded)
 
     @staticmethod
@@ -161,7 +181,7 @@ class FoldableExpr(ExprAnnotation):
 class AddNegated(ExprAnnotation):
     """AST annotation for AddExpr subtraction
 
-    To ignore +/- symbols after parsing,
+    To ignore `+` and `-` symbols after parsing,
     transform subtraction into addition
 
     Example:
@@ -194,7 +214,7 @@ class AddNegated(ExprAnnotation):
 class MultReciprocal(ExprAnnotation):
     """AST annotation for MultExpr division
 
-    To ignore * and / symbols after parsing,
+    To ignore `*` and `/` symbols after parsing,
     transform float division into multiplication
 
     Example:

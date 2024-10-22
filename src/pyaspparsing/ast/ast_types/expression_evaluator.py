@@ -22,8 +22,6 @@ from .expressions import (
     UnarySign,
     UnaryExpr,
     ExpExpr,
-    ConstExpr,
-    Nothing,
 )
 from .optimize import EvalExpr, FoldableExpr, AddNegated, MultReciprocal
 
@@ -62,17 +60,154 @@ def create_expr_eval_func(expr_type: type[Expr]):
             if isinstance(fld, FoldableExpr):
                 assert isinstance(
                     fld.wrapped_expr, expr_type
-                ), f"Tried to evaluate an expression of type {expr_type.__name__}, got {type(fld.wrapped_expr).__name__} instead"
+                ), f"Expected {expr_type.__name__}, got {type(fld.wrapped_expr).__name__} instead"
                 return func(fld.wrapped_expr)
             assert isinstance(
                 fld, expr_type
-            ), f"Tried to evaluate an expression of type {expr_type.__name__}, got {type(fld).__name__} instead"
+            ), f"Expected {expr_type.__name__}, got {type(fld).__name__} instead"
             return func(fld)
 
         reg_expr_eval[expr_type] = check_expr_type
         return check_expr_type
 
     return wrap_func
+
+
+@create_expr_eval_func(ImpExpr)
+def eval_imp_expr(fld: ImpExpr) -> EvalExpr:
+    """NOT CALLED DIRECTLY
+
+    Evaluate an implication (Imp) expression
+
+    Parameters
+    ----------
+    fld : ImpExpr
+        Foldable ImpExpr object
+
+    Returns
+    -------
+    EvalExpr
+    """
+    # Imp = (Not left) Or right
+    return operator.or_(
+        # reduce and invert left subtree
+        operator.invert(evaluate_expr(fld.left)),
+        # reduce right subtree
+        evaluate_expr(fld.right),
+    )
+
+
+@create_expr_eval_func(EqvExpr)
+def eval_eqv_expr(fld: EqvExpr) -> EvalExpr:
+    """NOT CALLED DIRECTLY
+
+    Evaluate an equivalence (Eqv) expression
+
+    Parameters
+    ----------
+    fld : EqvExpr
+        Foldable EqvExpr object
+
+    Returns
+    -------
+    EvalExpr
+    """
+    # Eqv = Not (left Xor right)
+    return operator.invert(
+        operator.xor(
+            # reduce left subtree
+            evaluate_expr(fld.left),
+            # reduce right subtree
+            evaluate_expr(fld.right),
+        )
+    )
+
+
+@create_expr_eval_func(XorExpr)
+def eval_xor_expr(fld: XorExpr) -> EvalExpr:
+    """NOT CALLED DIRECTLY
+
+    Evaluate an exclusive disjunction (Xor) expression
+
+    Parameters
+    ----------
+    fld : XorExpr
+        Foldable XorExpr object
+
+    Returns
+    -------
+    EvalExpr
+    """
+    return operator.xor(
+        # reduce left subtree
+        evaluate_expr(fld.left),
+        # reduce right subtree
+        evaluate_expr(fld.right),
+    )
+
+
+@create_expr_eval_func(OrExpr)
+def eval_or_expr(fld: OrExpr) -> EvalExpr:
+    """NOT CALLED DIRECTLY
+
+    Evaluate an inclusive disjunction (Or) expression
+
+    Parameters
+    ----------
+    fld : OrExpr
+        Foldable OrExpr object
+
+    Returns
+    -------
+    EvalExpr
+    """
+    return operator.or_(
+        # reduce left subtree
+        evaluate_expr(fld.left),
+        # reduce right subtree
+        evaluate_expr(fld.right),
+    )
+
+
+@create_expr_eval_func(AndExpr)
+def eval_and_expr(fld: AndExpr) -> EvalExpr:
+    """NOT CALLED DIRECTLY
+
+    Evaluate a conjunction (And) expression
+
+    Parameters
+    ----------
+    fld : AndExpr
+        Foldable AndExpr object
+
+    Returns
+    -------
+    EvalExpr
+    """
+    return operator.and_(
+        # reduce left subtree
+        evaluate_expr(fld.left),
+        # reduce right subtree
+        evaluate_expr(fld.right),
+    )
+
+
+@create_expr_eval_func(NotExpr)
+def eval_not_expr(fld: NotExpr) -> EvalExpr:
+    """NOT CALLED DIRECTLY
+
+    Evaluate a complement (Not) expression
+
+    Parameters
+    ----------
+    fld : NotExpr
+        Foldable NotExpr object
+
+    Returns
+    -------
+    EvalExpr
+    """
+    return operator.invert(evaluate_expr(fld.term))
 
 
 @create_expr_eval_func(CompareExpr)
@@ -93,12 +228,8 @@ def eval_compare_expr(fld: CompareExpr) -> EvalExpr:
     left = evaluate_expr(fld.left)
     right = evaluate_expr(fld.right)
     match fld.cmp_type:
-        case CompareExprType.COMPARE_IS:
-            # TODO
-            return EvalExpr(False)
-        case CompareExprType.COMPARE_ISNOT:
-            # TODO
-            return EvalExpr(False)
+        case CompareExprType.COMPARE_IS | CompareExprType.COMPARE_ISNOT:
+            raise EvaluatorError("Object reference comparisons cannot be folded")
         case CompareExprType.COMPARE_EQ:
             # '=': equality
             return operator.eq(left, right)

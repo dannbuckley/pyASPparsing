@@ -1,3 +1,4 @@
+import typing
 import pytest
 from pyaspparsing.ast.tokenizer.token_types import Token
 from pyaspparsing.ast.tokenizer.state_machine import Tokenizer
@@ -7,89 +8,22 @@ from pyaspparsing.ast.ast_types.expression_parser import ExpressionParser
 
 
 @pytest.mark.parametrize(
-    "exp_code,folded,exp_cmp_type,exp_left,exp_right",
+    "exp_code,expr_value",
     [
-        (
-            "1 Is 1",
-            True,
-            CompareExprType.COMPARE_IS,
-            IntLiteral(Token.int_literal(3, 4)),
-            IntLiteral(Token.int_literal(8, 9)),
-        ),
-        (
-            "1 Is Not 1",
-            True,
-            CompareExprType.COMPARE_ISNOT,
-            IntLiteral(Token.int_literal(3, 4)),
-            IntLiteral(Token.int_literal(12, 13)),
-        ),
-        (
-            "1 >= 1",
-            True,
-            CompareExprType.COMPARE_GTEQ,
-            IntLiteral(Token.int_literal(3, 4)),
-            IntLiteral(Token.int_literal(8, 9)),
-        ),
-        (
-            "1 => 1",
-            True,
-            CompareExprType.COMPARE_EQGT,
-            IntLiteral(Token.int_literal(3, 4)),
-            IntLiteral(Token.int_literal(8, 9)),
-        ),
-        (
-            "1 <= 1",
-            True,
-            CompareExprType.COMPARE_LTEQ,
-            IntLiteral(Token.int_literal(3, 4)),
-            IntLiteral(Token.int_literal(8, 9)),
-        ),
-        (
-            "1 =< 1",
-            True,
-            CompareExprType.COMPARE_EQLT,
-            IntLiteral(Token.int_literal(3, 4)),
-            IntLiteral(Token.int_literal(8, 9)),
-        ),
-        (
-            "1 > 1",
-            True,
-            CompareExprType.COMPARE_GT,
-            IntLiteral(Token.int_literal(3, 4)),
-            IntLiteral(Token.int_literal(7, 8)),
-        ),
-        (
-            "1 < 1",
-            True,
-            CompareExprType.COMPARE_LT,
-            IntLiteral(Token.int_literal(3, 4)),
-            IntLiteral(Token.int_literal(7, 8)),
-        ),
-        (
-            "1 <> 1",
-            True,
-            CompareExprType.COMPARE_LTGT,
-            IntLiteral(Token.int_literal(3, 4)),
-            IntLiteral(Token.int_literal(8, 9)),
-        ),
-        (
-            "1 = 1",
-            True,
-            CompareExprType.COMPARE_EQ,
-            IntLiteral(Token.int_literal(3, 4)),
-            IntLiteral(Token.int_literal(7, 8)),
-        ),
+        ("1 >= 1", True),
+        ("1 <= 1", True),
+        ("1 > 1", False),
+        ("1 < 1", False),
+        ("1 <> 1", False),
+        ("1 = 1", True),
     ],
 )
-def test_parse_compare_expr(
-    exp_code: str, folded: bool, exp_cmp_type: CompareExprType, exp_left: Expr, exp_right: Expr
+def test_parse_compare_expr_folded(
+    exp_code: str, expr_value: typing.Union[int, float, bool, str]
 ):
     with Tokenizer(f"<%={exp_code}%>", False) as tkzr:
         tkzr.advance_pos()
         compare_expr: Expr = ExpressionParser.parse_compare_expr(tkzr)
-        if folded:
-            assert isinstance(compare_expr, FoldableExpr)
-            assert isinstance(compare_expr.wrapped_expr, CompareExpr)
-            assert compare_expr.wrapped_expr.cmp_type == exp_cmp_type
-            assert compare_expr.wrapped_expr.left == exp_left
-            assert compare_expr.wrapped_expr.right == exp_right
+        tkzr.advance_pos()
+        assert isinstance(compare_expr, EvalExpr)
+        assert compare_expr.expr_value == expr_value

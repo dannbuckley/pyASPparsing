@@ -1,3 +1,4 @@
+import typing
 import pytest
 from pyaspparsing.ast.tokenizer.token_types import Token
 from pyaspparsing.ast.tokenizer.state_machine import Tokenizer
@@ -7,52 +8,39 @@ from pyaspparsing.ast.ast_types.expression_parser import ExpressionParser
 
 
 @pytest.mark.parametrize(
-    "exp_code,folded,exp_left,exp_right",
+    "exp_code,expr_value",
     [
-        (
-            "1 ^ 2",
-            True,
-            IntLiteral(Token.int_literal(3, 4)),
-            IntLiteral(Token.int_literal(7, 8)),
-        ),
-        (
-            "1 ^ 2 ^ 3",
-            True,
-            IntLiteral(Token.int_literal(3, 4)),
-            ExpExpr(
-                IntLiteral(Token.int_literal(7, 8)),
-                IntLiteral(Token.int_literal(11, 12)),
-            ),
-        ),
+        ("1 ^ 2", 1),
+        ("2 ^ 2 ^ 3", 256),
         (
             # NOT equivalent to above "1 ^ 2 ^ 3"
-            "(1 ^ 2) ^ 3",
-            True,
-            ExpExpr(
-                IntLiteral(Token.int_literal(4, 5)), IntLiteral(Token.int_literal(8, 9))
-            ),
-            IntLiteral(Token.int_literal(13, 14)),
+            "(2 ^ 2) ^ 3",
+            64,
         ),
-        (
-            "1 ^ 2 ^ 3 ^ 4",
-            True,
-            IntLiteral(Token.int_literal(3, 4)),
-            ExpExpr(
-                IntLiteral(Token.int_literal(7, 8)),
-                ExpExpr(
-                    IntLiteral(Token.int_literal(11, 12)),
-                    IntLiteral(Token.int_literal(15, 16)),
-                ),
-            ),
-        ),
+        ("1 ^ 2 ^ 3 ^ 4", 1),
+    ],
+)
+def test_parse_exp_expr_folded(
+    exp_code: str, expr_value: typing.Union[int, float, bool, str]
+):
+    with Tokenizer(f"<%={exp_code}%>", False) as tkzr:
+        tkzr.advance_pos()
+        exp_expr: Expr = ExpressionParser.parse_exp_expr(tkzr)
+        tkzr.advance_pos()
+        assert isinstance(exp_expr, EvalExpr)
+        assert exp_expr.expr_value == expr_value
+
+
+@pytest.mark.parametrize(
+    "exp_code,exp_left,exp_right",
+    [
         (
             # right argument is evaluated first
             # don't know what "a" is, so can't do constant folding
             "1 ^ 2 ^ a",
-            False,
-            IntLiteral(Token.int_literal(3, 4)),
+            EvalExpr(1),
             ExpExpr(
-                IntLiteral(Token.int_literal(7, 8)),
+                EvalExpr(2),
                 LeftExpr(QualifiedID([Token.identifier(11, 12)])),
             ),
         ),
@@ -60,45 +48,32 @@ from pyaspparsing.ast.ast_types.expression_parser import ExpressionParser
             # "a" is on the left
             # the right can be folded
             "a ^ 1 ^ 2",
-            False,
             LeftExpr(QualifiedID([Token.identifier(3, 4)])),
-            FoldableExpr(
-                ExpExpr(
-                    IntLiteral(Token.int_literal(7, 8)),
-                    IntLiteral(Token.int_literal(11, 12)),
-                )
-            ),
+            EvalExpr(1),
         ),
         (
             "1 ^ a ^ 2",
-            False,
-            IntLiteral(Token.int_literal(3, 4)),
+            EvalExpr(1),
             ExpExpr(
                 LeftExpr(QualifiedID([Token.identifier(7, 8)])),
-                IntLiteral(Token.int_literal(11, 12)),
+                EvalExpr(2),
             ),
         ),
         (
             # only "4 ^ 5" can be folded
             "a ^ 1 ^ 2 ^ b ^ 3 ^ c ^ 4 ^ 5",
-            False,
             LeftExpr(QualifiedID([Token.identifier(3, 4)])),
             ExpExpr(
-                IntLiteral(Token.int_literal(7, 8)),
+                EvalExpr(1),
                 ExpExpr(
-                    IntLiteral(Token.int_literal(11, 12)),
+                    EvalExpr(2),
                     ExpExpr(
                         LeftExpr(QualifiedID([Token.identifier(15, 16)])),
                         ExpExpr(
-                            IntLiteral(Token.int_literal(19, 20)),
+                            EvalExpr(3),
                             ExpExpr(
                                 LeftExpr(QualifiedID([Token.identifier(23, 24)])),
-                                FoldableExpr(
-                                    ExpExpr(
-                                        IntLiteral(Token.int_literal(27, 28)),
-                                        IntLiteral(Token.int_literal(31, 32)),
-                                    )
-                                ),
+                                EvalExpr(4**5),
                             ),
                         ),
                     ),
@@ -107,17 +82,11 @@ from pyaspparsing.ast.ast_types.expression_parser import ExpressionParser
         ),
     ],
 )
-def test_parse_exp_expr(exp_code: str, folded: bool, exp_left: Expr, exp_right: Expr):
+def test_parse_exp_expr(exp_code: str, exp_left: Expr, exp_right: Expr):
     with Tokenizer(f"<%={exp_code}%>", False) as tkzr:
         tkzr.advance_pos()
         exp_expr: Expr = ExpressionParser.parse_exp_expr(tkzr)
-        if folded:
-            assert isinstance(exp_expr, FoldableExpr)
-            assert isinstance(exp_expr.wrapped_expr, ExpExpr)
-            assert exp_expr.wrapped_expr.left == exp_left
-            assert exp_expr.wrapped_expr.right == exp_right
-        else:
-            assert isinstance(exp_expr, ExpExpr)
-            assert exp_expr.left == exp_left
-            assert exp_expr.right == exp_right
         tkzr.advance_pos()
+        assert isinstance(exp_expr, ExpExpr)
+        assert exp_expr.left == exp_left
+        assert exp_expr.right == exp_right

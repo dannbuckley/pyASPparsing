@@ -17,9 +17,9 @@ from pyaspparsing.ast.ast_types.expression_parser import ExpressionParser
                 [
                     IndexOrParams(
                         [
-                            IntLiteral(Token.int_literal(5, 6)),
+                            EvalExpr(1),
                             None,
-                            IntLiteral(Token.int_literal(9, 10)),
+                            EvalExpr(3),
                         ]
                     )
                 ],
@@ -36,9 +36,9 @@ from pyaspparsing.ast.ast_types.expression_parser import ExpressionParser
                         [
                             IndexOrParams(
                                 [
-                                    IntLiteral(Token.int_literal(9, 10)),
+                                    EvalExpr(1),
                                     None,
-                                    IntLiteral(Token.int_literal(13, 14)),
+                                    EvalExpr(3),
                                 ]
                             )
                         ],
@@ -63,14 +63,14 @@ from pyaspparsing.ast.ast_types.expression_parser import ExpressionParser
             "HelloWorld(1)",
             LeftExpr(
                 QualifiedID([Token.identifier(3, 13)]),
-                [IndexOrParams([IntLiteral(Token.int_literal(14, 15))])],
+                [IndexOrParams([EvalExpr(1)])],
             ),
         ),
         (
             "HelloWorld((1))",
             LeftExpr(
                 QualifiedID([Token.identifier(3, 13)]),
-                [IndexOrParams([IntLiteral(Token.int_literal(15, 16))])],
+                [IndexOrParams([EvalExpr(1)])],
             ),
         ),
         (
@@ -93,7 +93,7 @@ from pyaspparsing.ast.ast_types.expression_parser import ExpressionParser
                 QualifiedID([Token.identifier(3, 13)]),
                 [
                     IndexOrParams(),
-                    IndexOrParams([IntLiteral(Token.int_literal(16, 17))]),
+                    IndexOrParams([EvalExpr(1)]),
                 ],
             ),
         ),
@@ -131,7 +131,7 @@ from pyaspparsing.ast.ast_types.expression_parser import ExpressionParser
                 [
                     LeftExprTail(
                         QualifiedID([Token.identifier(15, 27, dot_start=True)]),
-                        [IndexOrParams([IntLiteral(Token.int_literal(28, 29))])],
+                        [IndexOrParams([EvalExpr(1)])],
                     )
                 ],
             ),
@@ -147,8 +147,8 @@ from pyaspparsing.ast.ast_types.expression_parser import ExpressionParser
                         [
                             IndexOrParams(
                                 [
-                                    IntLiteral(Token.int_literal(28, 29)),
-                                    IntLiteral(Token.int_literal(31, 32)),
+                                    EvalExpr(1),
+                                    EvalExpr(2),
                                 ]
                             )
                         ],
@@ -166,7 +166,7 @@ from pyaspparsing.ast.ast_types.expression_parser import ExpressionParser
                         QualifiedID([Token.identifier(15, 27, dot_start=True)]),
                         [
                             IndexOrParams(),
-                            IndexOrParams([IntLiteral(Token.int_literal(30, 31))]),
+                            IndexOrParams([EvalExpr(1)]),
                         ],
                     )
                 ],

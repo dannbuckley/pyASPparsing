@@ -35,58 +35,160 @@ from .expression_evaluator import evaluate_expr
 
 @attrs.define
 class ExprQueue:
-    """"""
+    """Helper class for parsing expressions that expand to the left
+
+    Attributes
+    ----------
+    queue : List[Expr], default=[]
+
+    Methods
+    -------
+    must_combine()
+    enqueue(exp)
+    dequeue()
+    fold_front(expr_type, *args)
+    fold(expr_type)
+    """
 
     queue: typing.List[Expr] = attrs.field(default=attrs.Factory(list))
 
-    def must_combine(self):
+    def must_combine(self) -> bool:
+        """
+        Returns
+        -------
+        bool
+            True if the queue contains more than one expression
+        """
         return len(self.queue) > 1
 
     def enqueue(self, exp: Expr):
+        """Add an expression to the back of the queue
+
+        Parameters
+        ----------
+        exp : Expr
+        """
         self.queue.append(exp)
 
     def dequeue(self) -> Expr:
+        """Remove and return the expression at the front of the queue
+
+        Returns
+        -------
+        Expr
+        """
         return self.queue.pop(0)
 
-    def _fold_front(self, expr_type: type[Expr]):
-        assert len(self.queue) > 1
+    def fold_front(self, expr_type: type[Expr], *args: typing.Any):
+        """Combine two expressions at the front of the queue into a single expression
+
+        Parameters
+        ----------
+        expr_type : type[Expr]
+        *args : Any
+            Additional arguments to pass to FoldableExpr.try_fold()
+
+        Raises
+        ------
+        AssertionError
+            If the queue does not have more than one expression
+        """
+        assert (
+            self.must_combine()
+        ), "Expression folding requires more than one expression"
         left = self.dequeue()
         right = self.dequeue()
-        fld = FoldableExpr.try_fold(left, right, expr_type)
+        fld = FoldableExpr.try_fold(left, right, expr_type, *args)
         self.queue.insert(
             0, evaluate_expr(fld) if isinstance(fld, FoldableExpr) else fld
         )
 
     def fold(self, expr_type: type[Expr]):
+        """Combine all expressions in the queue into a single expression
+
+        Parameters
+        ----------
+        expr_type : type[Expr]
+        """
         while self.must_combine():
-            self._fold_front(expr_type)
+            self.fold_front(expr_type)
 
 
 @attrs.define
 class ExprStack:
-    """"""
+    """Helper class for parsing expressions that expand to the right
+
+    Attributes
+    ----------
+    stack : List[Expr], default=[]
+
+    Methods
+    -------
+    must_combine()
+    push(exp)
+    pop()
+    fold_back(expr_type, *args)
+    fold(expr_type)
+    """
 
     stack: typing.List[Expr] = attrs.field(default=attrs.Factory(list))
 
-    def must_combine(self):
+    def must_combine(self) -> bool:
+        """
+        Returns
+        -------
+        bool
+            True if the stack contains more than one expression
+        """
         return len(self.stack) > 1
 
     def push(self, exp: Expr):
+        """Add an expression to the top of the stack
+
+        Parameters
+        ----------
+        exp : Expr
+        """
         self.stack.append(exp)
 
     def pop(self) -> Expr:
+        """Remove and return the expression at the top of the stack
+
+        Returns
+        -------
+        Expr
+        """
         return self.stack.pop(-1)
 
-    def _fold_back(self, expr_type: type[Expr]):
-        assert len(self.stack) > 1
+    def fold_back(self, expr_type: type[Expr], *args: typing.Any):
+        """Combine two expressions at the top of the stack into a single expression
+
+        Parameters
+        ----------
+        expr_type : type[Expr]
+        *args : Any
+            Additional arguments to pass to FoldableExpr.try_fold()
+
+        Raises
+        ------
+        AssertionError
+            If the stack does not have more than one expression
+        """
+        assert self.must_combine()
         right = self.pop()
         left = self.pop()
-        fld = FoldableExpr.try_fold(left, right, expr_type)
+        fld = FoldableExpr.try_fold(left, right, expr_type, *args)
         self.stack.append(evaluate_expr(fld) if isinstance(fld, FoldableExpr) else fld)
 
     def fold(self, expr_type: type[Expr]):
+        """Combine all expressions in the stack into a single expression
+
+        Parameters
+        ----------
+        expr_type : type[Expr]
+        """
         while self.must_combine():
-            self._fold_back(expr_type)
+            self.fold_back(expr_type)
 
 
 # expressions need to be handled with a class to deal with circular Value and Expr references
@@ -414,22 +516,24 @@ class ExpressionParser:
         Expr
         """
         # 'Imp' expression expands to the left, use a queue
-        expr_queue: typing.List[Expr] = [
-            ExpressionParser.parse_eqv_expr(tkzr, sub_safe)
-        ]
+        # expr_queue: typing.List[Expr] = [
+        #     ExpressionParser.parse_eqv_expr(tkzr, sub_safe)
+        # ]
+        expr_queue = ExprQueue([ExpressionParser.parse_eqv_expr(tkzr, sub_safe)])
 
         # more than one term?
         while tkzr.try_consume(TokenType.IDENTIFIER, "imp"):
-            expr_queue.append(ExpressionParser.parse_eqv_expr(tkzr, sub_safe))
+            expr_queue.enqueue(ExpressionParser.parse_eqv_expr(tkzr, sub_safe))
 
         # combine terms into one expression
-        while len(expr_queue) > 1:
-            # queue: pop from front
-            expr_left: Expr = expr_queue.pop(0)
-            expr_right: Expr = expr_queue.pop(0)
-            # new expression becomes left term of next ImpExpr
-            expr_queue.insert(0, FoldableExpr.try_fold(expr_left, expr_right, ImpExpr))
-        return expr_queue.pop()
+        expr_queue.fold(ImpExpr)
+        # while len(expr_queue) > 1:
+        # queue: pop from front
+        # expr_left: Expr = expr_queue.pop(0)
+        # expr_right: Expr = expr_queue.pop(0)
+        # new expression becomes left term of next ImpExpr
+        # expr_queue.insert(0, FoldableExpr.try_fold(expr_left, expr_right, ImpExpr))
+        return expr_queue.dequeue()
 
     @staticmethod
     def parse_eqv_expr(tkzr: Tokenizer, sub_safe: bool = False) -> Expr:
@@ -447,22 +551,24 @@ class ExpressionParser:
         Expr
         """
         # 'Eqv' expression expands to the left, use a queue
-        expr_queue: typing.List[Expr] = [
-            ExpressionParser.parse_xor_expr(tkzr, sub_safe)
-        ]
+        # expr_queue: typing.List[Expr] = [
+        #     ExpressionParser.parse_xor_expr(tkzr, sub_safe)
+        # ]
+        expr_queue = ExprQueue([ExpressionParser.parse_xor_expr(tkzr, sub_safe)])
 
         # more than one term?
         while tkzr.try_consume(TokenType.IDENTIFIER, "eqv"):
-            expr_queue.append(ExpressionParser.parse_xor_expr(tkzr, sub_safe))
+            expr_queue.enqueue(ExpressionParser.parse_xor_expr(tkzr, sub_safe))
 
         # combine terms into one expression
-        while len(expr_queue) > 1:
-            # queue: pop from front
-            expr_left: Expr = expr_queue.pop(0)
-            expr_right: Expr = expr_queue.pop(0)
-            # new expression becomes left term of next EqvExpr
-            expr_queue.insert(0, FoldableExpr.try_fold(expr_left, expr_right, EqvExpr))
-        return expr_queue.pop()
+        expr_queue.fold(EqvExpr)
+        # while len(expr_queue) > 1:
+        # queue: pop from front
+        # expr_left: Expr = expr_queue.pop(0)
+        # expr_right: Expr = expr_queue.pop(0)
+        # new expression becomes left term of next EqvExpr
+        # expr_queue.insert(0, FoldableExpr.try_fold(expr_left, expr_right, EqvExpr))
+        return expr_queue.dequeue()
 
     @staticmethod
     def parse_xor_expr(tkzr: Tokenizer, sub_safe: bool = False) -> Expr:
@@ -480,20 +586,22 @@ class ExpressionParser:
         Expr
         """
         # 'Xor' expression expands to the left, use a queue
-        expr_queue: typing.List[Expr] = [ExpressionParser.parse_or_expr(tkzr, sub_safe)]
+        # expr_queue: typing.List[Expr] = [ExpressionParser.parse_or_expr(tkzr, sub_safe)]
+        expr_queue = ExprQueue([ExpressionParser.parse_or_expr(tkzr, sub_safe)])
 
         # more than one term?
         while tkzr.try_consume(TokenType.IDENTIFIER, "xor"):
-            expr_queue.append(ExpressionParser.parse_or_expr(tkzr, sub_safe))
+            expr_queue.enqueue(ExpressionParser.parse_or_expr(tkzr, sub_safe))
 
         # combine terms into one expression
-        while len(expr_queue) > 1:
-            # queue: pop from front
-            expr_left: Expr = expr_queue.pop(0)
-            expr_right: Expr = expr_queue.pop(0)
-            # new expression becomes left term of next XorExpr
-            expr_queue.insert(0, FoldableExpr.try_fold(expr_left, expr_right, XorExpr))
-        return expr_queue.pop()
+        expr_queue.fold(XorExpr)
+        # while len(expr_queue) > 1:
+        # queue: pop from front
+        # expr_left: Expr = expr_queue.pop(0)
+        # expr_right: Expr = expr_queue.pop(0)
+        # new expression becomes left term of next XorExpr
+        # expr_queue.insert(0, FoldableExpr.try_fold(expr_left, expr_right, XorExpr))
+        return expr_queue.dequeue()
 
     @staticmethod
     def parse_or_expr(tkzr: Tokenizer, sub_safe: bool = False) -> Expr:
@@ -511,22 +619,24 @@ class ExpressionParser:
         Expr
         """
         # 'Or' expression expands to the left, use a queue
-        expr_queue: typing.List[Expr] = [
-            ExpressionParser.parse_and_expr(tkzr, sub_safe)
-        ]
+        # expr_queue: typing.List[Expr] = [
+        #     ExpressionParser.parse_and_expr(tkzr, sub_safe)
+        # ]
+        expr_queue = ExprQueue([ExpressionParser.parse_and_expr(tkzr, sub_safe)])
 
         # more than one term?
         while tkzr.try_consume(TokenType.IDENTIFIER, "or"):
-            expr_queue.append(ExpressionParser.parse_and_expr(tkzr, sub_safe))
+            expr_queue.enqueue(ExpressionParser.parse_and_expr(tkzr, sub_safe))
 
         # combine terms into one expression
-        while len(expr_queue) > 1:
-            # queue: pop from front
-            expr_left: Expr = expr_queue.pop(0)
-            expr_right: Expr = expr_queue.pop(0)
-            # new expression becomes left term of next OrExpr
-            expr_queue.insert(0, FoldableExpr.try_fold(expr_left, expr_right, OrExpr))
-        return expr_queue.pop()
+        expr_queue.fold(OrExpr)
+        # while len(expr_queue) > 1:
+        # queue: pop from front
+        # expr_left: Expr = expr_queue.pop(0)
+        # expr_right: Expr = expr_queue.pop(0)
+        # new expression becomes left term of next OrExpr
+        # expr_queue.insert(0, FoldableExpr.try_fold(expr_left, expr_right, OrExpr))
+        return expr_queue.dequeue()
 
     @staticmethod
     def parse_and_expr(tkzr: Tokenizer, sub_safe: bool = False) -> Expr:
@@ -544,22 +654,24 @@ class ExpressionParser:
         Expr
         """
         # 'And' expression expands to the left, use a queue
-        expr_queue: typing.List[Expr] = [
-            ExpressionParser.parse_not_expr(tkzr, sub_safe)
-        ]
+        # expr_queue: typing.List[Expr] = [
+        #     ExpressionParser.parse_not_expr(tkzr, sub_safe)
+        # ]
+        expr_queue = ExprQueue([ExpressionParser.parse_not_expr(tkzr, sub_safe)])
 
         # more than one term?
         while tkzr.try_consume(TokenType.IDENTIFIER, "and"):
-            expr_queue.append(ExpressionParser.parse_not_expr(tkzr, sub_safe))
+            expr_queue.enqueue(ExpressionParser.parse_not_expr(tkzr, sub_safe))
 
         # combine terms into one expression
-        while len(expr_queue) > 1:
-            # queue: pop from front
-            expr_left: Expr = expr_queue.pop(0)
-            expr_right: Expr = expr_queue.pop(0)
-            # new expression becomes left term of next AndExpr
-            expr_queue.insert(0, FoldableExpr.try_fold(expr_left, expr_right, AndExpr))
-        return expr_queue.pop()
+        expr_queue.fold(AndExpr)
+        # while len(expr_queue) > 1:
+        # queue: pop from front
+        # expr_left: Expr = expr_queue.pop(0)
+        # expr_right: Expr = expr_queue.pop(0)
+        # new expression becomes left term of next AndExpr
+        # expr_queue.insert(0, FoldableExpr.try_fold(expr_left, expr_right, AndExpr))
+        return expr_queue.dequeue()
 
     @staticmethod
     def parse_not_expr(tkzr: Tokenizer, sub_safe: bool = False) -> Expr:
@@ -584,12 +696,14 @@ class ExpressionParser:
 
         not_expr = ExpressionParser.parse_compare_expr(tkzr, sub_safe)
         if not_counter % 2 == 0:
+            # if expression is foldable,
+            # it would have been folded by parse_compare_expr()
             return not_expr
-        can_fold = isinstance(not_expr, (FoldableExpr, ConstExpr))
+        can_fold = any(FoldableExpr.can_fold(not_expr))
         if isinstance(not_expr, FoldableExpr):
             not_expr = not_expr.wrapped_expr
         not_expr = NotExpr(not_expr)
-        return FoldableExpr(not_expr) if can_fold else not_expr
+        return evaluate_expr(not_expr) if can_fold else not_expr
 
     @staticmethod
     def parse_compare_expr(tkzr: Tokenizer, sub_safe: bool = False) -> Expr:
@@ -608,9 +722,10 @@ class ExpressionParser:
         """
         # comparison expression expands to the left, use a queue
         cmp_queue: typing.List[CompareExprType] = []
-        expr_queue: typing.List[Expr] = [
-            ExpressionParser.parse_concat_expr(tkzr, sub_safe)
-        ]
+        # expr_queue: typing.List[Expr] = [
+        #     ExpressionParser.parse_concat_expr(tkzr, sub_safe)
+        # ]
+        expr_queue = ExprQueue([ExpressionParser.parse_concat_expr(tkzr, sub_safe)])
 
         # more than one term?
         while (
@@ -643,21 +758,14 @@ class ExpressionParser:
             elif tkzr.try_consume(TokenType.SYMBOL, "="):
                 # '=' comparison
                 cmp_queue.append(CompareExprType.COMPARE_EQ)
-            expr_queue.append(ExpressionParser.parse_concat_expr(tkzr, sub_safe))
+            expr_queue.enqueue(ExpressionParser.parse_concat_expr(tkzr, sub_safe))
 
         # combine terms into one expression
-        while len(expr_queue) > 1:
-            # queue: pop from front
-            expr_left: Expr = expr_queue.pop(0)
-            expr_right: Expr = expr_queue.pop(0)
-            # new expression becomes left term of next CompareExpr
-            expr_queue.insert(
-                0,
-                FoldableExpr.try_fold(
-                    expr_left, expr_right, CompareExpr, cmp_queue.pop(0)
-                ),
-            )
-        return expr_queue.pop()
+        while expr_queue.must_combine():
+            # need to iteratively fold because of the comparison operator
+            expr_queue.fold_front(CompareExpr, cmp_queue.pop(0))
+        assert len(cmp_queue) == 0, "Comparison operator queue should be empty"
+        return expr_queue.dequeue()
 
     @staticmethod
     def parse_concat_expr(tkzr: Tokenizer, sub_safe: bool = False) -> Expr:
@@ -695,11 +803,6 @@ class ExpressionParser:
                         if isinstance(fld_adj, FoldableExpr)
                         else fld_adj
                     ),
-                    # FoldableExpr.try_fold(
-                    #     concat_expr.right,
-                    #     ExpressionParser.parse_add_expr(tkzr, sub_safe),
-                    #     ConcatExpr,
-                    # ),
                 )
             else:
                 concat_expr = FoldableExpr.try_fold(
