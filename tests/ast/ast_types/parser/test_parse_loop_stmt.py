@@ -23,7 +23,7 @@ from pyaspparsing.ast.ast_types.parser import Parser
                 AssignStmt(
                     LeftExpr(QualifiedID([Token.identifier(9, 10)])),
                     AddExpr(
-                        IntLiteral(Token.int_literal(17, 18)),
+                        EvalExpr(1),
                         LeftExpr(QualifiedID([Token.identifier(13, 14)])),
                     ),
                 )
@@ -36,35 +36,35 @@ from pyaspparsing.ast.ast_types.parser import Parser
             "Do While True\nLoop\n",
             [],
             Token.identifier(5, 10),
-            BoolLiteral(Token.identifier(11, 15)),
+            EvalExpr(True),
         ),
         (
             # empty do until loop - beginning
             "Do Until True\nLoop\n",
             [],
             Token.identifier(5, 10),
-            BoolLiteral(Token.identifier(11, 15)),
+            EvalExpr(True),
         ),
         (
             # empty do while loop - end
             "Do\nLoop While True\n",
             [],
             Token.identifier(10, 15),
-            BoolLiteral(Token.identifier(16, 20)),
+            EvalExpr(True),
         ),
         (
             # empty do until loop - end
             "Do\nLoop Until True\n",
             [],
             Token.identifier(10, 15),
-            BoolLiteral(Token.identifier(16, 20)),
+            EvalExpr(True),
         ),
         (
             # empty while loop
             "While True\nWEnd\n",
             [],
             Token.identifier(2, 7),
-            BoolLiteral(Token.identifier(8, 12)),
+            EvalExpr(True),
         ),
         (
             # while loop
@@ -73,13 +73,13 @@ from pyaspparsing.ast.ast_types.parser import Parser
                 AssignStmt(
                     LeftExpr(QualifiedID([Token.identifier(17, 18)])),
                     AddExpr(
-                        IntLiteral(Token.int_literal(25, 26)),
+                        EvalExpr(1),
                         LeftExpr(QualifiedID([Token.identifier(21, 22)])),
                     ),
                 )
             ],
             Token.identifier(2, 7),
-            BoolLiteral(Token.identifier(8, 12)),
+            EvalExpr(True),
         ),
     ],
 )
@@ -92,7 +92,7 @@ def test_parse_loop_stmt(
     with Tokenizer(f"<%{codeblock}%>", False) as tkzr:
         tkzr.advance_pos()
         loop_stmt = Parser.parse_loop_stmt(tkzr)
+        tkzr.advance_pos()
         assert loop_stmt.block_stmt_list == exp_block_stmt_list
         assert loop_stmt.loop_type == exp_loop_type
         assert loop_stmt.loop_expr == exp_loop_expr
-        tkzr.advance_pos()

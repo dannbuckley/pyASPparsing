@@ -116,7 +116,7 @@ from pyaspparsing.ast.ast_types.parser import Parser
             [
                 AssignStmt(
                     LeftExpr(QualifiedID([Token.identifier(27, 28)])),
-                    IntLiteral(Token.int_literal(31, 32)),
+                    EvalExpr(1),
                 )
             ],
             None,
@@ -152,8 +152,8 @@ def test_parse_function_decl(
             if exp_access_mod == AccessModifierType.PUBLIC_DEFAULT:
                 tkzr.advance_pos()
         function_decl = Parser.parse_function_decl(tkzr, exp_access_mod)
+        tkzr.advance_pos()
         assert function_decl.extended_id == exp_extended_id
         assert function_decl.method_arg_list == exp_method_arg_list
         assert function_decl.method_stmt_list == exp_method_stmt_list
         assert function_decl.access_mod == exp_access_mod
-        tkzr.advance_pos()

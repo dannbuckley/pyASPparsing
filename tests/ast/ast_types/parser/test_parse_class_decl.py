@@ -47,7 +47,7 @@ from pyaspparsing.ast.ast_types.parser import Parser
                     [
                         ConstListItem(
                             ExtendedID(Token.identifier(22, 23)),
-                            IntLiteral(Token.int_literal(26, 28)),
+                            EvalExpr(42),
                         )
                     ]
                 )
@@ -62,7 +62,7 @@ from pyaspparsing.ast.ast_types.parser import Parser
                     [
                         ConstListItem(
                             ExtendedID(Token.identifier(29, 30)),
-                            IntLiteral(Token.int_literal(33, 35)),
+                            EvalExpr(42),
                         )
                     ],
                     access_mod=AccessModifierType.PUBLIC,
@@ -78,7 +78,7 @@ from pyaspparsing.ast.ast_types.parser import Parser
                     [
                         ConstListItem(
                             ExtendedID(Token.identifier(30, 31)),
-                            IntLiteral(Token.int_literal(34, 36)),
+                            EvalExpr(42),
                         )
                     ],
                     access_mod=AccessModifierType.PRIVATE,
@@ -272,6 +272,6 @@ def test_parse_class_decl(
     with Tokenizer(f"<%{codeblock}%>", False) as tkzr:
         tkzr.advance_pos()
         class_decl = Parser.parse_class_decl(tkzr)
+        tkzr.advance_pos()
         assert class_decl.extended_id == exp_extended_id
         assert class_decl.member_decl_list == exp_member_decl_list
-        tkzr.advance_pos()

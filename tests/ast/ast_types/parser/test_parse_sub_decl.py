@@ -116,7 +116,7 @@ from pyaspparsing.ast.ast_types.parser import Parser
             [
                 AssignStmt(
                     LeftExpr(QualifiedID([Token.identifier(24, 25)])),
-                    IntLiteral(Token.int_literal(28, 29)),
+                    EvalExpr(1),
                 )
             ],
             None,
@@ -146,7 +146,7 @@ from pyaspparsing.ast.ast_types.parser import Parser
                     [
                         ConstListItem(
                             ExtendedID(Token.identifier(26, 27)),
-                            IntLiteral(Token.int_literal(30, 32)),
+                            EvalExpr(42),
                         )
                     ]
                 )
@@ -163,7 +163,7 @@ from pyaspparsing.ast.ast_types.parser import Parser
                     [
                         ConstListItem(
                             ExtendedID(Token.identifier(33, 34)),
-                            IntLiteral(Token.int_literal(37, 39)),
+                            EvalExpr(42),
                         )
                     ],
                     access_mod=AccessModifierType.PUBLIC,
@@ -181,7 +181,7 @@ from pyaspparsing.ast.ast_types.parser import Parser
                     [
                         ConstListItem(
                             ExtendedID(Token.identifier(34, 35)),
-                            IntLiteral(Token.int_literal(38, 40)),
+                            EvalExpr(42),
                         )
                     ],
                     access_mod=AccessModifierType.PRIVATE,
@@ -205,8 +205,8 @@ def test_parse_sub_decl(
             if exp_access_mod == AccessModifierType.PUBLIC_DEFAULT:
                 tkzr.advance_pos()
         sub_decl = Parser.parse_sub_decl(tkzr, exp_access_mod)
+        tkzr.advance_pos()
         assert sub_decl.extended_id == exp_extended_id
         assert sub_decl.method_arg_list == exp_method_arg_list
         assert sub_decl.method_stmt_list == exp_method_stmt_list
         assert sub_decl.access_mod == exp_access_mod
-        tkzr.advance_pos()

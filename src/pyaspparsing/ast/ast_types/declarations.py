@@ -17,8 +17,9 @@ from .base import (
     MemberDecl,
 )
 from .statements import ExtendedID
-from .expressions import UnaryExpr
+from .expressions import UnaryExpr, UnarySign
 from .expression_parser import ExpressionParser
+from .expression_evaluator import evaluate_expr
 
 
 @attrs.define(repr=False, slots=False)
@@ -414,8 +415,16 @@ class ConstDecl(FormatterMixin, GlobalStmt, MethodStmt, MemberDecl):
 
             # combine signs into one expression
             while len(sign_stack) > 0:
-                const_expr = UnaryExpr(sign_stack.pop(), const_expr)
-            const_list.append(ConstListItem(const_id, const_expr))
+                next_sign = sign_stack.pop()
+                const_expr = UnaryExpr(
+                    (
+                        UnarySign.SIGN_POS
+                        if tkzr.get_token_code(tok=next_sign) == "+"
+                        else UnarySign.SIGN_NEG
+                    ),
+                    const_expr,
+                )
+            const_list.append(ConstListItem(const_id, evaluate_expr(const_expr)))
             del const_id, const_expr, num_paren, sign_stack
 
             # advance to next item

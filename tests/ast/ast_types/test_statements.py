@@ -21,7 +21,7 @@ def test_parse_option_explicit():
             [
                 RedimDecl(
                     ExtendedID(Token.identifier(8, 16)),
-                    [IntLiteral(Token.int_literal(17, 19))],
+                    [EvalExpr(10)],
                 )
             ],
             False,
@@ -32,8 +32,8 @@ def test_parse_option_explicit():
                 RedimDecl(
                     ExtendedID(Token.identifier(8, 16)),
                     [
-                        IntLiteral(Token.int_literal(17, 19)),
-                        IntLiteral(Token.int_literal(21, 23)),
+                        EvalExpr(10),
+                        EvalExpr(10),
                     ],
                 )
             ],
@@ -45,8 +45,8 @@ def test_parse_option_explicit():
                 RedimDecl(
                     ExtendedID(Token.identifier(17, 25)),
                     [
-                        IntLiteral(Token.int_literal(26, 28)),
-                        IntLiteral(Token.int_literal(30, 32)),
+                        EvalExpr(10),
+                        EvalExpr(10),
                     ],
                 )
             ],
@@ -72,14 +72,14 @@ def test_parse_redim_stmt(
             # LeftExpr = Expr
             "a = 1",
             LeftExpr(QualifiedID([Token.identifier(2, 3)])),
-            IntLiteral(Token.int_literal(6, 7)),
+            EvalExpr(1),
             False,
         ),
         (
             # Set LeftExpr = Expr
             "Set a = 1",
             LeftExpr(QualifiedID([Token.identifier(6, 7)])),
-            IntLiteral(Token.int_literal(10, 11)),
+            EvalExpr(1),
             False,
         ),
         (
@@ -97,14 +97,14 @@ def test_parse_redim_stmt(
                 [
                     IndexOrParams(
                         [
-                            IntLiteral(Token.int_literal(8, 9)),
+                            EvalExpr(1),
                             None,
-                            IntLiteral(Token.int_literal(12, 13)),
+                            EvalExpr(3),
                         ]
                     )
                 ],
             ),
-            IntLiteral(Token.int_literal(17, 19)),
+            EvalExpr(42),
             False,
         ),
         (
@@ -119,16 +119,16 @@ def test_parse_redim_stmt(
                         [
                             IndexOrParams(
                                 [
-                                    IntLiteral(Token.int_literal(12, 13)),
+                                    EvalExpr(1),
                                     None,
-                                    IntLiteral(Token.int_literal(16, 17)),
+                                    EvalExpr(3),
                                 ]
                             )
                         ],
                     )
                 ],
             ),
-            IntLiteral(Token.int_literal(21, 23)),
+            EvalExpr(42),
             False,
         ),
     ],
@@ -168,7 +168,7 @@ def test_parse_assign_stmt(
             "Call HelloWorld(1)",
             LeftExpr(
                 QualifiedID([Token.identifier(7, 17)]),
-                [IndexOrParams([IntLiteral(Token.int_literal(18, 19))])],
+                [IndexOrParams([EvalExpr(1)])],
             ),
         ),
         (
@@ -186,7 +186,7 @@ def test_parse_assign_stmt(
                 QualifiedID([Token.identifier(7, 17)]),
                 [
                     IndexOrParams(),
-                    IndexOrParams([IntLiteral(Token.int_literal(20, 21))]),
+                    IndexOrParams([EvalExpr(1)]),
                 ],
             ),
         ),
@@ -227,7 +227,7 @@ def test_parse_assign_stmt(
                 [
                     LeftExprTail(
                         QualifiedID([Token.identifier(19, 31, dot_start=True)]),
-                        [IndexOrParams([IntLiteral(Token.int_literal(32, 33))])],
+                        [IndexOrParams([EvalExpr(1)])],
                     )
                 ],
             ),
@@ -244,8 +244,8 @@ def test_parse_assign_stmt(
                         [
                             IndexOrParams(
                                 [
-                                    IntLiteral(Token.int_literal(32, 33)),
-                                    IntLiteral(Token.int_literal(35, 36)),
+                                    EvalExpr(1),
+                                    EvalExpr(2),
                                 ]
                             )
                         ],
@@ -264,7 +264,7 @@ def test_parse_assign_stmt(
                         QualifiedID([Token.identifier(19, 31, dot_start=True)]),
                         [
                             IndexOrParams(),
-                            IndexOrParams([IntLiteral(Token.int_literal(34, 35))]),
+                            IndexOrParams([EvalExpr(1)]),
                         ],
                     )
                 ],
@@ -291,7 +291,7 @@ def test_parse_call_stmt(codeblock: str, exp_left_expr: LeftExpr):
                     [Token.identifier(2, 11, dot_end=True), Token.identifier(11, 16)]
                 )
             ),
-            ConstExpr(Token.string_literal(17, 32)),
+            EvalExpr("Hello, world!"),
             [],
         ),
         (
@@ -302,8 +302,8 @@ def test_parse_call_stmt(codeblock: str, exp_left_expr: LeftExpr):
                     [Token.identifier(2, 11, dot_end=True), Token.identifier(11, 16)]
                 )
             ),
-            ConstExpr(Token.string_literal(17, 32)),
-            [ConstExpr(Token.string_literal(34, 49))],
+            EvalExpr("Hello, world!"),
+            [EvalExpr("Second string")],
         ),
         (
             # left_expr = <QualifiedID> <CommaExprList>
@@ -314,7 +314,7 @@ def test_parse_call_stmt(codeblock: str, exp_left_expr: LeftExpr):
                 )
             ),
             None,
-            [ConstExpr(Token.string_literal(19, 33))],
+            [EvalExpr("Second param")],
         ),
         (
             # left_expr = <QualifiedID> '(' ')'
@@ -335,7 +335,7 @@ def test_parse_call_stmt(codeblock: str, exp_left_expr: LeftExpr):
                 QualifiedID(
                     [Token.identifier(2, 11, dot_end=True), Token.identifier(11, 16)]
                 ),
-                [IndexOrParams([ConstExpr(Token.string_literal(17, 32))])],
+                [IndexOrParams([EvalExpr("Hello, world!")])],
             ),
             None,
             [],
@@ -347,10 +347,10 @@ def test_parse_call_stmt(codeblock: str, exp_left_expr: LeftExpr):
                 QualifiedID(
                     [Token.identifier(2, 11, dot_end=True), Token.identifier(11, 16)]
                 ),
-                [IndexOrParams([ConstExpr(Token.string_literal(17, 32))])],
+                [IndexOrParams([EvalExpr("Hello, world!")])],
             ),
             None,
-            [ConstExpr(Token.string_literal(35, 50))],
+            [EvalExpr("String at end")],
         ),
         (
             # left_expr = <QualifiedID> '(' <Expr> ')' <CommaExprList>
@@ -359,13 +359,13 @@ def test_parse_call_stmt(codeblock: str, exp_left_expr: LeftExpr):
                 QualifiedID(
                     [Token.identifier(2, 11, dot_end=True), Token.identifier(11, 16)]
                 ),
-                [IndexOrParams([ConstExpr(Token.string_literal(17, 32))])],
+                [IndexOrParams([EvalExpr("Hello, world!")])],
             ),
             None,
             [
-                ConstExpr(Token.string_literal(35, 42)),
+                EvalExpr("First"),
                 None,
-                ConstExpr(Token.string_literal(45, 51)),
+                EvalExpr("Last"),
             ],
         ),
         (
@@ -375,12 +375,12 @@ def test_parse_call_stmt(codeblock: str, exp_left_expr: LeftExpr):
                 QualifiedID(
                     [Token.identifier(2, 11, dot_end=True), Token.identifier(11, 16)]
                 ),
-                [IndexOrParams([ConstExpr(Token.string_literal(17, 32))])],
+                [IndexOrParams([EvalExpr("Hello, world!")])],
             ),
             None,
             [
-                ConstExpr(Token.string_literal(35, 53)),
-                ConstExpr(Token.string_literal(55, 70)),
+                EvalExpr("String in middle"),
+                EvalExpr("String at end"),
             ],
         ),
         (
@@ -418,7 +418,7 @@ def test_parse_call_stmt(codeblock: str, exp_left_expr: LeftExpr):
                     )
                 ],
             ),
-            ConstExpr(Token.string_literal(25, 40)),
+            EvalExpr("Hello, world!"),
             [],
         ),
         (
@@ -437,8 +437,8 @@ def test_parse_call_stmt(codeblock: str, exp_left_expr: LeftExpr):
                     )
                 ],
             ),
-            ConstExpr(Token.string_literal(25, 40)),
-            [ConstExpr(Token.string_literal(42, 56))],
+            EvalExpr("Hello, world!"),
+            [EvalExpr("Second param")],
         ),
         (
             # left_expr = <QualifiedID> { <IndexOrParamsList> '.' | <IndexOrParamsListDot> }
@@ -457,7 +457,7 @@ def test_parse_call_stmt(codeblock: str, exp_left_expr: LeftExpr):
                 ],
             ),
             None,
-            [ConstExpr(Token.string_literal(27, 41))],
+            [EvalExpr("Second param")],
         ),
     ],
 )

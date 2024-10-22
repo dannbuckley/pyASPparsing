@@ -146,7 +146,7 @@ def test_parse_var_decl(codeblock: str, exp_var_name: typing.List[VarName]):
             [
                 ConstListItem(
                     ExtendedID(Token.identifier(8, 9)),
-                    IntLiteral(Token.int_literal(12, 13)),
+                    EvalExpr(1),
                 )
             ],
             None,
@@ -157,7 +157,7 @@ def test_parse_var_decl(codeblock: str, exp_var_name: typing.List[VarName]):
             [
                 ConstListItem(
                     ExtendedID(Token.identifier(8, 9)),
-                    IntLiteral(Token.int_literal(13, 14)),
+                    EvalExpr(1),
                 )
             ],
             None,
@@ -168,7 +168,7 @@ def test_parse_var_decl(codeblock: str, exp_var_name: typing.List[VarName]):
             [
                 ConstListItem(
                     ExtendedID(Token.identifier(8, 9)),
-                    IntLiteral(Token.int_literal(14, 15)),
+                    EvalExpr(1),
                 )
             ],
             None,
@@ -179,9 +179,7 @@ def test_parse_var_decl(codeblock: str, exp_var_name: typing.List[VarName]):
             [
                 ConstListItem(
                     ExtendedID(Token.identifier(8, 9)),
-                    UnaryExpr(
-                        Token.symbol(12, 13), IntLiteral(Token.int_literal(13, 14))
-                    ),
+                    EvalExpr(-1),
                 )
             ],
             None,
@@ -192,12 +190,7 @@ def test_parse_var_decl(codeblock: str, exp_var_name: typing.List[VarName]):
             [
                 ConstListItem(
                     ExtendedID(Token.identifier(8, 9)),
-                    UnaryExpr(
-                        Token.symbol(12, 13),
-                        UnaryExpr(
-                            Token.symbol(13, 14), IntLiteral(Token.int_literal(14, 15))
-                        ),
-                    ),
+                    EvalExpr(-1),
                 )
             ],
             None,
@@ -208,9 +201,7 @@ def test_parse_var_decl(codeblock: str, exp_var_name: typing.List[VarName]):
             [
                 ConstListItem(
                     ExtendedID(Token.identifier(8, 9)),
-                    UnaryExpr(
-                        Token.symbol(12, 13), IntLiteral(Token.int_literal(14, 15))
-                    ),
+                    EvalExpr(-1),
                 )
             ],
             None,
@@ -221,12 +212,7 @@ def test_parse_var_decl(codeblock: str, exp_var_name: typing.List[VarName]):
             [
                 ConstListItem(
                     ExtendedID(Token.identifier(8, 9)),
-                    UnaryExpr(
-                        Token.symbol(12, 13),
-                        UnaryExpr(
-                            Token.symbol(14, 15), IntLiteral(Token.int_literal(16, 17))
-                        ),
-                    ),
+                    EvalExpr(-1),
                 )
             ],
             None,
@@ -237,11 +223,11 @@ def test_parse_var_decl(codeblock: str, exp_var_name: typing.List[VarName]):
             [
                 ConstListItem(
                     ExtendedID(Token.identifier(8, 9)),
-                    IntLiteral(Token.int_literal(12, 13)),
+                    EvalExpr(1),
                 ),
                 ConstListItem(
                     ExtendedID(Token.identifier(15, 16)),
-                    IntLiteral(Token.int_literal(19, 20)),
+                    EvalExpr(2),
                 ),
             ],
             None,
@@ -252,7 +238,7 @@ def test_parse_var_decl(codeblock: str, exp_var_name: typing.List[VarName]):
             [
                 ConstListItem(
                     ExtendedID(Token.identifier(15, 16)),
-                    IntLiteral(Token.int_literal(19, 20)),
+                    EvalExpr(1),
                 )
             ],
             AccessModifierType.PUBLIC,
@@ -263,7 +249,7 @@ def test_parse_var_decl(codeblock: str, exp_var_name: typing.List[VarName]):
             [
                 ConstListItem(
                     ExtendedID(Token.identifier(16, 17)),
-                    IntLiteral(Token.int_literal(20, 21)),
+                    EvalExpr(1),
                 )
             ],
             AccessModifierType.PRIVATE,

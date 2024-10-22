@@ -19,13 +19,13 @@ from pyaspparsing.ast.ast_types.parser import Parser
             # select statement, one empty case without newline
             "Select Case a\nCase 1 End Select\n",
             LeftExpr(QualifiedID([Token.identifier(14, 15)])),
-            [CaseStmt(case_expr_list=[IntLiteral(Token.int_literal(21, 22))])],
+            [CaseStmt(case_expr_list=[EvalExpr(1)])],
         ),
         (
             # select statement, one empty case with newline
             "Select Case a\nCase 1\nEnd Select\n",
             LeftExpr(QualifiedID([Token.identifier(14, 15)])),
-            [CaseStmt(case_expr_list=[IntLiteral(Token.int_literal(21, 22))])],
+            [CaseStmt(case_expr_list=[EvalExpr(1)])],
         ),
         (
             # select statement, one case without newline
@@ -34,7 +34,7 @@ from pyaspparsing.ast.ast_types.parser import Parser
             [
                 CaseStmt(
                     [VarDecl([VarName(ExtendedID(Token.identifier(27, 33)))])],
-                    [IntLiteral(Token.int_literal(21, 22))],
+                    [EvalExpr(1)],
                 )
             ],
         ),
@@ -45,7 +45,7 @@ from pyaspparsing.ast.ast_types.parser import Parser
             [
                 CaseStmt(
                     [VarDecl([VarName(ExtendedID(Token.identifier(27, 33)))])],
-                    [IntLiteral(Token.int_literal(21, 22))],
+                    [EvalExpr(1)],
                 )
             ],
         ),
@@ -56,7 +56,7 @@ from pyaspparsing.ast.ast_types.parser import Parser
             [
                 CaseStmt(
                     [VarDecl([VarName(ExtendedID(Token.identifier(27, 33)))])],
-                    [IntLiteral(Token.int_literal(21, 22))],
+                    [EvalExpr(1)],
                 )
             ],
         ),
@@ -77,7 +77,7 @@ from pyaspparsing.ast.ast_types.parser import Parser
             "Select Case a\nCase 1 Case Else End Select\n",
             LeftExpr(QualifiedID([Token.identifier(14, 15)])),
             [
-                CaseStmt(case_expr_list=[IntLiteral(Token.int_literal(21, 22))]),
+                CaseStmt(case_expr_list=[EvalExpr(1)]),
                 CaseStmt(is_else=True),
             ],
         ),
@@ -113,6 +113,6 @@ def test_parse_select_stmt(
     with Tokenizer(f"<%{codeblock}%>", False) as tkzr:
         tkzr.advance_pos()
         select_stmt = Parser.parse_select_stmt(tkzr)
+        tkzr.advance_pos()
         assert select_stmt.select_case_expr == exp_select_case_expr
         assert select_stmt.case_stmt_list == exp_case_stmt_list
-        tkzr.advance_pos()
