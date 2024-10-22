@@ -516,23 +516,11 @@ class ExpressionParser:
         Expr
         """
         # 'Imp' expression expands to the left, use a queue
-        # expr_queue: typing.List[Expr] = [
-        #     ExpressionParser.parse_eqv_expr(tkzr, sub_safe)
-        # ]
         expr_queue = ExprQueue([ExpressionParser.parse_eqv_expr(tkzr, sub_safe)])
-
-        # more than one term?
         while tkzr.try_consume(TokenType.IDENTIFIER, "imp"):
             expr_queue.enqueue(ExpressionParser.parse_eqv_expr(tkzr, sub_safe))
-
         # combine terms into one expression
         expr_queue.fold(ImpExpr)
-        # while len(expr_queue) > 1:
-        # queue: pop from front
-        # expr_left: Expr = expr_queue.pop(0)
-        # expr_right: Expr = expr_queue.pop(0)
-        # new expression becomes left term of next ImpExpr
-        # expr_queue.insert(0, FoldableExpr.try_fold(expr_left, expr_right, ImpExpr))
         return expr_queue.dequeue()
 
     @staticmethod
@@ -551,23 +539,11 @@ class ExpressionParser:
         Expr
         """
         # 'Eqv' expression expands to the left, use a queue
-        # expr_queue: typing.List[Expr] = [
-        #     ExpressionParser.parse_xor_expr(tkzr, sub_safe)
-        # ]
         expr_queue = ExprQueue([ExpressionParser.parse_xor_expr(tkzr, sub_safe)])
-
-        # more than one term?
         while tkzr.try_consume(TokenType.IDENTIFIER, "eqv"):
             expr_queue.enqueue(ExpressionParser.parse_xor_expr(tkzr, sub_safe))
-
         # combine terms into one expression
         expr_queue.fold(EqvExpr)
-        # while len(expr_queue) > 1:
-        # queue: pop from front
-        # expr_left: Expr = expr_queue.pop(0)
-        # expr_right: Expr = expr_queue.pop(0)
-        # new expression becomes left term of next EqvExpr
-        # expr_queue.insert(0, FoldableExpr.try_fold(expr_left, expr_right, EqvExpr))
         return expr_queue.dequeue()
 
     @staticmethod
@@ -586,21 +562,11 @@ class ExpressionParser:
         Expr
         """
         # 'Xor' expression expands to the left, use a queue
-        # expr_queue: typing.List[Expr] = [ExpressionParser.parse_or_expr(tkzr, sub_safe)]
         expr_queue = ExprQueue([ExpressionParser.parse_or_expr(tkzr, sub_safe)])
-
-        # more than one term?
         while tkzr.try_consume(TokenType.IDENTIFIER, "xor"):
             expr_queue.enqueue(ExpressionParser.parse_or_expr(tkzr, sub_safe))
-
         # combine terms into one expression
         expr_queue.fold(XorExpr)
-        # while len(expr_queue) > 1:
-        # queue: pop from front
-        # expr_left: Expr = expr_queue.pop(0)
-        # expr_right: Expr = expr_queue.pop(0)
-        # new expression becomes left term of next XorExpr
-        # expr_queue.insert(0, FoldableExpr.try_fold(expr_left, expr_right, XorExpr))
         return expr_queue.dequeue()
 
     @staticmethod
@@ -619,23 +585,11 @@ class ExpressionParser:
         Expr
         """
         # 'Or' expression expands to the left, use a queue
-        # expr_queue: typing.List[Expr] = [
-        #     ExpressionParser.parse_and_expr(tkzr, sub_safe)
-        # ]
         expr_queue = ExprQueue([ExpressionParser.parse_and_expr(tkzr, sub_safe)])
-
-        # more than one term?
         while tkzr.try_consume(TokenType.IDENTIFIER, "or"):
             expr_queue.enqueue(ExpressionParser.parse_and_expr(tkzr, sub_safe))
-
         # combine terms into one expression
         expr_queue.fold(OrExpr)
-        # while len(expr_queue) > 1:
-        # queue: pop from front
-        # expr_left: Expr = expr_queue.pop(0)
-        # expr_right: Expr = expr_queue.pop(0)
-        # new expression becomes left term of next OrExpr
-        # expr_queue.insert(0, FoldableExpr.try_fold(expr_left, expr_right, OrExpr))
         return expr_queue.dequeue()
 
     @staticmethod
@@ -654,23 +608,11 @@ class ExpressionParser:
         Expr
         """
         # 'And' expression expands to the left, use a queue
-        # expr_queue: typing.List[Expr] = [
-        #     ExpressionParser.parse_not_expr(tkzr, sub_safe)
-        # ]
         expr_queue = ExprQueue([ExpressionParser.parse_not_expr(tkzr, sub_safe)])
-
-        # more than one term?
         while tkzr.try_consume(TokenType.IDENTIFIER, "and"):
             expr_queue.enqueue(ExpressionParser.parse_not_expr(tkzr, sub_safe))
-
         # combine terms into one expression
         expr_queue.fold(AndExpr)
-        # while len(expr_queue) > 1:
-        # queue: pop from front
-        # expr_left: Expr = expr_queue.pop(0)
-        # expr_right: Expr = expr_queue.pop(0)
-        # new expression becomes left term of next AndExpr
-        # expr_queue.insert(0, FoldableExpr.try_fold(expr_left, expr_right, AndExpr))
         return expr_queue.dequeue()
 
     @staticmethod
@@ -693,7 +635,6 @@ class ExpressionParser:
         not_counter = 0
         while tkzr.try_consume(TokenType.IDENTIFIER, "not"):
             not_counter += 1
-
         not_expr = ExpressionParser.parse_compare_expr(tkzr, sub_safe)
         if not_counter % 2 == 0:
             # if expression is foldable,
@@ -722,12 +663,7 @@ class ExpressionParser:
         """
         # comparison expression expands to the left, use a queue
         cmp_queue: typing.List[CompareExprType] = []
-        # expr_queue: typing.List[Expr] = [
-        #     ExpressionParser.parse_concat_expr(tkzr, sub_safe)
-        # ]
         expr_queue = ExprQueue([ExpressionParser.parse_concat_expr(tkzr, sub_safe)])
-
-        # more than one term?
         while (
             tkzr.try_token_type(TokenType.IDENTIFIER) and tkzr.get_token_code() == "is"
         ) or (tkzr.try_token_type(TokenType.SYMBOL) and tkzr.get_token_code() in "<>="):
@@ -759,7 +695,6 @@ class ExpressionParser:
                 # '=' comparison
                 cmp_queue.append(CompareExprType.COMPARE_EQ)
             expr_queue.enqueue(ExpressionParser.parse_concat_expr(tkzr, sub_safe))
-
         # combine terms into one expression
         while expr_queue.must_combine():
             # need to iteratively fold because of the comparison operator
@@ -784,8 +719,6 @@ class ExpressionParser:
         """
         # get first expression
         concat_expr: Expr = ExpressionParser.parse_add_expr(tkzr, sub_safe)
-
-        # more than one term?
         while tkzr.try_consume(TokenType.SYMBOL, "&"):
             if isinstance(concat_expr, ConcatExpr) and any(
                 FoldableExpr.can_fold(concat_expr.right)
@@ -861,8 +794,6 @@ class ExpressionParser:
 
         # get first expression
         _consume_mod_expr()
-
-        # more than one term?
         while tkzr.try_token_type(TokenType.SYMBOL) and tkzr.get_token_code() in "+-":
             sub_op = tkzr.get_token_code() == "-"
             tkzr.advance_pos()  # consume operator
@@ -895,11 +826,8 @@ class ExpressionParser:
         """
         # 'Mod' expression expands to the left, use a queue
         expr_queue = ExprQueue([ExpressionParser.parse_int_div_expr(tkzr, sub_safe)])
-
-        # more than one term?
         while tkzr.try_consume(TokenType.IDENTIFIER, "mod"):
             expr_queue.enqueue(ExpressionParser.parse_int_div_expr(tkzr, sub_safe))
-
         # combine terms into one expression
         expr_queue.fold(ModExpr)
         return expr_queue.dequeue()
@@ -921,11 +849,8 @@ class ExpressionParser:
         """
         # integer division expression expands to the left, use a queue
         expr_queue = ExprQueue([ExpressionParser.parse_mult_expr(tkzr, sub_safe)])
-
-        # more than one term?
         while tkzr.try_consume(TokenType.SYMBOL, "\\"):
             expr_queue.enqueue(ExpressionParser.parse_mult_expr(tkzr, sub_safe))
-
         # combine terms into one expression
         expr_queue.fold(IntDivExpr)
         return expr_queue.dequeue()
@@ -979,8 +904,6 @@ class ExpressionParser:
 
         # get first expression
         _consume_unary_expr()
-
-        # more than one term?
         while tkzr.try_token_type(TokenType.SYMBOL) and tkzr.get_token_code() in "*/":
             div_op = tkzr.get_token_code() == "/"
             tkzr.advance_pos()  # consume operator
@@ -1013,11 +936,9 @@ class ExpressionParser:
         """
         # unary expression expands to the right, use a stack
         sign_stack: typing.List[Token] = []
-
         while tkzr.try_token_type(TokenType.SYMBOL) and tkzr.get_token_code() in "-+":
             sign_stack.append(tkzr.current_token)
             tkzr.advance_pos()  # consume sign
-
         # combine signs into one expression
         ret_expr: Expr = ExpressionParser.parse_exp_expr(tkzr, sub_safe)
         can_fold = any(FoldableExpr.can_fold(ret_expr)) and len(sign_stack) > 0
@@ -1052,11 +973,8 @@ class ExpressionParser:
         """
         # exponentiation expression expands to the right, use a stack
         expr_stack = ExprStack([ExpressionParser.parse_value(tkzr, sub_safe)])
-
-        # more than one term?
         while tkzr.try_consume(TokenType.SYMBOL, "^"):
             expr_stack.push(ExpressionParser.parse_value(tkzr, sub_safe))
-
         # combine terms into one expression
         expr_stack.fold(ExpExpr)
         return expr_stack.pop()
