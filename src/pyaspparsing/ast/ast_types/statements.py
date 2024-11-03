@@ -20,7 +20,7 @@ class ExtendedID(FormatterMixin):
 
     Attributes
     ----------
-    id_token : Token
+    id_code : str
 
     Methods
     -------
@@ -463,8 +463,6 @@ class SubCallStmt(FormatterMixin, InlineStmt):
     Attributes
     ----------
     left_expr : Expr
-    sub_safe_expr : Expr | None, default=None
-    comma_expr_list : List[Expr | None], default=[]
 
     Methods
     -------
@@ -472,10 +470,6 @@ class SubCallStmt(FormatterMixin, InlineStmt):
     """
 
     left_expr: Expr
-    sub_safe_expr: typing.Optional[Expr] = attrs.field(default=None)
-    comma_expr_list: typing.List[typing.Optional[Expr]] = attrs.field(
-        default=attrs.Factory(list)
-    )
 
     @staticmethod
     def from_tokenizer(
@@ -580,7 +574,14 @@ class SubCallStmt(FormatterMixin, InlineStmt):
         # DON'T CONSUME TERMINAL, LEAVE FOR CALLER
         del found_expr
 
-        return SubCallStmt(left_expr, sub_safe_expr, comma_expr_list)
+        return SubCallStmt(
+            # no additional arguments provided in subcall statement
+            left_expr
+            if sub_safe_expr is None and len(comma_expr_list) == 0
+            else
+            # pass additional arguments to left expression
+            left_expr(sub_safe_expr, *comma_expr_list)
+        )
 
 
 @attrs.define(repr=False, slots=False)

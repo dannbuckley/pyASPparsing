@@ -1,5 +1,6 @@
 """Declaration AST classes"""
 
+import enum
 import typing
 
 import attrs
@@ -28,10 +29,10 @@ class FieldID(FormatterMixin):
 
     Attributes
     ----------
-    id_token : Token
+    id_code : str
     """
 
-    id_token: Token
+    id_code: str
 
 
 @attrs.define(repr=False, slots=False)
@@ -117,7 +118,7 @@ class FieldDecl(FormatterMixin, GlobalStmt, MemberDecl):
             TokenType.IDENTIFIER
         ), "Expected field name identifier in field declaration"
 
-        field_id: FieldID = FieldID(tkzr.current_token)
+        field_id = FieldID(tkzr.get_identifier_code())
         tkzr.advance_pos()  # consume identifier
 
         int_literals: typing.List[Token] = []
@@ -433,6 +434,14 @@ class ConstDecl(FormatterMixin, GlobalStmt, MethodStmt, MemberDecl):
         return ConstDecl(const_list, access_mod=access_mod)
 
 
+@enum.verify(enum.CONTINUOUS, enum.UNIQUE)
+class ArgModifierType(enum.Enum):
+    """Enumeration of valid argument modifier types"""
+
+    ARG_REFERENCE = enum.auto()
+    ARG_VALUE = enum.auto()
+
+
 @attrs.define(repr=False, slots=False)
 class Arg(FormatterMixin):
     """Argument AST type
@@ -442,13 +451,42 @@ class Arg(FormatterMixin):
     Attributes
     ----------
     extended_id : ExtendedID
-    arg_modifier : Token | None, default=None
+    arg_modifier : ArgModifierType | None, default=None
     has_paren : bool, default=False
     """
 
     extended_id: ExtendedID
-    arg_modifier: typing.Optional[Token] = attrs.field(default=None, kw_only=True)
+    arg_modifier: typing.Optional[ArgModifierType] = attrs.field(
+        default=None, kw_only=True
+    )
     has_paren: bool = attrs.field(default=False, kw_only=True)
+
+    @staticmethod
+    def from_tokenizer(tkzr: Tokenizer):
+        """
+        Parameters
+        ----------
+        tkzr : Tokenizer
+
+        Returns
+        -------
+        Arg
+        """
+        mod_types: typing.Dict[str, ArgModifierType] = {
+            "byref": ArgModifierType.ARG_REFERENCE,
+            "byval": ArgModifierType.ARG_VALUE,
+        }
+        arg_modifier = None
+        if (
+            tkzr.try_token_type(TokenType.IDENTIFIER)
+            and (arg_modifier := mod_types.get(tkzr.get_token_code(), None)) is not None
+        ):
+            tkzr.advance_pos()  # consume modifier
+        arg_id = ExtendedID.from_tokenizer(tkzr)
+        has_paren = tkzr.try_consume(TokenType.SYMBOL, "(")
+        if has_paren:
+            tkzr.assert_consume(TokenType.SYMBOL, ")")
+        return Arg(arg_id, arg_modifier=arg_modifier, has_paren=has_paren)
 
 
 @attrs.define(repr=False, slots=False)
@@ -503,6 +541,15 @@ class FunctionDecl(FormatterMixin, GlobalStmt, MemberDecl):
     )
 
 
+@enum.verify(enum.CONTINUOUS, enum.UNIQUE)
+class PropertyAccessType(enum.Enum):
+    """Enumeration of valid property access types"""
+
+    PROPERTY_GET = enum.auto()
+    PROPERTY_LET = enum.auto()
+    PROPERTY_SET = enum.auto()
+
+
 @attrs.define(repr=False, slots=False)
 class PropertyDecl(FormatterMixin, MemberDecl):
     """Property declaration AST type
@@ -516,14 +563,14 @@ class PropertyDecl(FormatterMixin, MemberDecl):
 
     Attributes
     ----------
-    prop_access_type : Token
+    prop_access_type : PropertyAccessType
     extended_id : ExtendedID
     method_arg_list : List[Arg], default=[]
     method_stmt_list : List[MethodStmt], default=[]
     access_mod : AccessModifierType | None, default=None
     """
 
-    prop_access_type: Token
+    prop_access_type: PropertyAccessType
     extended_id: ExtendedID
     method_arg_list: typing.List[Arg] = attrs.field(default=attrs.Factory(list))
     method_stmt_list: typing.List[MethodStmt] = attrs.field(default=attrs.Factory(list))

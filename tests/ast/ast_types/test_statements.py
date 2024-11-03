@@ -183,118 +183,99 @@ def test_parse_call_stmt(codeblock: str, exp_left_expr: LeftExpr):
 
 
 @pytest.mark.parametrize(
-    "codeblock,exp_left_expr,exp_sub_safe_expr,exp_comma_expr_list",
+    "codeblock,exp_left_expr",
     [
         (
             # left_expr = <QualifiedID> <SubSafeExpr>
             'Response.Write "Hello, world!"',
-            LeftExpr("response").get_subname("write"),
-            EvalExpr("Hello, world!"),
-            [],
+            LeftExpr("response").get_subname("write")(EvalExpr("Hello, world!")),
         ),
         (
             # left_expr = <QualifiedID> <SubSafeExpr> <CommaExprList>
-            'Response.Write "Hello, world!", "Second string"',
-            LeftExpr("response").get_subname("write"),
-            EvalExpr("Hello, world!"),
-            [EvalExpr("Second string")],
+            'Left.Expr "Hello, world!", "Second string"',
+            LeftExpr("left").get_subname("expr")(
+                EvalExpr("Hello, world!"), EvalExpr("Second string")
+            ),
         ),
         (
             # left_expr = <QualifiedID> <CommaExprList>
-            'Response.Write , "Second param"',
-            LeftExpr("response").get_subname("write"),
-            None,
-            [EvalExpr("Second param")],
+            'Left.Expr , "Second param"',
+            LeftExpr("left").get_subname("expr")(None, EvalExpr("Second param")),
         ),
         (
             # left_expr = <QualifiedID> '(' ')'
             "Response.Write()",
             LeftExpr("response").get_subname("write")(),
-            None,
-            [],
         ),
         (
             # left_expr = <QualifiedID> '(' <Expr> ')'
             'Response.Write("Hello, world!")',
             LeftExpr("response").get_subname("write")(EvalExpr("Hello, world!")),
-            None,
-            [],
         ),
         (
             # left_expr = <QualifiedID> '(' <Expr> ')' <CommaExprList>
-            'Response.Write("Hello, world!"), "String at end"',
-            LeftExpr("response").get_subname("write")(EvalExpr("Hello, world!")),
-            None,
-            [EvalExpr("String at end")],
+            'Left.Expr("Hello, world!"), "String at end"',
+            LeftExpr("left").get_subname("expr")(EvalExpr("Hello, world!"))(
+                None, EvalExpr("String at end")
+            ),
         ),
         (
             # left_expr = <QualifiedID> '(' <Expr> ')' <CommaExprList>
-            'Response.Write("Hello, world!"), "First",, "Last"',
-            LeftExpr("response").get_subname("write")(EvalExpr("Hello, world!")),
-            None,
-            [
-                EvalExpr("First"),
-                None,
-                EvalExpr("Last"),
-            ],
+            'Left.Expr("Hello, world!"), "First",, "Last"',
+            LeftExpr("left").get_subname("expr")(EvalExpr("Hello, world!"))(
+                None, EvalExpr("First"), None, EvalExpr("Last")
+            ),
         ),
         (
             # left_expr = <QualifiedID> '(' <Expr> ')' <CommaExprList>
-            'Response.Write("Hello, world!"), "String in middle", "String at end"',
-            LeftExpr("response").get_subname("write")(EvalExpr("Hello, world!")),
-            None,
-            [
-                EvalExpr("String in middle"),
-                EvalExpr("String at end"),
-            ],
+            'Left.Expr("Hello, world!"), "String in middle", "String at end"',
+            LeftExpr("left").get_subname("expr")(EvalExpr("Hello, world!"))(
+                None, EvalExpr("String in middle"), EvalExpr("String at end")
+            ),
         ),
         (
             # left_expr = <QualifiedID> { <IndexOrParamsList> '.' | <IndexOrParamsListDot> }
             #       <LeftExprTail>
             "Left.Expr().WithTail()",
             LeftExpr("left").get_subname("expr")().get_subname("withtail")(),
-            None,
-            [],
         ),
         (
             # left_expr = <QualifiedID> { <IndexOrParamsList> '.' | <IndexOrParamsListDot> }
             #       <LeftExprTail> <SubSafeExpr>
             'Left.Expr().WithTail() "Hello, world!"',
-            LeftExpr("left").get_subname("expr")().get_subname("withtail")(),
-            EvalExpr("Hello, world!"),
-            [],
+            LeftExpr("left")
+            .get_subname("expr")()
+            .get_subname("withtail")()(EvalExpr("Hello, world!")),
         ),
         (
             # left_expr = <QualifiedID> { <IndexOrParamsList> '.' | <IndexOrParamsListDot> }
             #       <LeftExprTail> <SubSafeExpr> <CommaExprList>
             'Left.Expr().WithTail() "Hello, world!", "Second param"',
-            LeftExpr("left").get_subname("expr")().get_subname("withtail")(),
-            EvalExpr("Hello, world!"),
-            [EvalExpr("Second param")],
+            LeftExpr("left")
+            .get_subname("expr")()
+            .get_subname("withtail")()(
+                EvalExpr("Hello, world!"), EvalExpr("Second param")
+            ),
         ),
         (
             # left_expr = <QualifiedID> { <IndexOrParamsList> '.' | <IndexOrParamsListDot> }
             #       <LeftExprTail> <CommaExprList>
             'Left.Expr().WithTail() , "Second param"',
-            LeftExpr("left").get_subname("expr")().get_subname("withtail")(),
-            None,
-            [EvalExpr("Second param")],
+            LeftExpr("left")
+            .get_subname("expr")()
+            .get_subname("withtail")()(None, EvalExpr("Second param")),
         ),
     ],
 )
 def test_parse_subcall_stmt(
     codeblock: str,
     exp_left_expr: LeftExpr,
-    exp_sub_safe_expr: typing.Optional[Expr],
-    exp_comma_expr_list: typing.List[typing.Optional[Expr]],
 ):
     with Tokenizer(f"<%{codeblock}%>", False) as tkzr:
         tkzr.advance_pos()
         left_expr = ExpressionParser.parse_left_expr(tkzr)
         subcall_stmt = SubCallStmt.from_tokenizer(tkzr, left_expr, TokenType.DELIM_END)
         assert subcall_stmt.left_expr == exp_left_expr
-        assert subcall_stmt.sub_safe_expr == exp_sub_safe_expr
-        assert subcall_stmt.comma_expr_list == exp_comma_expr_list
         tkzr.advance_pos()
 
 

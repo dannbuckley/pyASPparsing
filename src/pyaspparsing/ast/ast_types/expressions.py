@@ -288,28 +288,6 @@ class ConstExpr(FormatterMixin, Value):
 
 # repr=False -> repr is inherited from ConstExpr (FormatterMixin.__repr__)
 @attrs.define(repr=False, slots=False)
-class BoolLiteral(ConstExpr):
-    """Boolean literal constant expression AST type
-
-    Defined on grammar line 731
-
-    'True' | 'False'
-    """
-
-
-# repr=False -> repr is inherited from ConstExpr (FormatterMixin.__repr__)
-@attrs.define(repr=False, slots=False)
-class IntLiteral(ConstExpr):
-    """Integer literal constant expression AST type
-
-    Defined on grammar line 734
-
-    LITERAL_INT | LITERAL_HEX | LITERAL_OCT
-    """
-
-
-# repr=False -> repr is inherited from ConstExpr (FormatterMixin.__repr__)
-@attrs.define(repr=False, slots=False)
 class Nothing(ConstExpr):
     """Nothing constant expression AST type
 

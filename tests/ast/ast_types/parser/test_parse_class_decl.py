@@ -16,7 +16,7 @@ from pyaspparsing.ast.ast_types.parser import Parser
             ExtendedID("myclass"),
             [
                 FieldDecl(
-                    FieldName(FieldID(Token.identifier(24, 30))),
+                    FieldName(FieldID("my_var")),
                     access_mod=AccessModifierType.PRIVATE,
                 )
             ],
@@ -27,7 +27,7 @@ from pyaspparsing.ast.ast_types.parser import Parser
             ExtendedID("myclass"),
             [
                 FieldDecl(
-                    FieldName(FieldID(Token.identifier(23, 29))),
+                    FieldName(FieldID("my_var")),
                     access_mod=AccessModifierType.PUBLIC,
                 )
             ],
@@ -101,25 +101,25 @@ from pyaspparsing.ast.ast_types.parser import Parser
             # class with get property declaration
             "Class MyClass\nProperty Get my_property\nEnd Property\nEnd Class\n",
             ExtendedID("myclass"),
-            [PropertyDecl(Token.identifier(25, 28), ExtendedID("my_property"))],
+            [PropertyDecl(PropertyAccessType.PROPERTY_GET, ExtendedID("my_property"))],
         ),
         (
             # class with let property declaration
             "Class MyClass\nProperty Let my_property\nEnd Property\nEnd Class\n",
             ExtendedID("myclass"),
-            [PropertyDecl(Token.identifier(25, 28), ExtendedID("my_property"))],
+            [PropertyDecl(PropertyAccessType.PROPERTY_LET, ExtendedID("my_property"))],
         ),
         (
             # class with set property declaration
             "Class MyClass\nProperty Set my_property\nEnd Property\nEnd Class\n",
             ExtendedID("myclass"),
-            [PropertyDecl(Token.identifier(25, 28), ExtendedID("my_property"))],
+            [PropertyDecl(PropertyAccessType.PROPERTY_SET, ExtendedID("my_property"))],
         ),
         (
             # class with property declaration, empty arg list
             "Class MyClass\nProperty Get my_property()\nEnd Property\nEnd Class\n",
             ExtendedID("myclass"),
-            [PropertyDecl(Token.identifier(25, 28), ExtendedID("my_property"))],
+            [PropertyDecl(PropertyAccessType.PROPERTY_GET, ExtendedID("my_property"))],
         ),
         (
             # class with property declaration, single arg
@@ -127,7 +127,7 @@ from pyaspparsing.ast.ast_types.parser import Parser
             ExtendedID("myclass"),
             [
                 PropertyDecl(
-                    Token.identifier(25, 28),
+                    PropertyAccessType.PROPERTY_GET,
                     ExtendedID("my_property"),
                     [Arg(ExtendedID("first"))],
                 )
@@ -139,7 +139,7 @@ from pyaspparsing.ast.ast_types.parser import Parser
             ExtendedID("myclass"),
             [
                 PropertyDecl(
-                    Token.identifier(25, 28),
+                    PropertyAccessType.PROPERTY_GET,
                     ExtendedID("my_property"),
                     [Arg(ExtendedID("first"), has_paren=True)],
                 )
@@ -151,12 +151,12 @@ from pyaspparsing.ast.ast_types.parser import Parser
             ExtendedID("myclass"),
             [
                 PropertyDecl(
-                    Token.identifier(25, 28),
+                    PropertyAccessType.PROPERTY_GET,
                     ExtendedID("my_property"),
                     [
                         Arg(
                             ExtendedID("first"),
-                            arg_modifier=Token.identifier(41, 46),
+                            arg_modifier=ArgModifierType.ARG_VALUE,
                         )
                     ],
                 )
@@ -168,12 +168,12 @@ from pyaspparsing.ast.ast_types.parser import Parser
             ExtendedID("myclass"),
             [
                 PropertyDecl(
-                    Token.identifier(25, 28),
+                    PropertyAccessType.PROPERTY_GET,
                     ExtendedID("my_property"),
                     [
                         Arg(
                             ExtendedID("first"),
-                            arg_modifier=Token.identifier(41, 46),
+                            arg_modifier=ArgModifierType.ARG_REFERENCE,
                         )
                     ],
                 )
@@ -185,7 +185,7 @@ from pyaspparsing.ast.ast_types.parser import Parser
             ExtendedID("myclass"),
             [
                 PropertyDecl(
-                    Token.identifier(25, 28),
+                    PropertyAccessType.PROPERTY_GET,
                     ExtendedID("my_property"),
                     [
                         Arg(ExtendedID("first")),
@@ -200,7 +200,7 @@ from pyaspparsing.ast.ast_types.parser import Parser
             ExtendedID("myclass"),
             [
                 PropertyDecl(
-                    Token.identifier(25, 28),
+                    PropertyAccessType.PROPERTY_GET,
                     ExtendedID("my_property"),
                     method_stmt_list=[
                         VarDecl(
@@ -218,7 +218,7 @@ from pyaspparsing.ast.ast_types.parser import Parser
             ExtendedID("myclass"),
             [
                 PropertyDecl(
-                    Token.identifier(32, 35),
+                    PropertyAccessType.PROPERTY_GET,
                     ExtendedID("my_property"),
                     access_mod=AccessModifierType.PUBLIC,
                 )
@@ -229,7 +229,7 @@ from pyaspparsing.ast.ast_types.parser import Parser
             ExtendedID("myclass"),
             [
                 PropertyDecl(
-                    Token.identifier(40, 43),
+                    PropertyAccessType.PROPERTY_GET,
                     ExtendedID("my_property"),
                     access_mod=AccessModifierType.PUBLIC_DEFAULT,
                 )
@@ -240,7 +240,7 @@ from pyaspparsing.ast.ast_types.parser import Parser
             ExtendedID("myclass"),
             [
                 PropertyDecl(
-                    Token.identifier(33, 36),
+                    PropertyAccessType.PROPERTY_GET,
                     ExtendedID("my_property"),
                     access_mod=AccessModifierType.PRIVATE,
                 )

@@ -20,6 +20,7 @@ from .declarations import (
     Arg,
     SubDecl,
     FunctionDecl,
+    PropertyAccessType,
     PropertyDecl,
     ClassDecl,
 )
@@ -509,21 +510,7 @@ class Parser:
             while not (
                 tkzr.try_token_type(TokenType.SYMBOL) and tkzr.get_token_code() == ")"
             ):
-                if tkzr.try_token_type(
-                    TokenType.IDENTIFIER
-                ) and tkzr.get_token_code() in ["byval", "byref"]:
-                    arg_modifier = tkzr.current_token
-                    tkzr.advance_pos()  # consume modifier
-                else:
-                    arg_modifier = None
-                arg_id = ExtendedID.from_tokenizer(tkzr)
-                has_paren = tkzr.try_consume(TokenType.SYMBOL, "(")
-                if has_paren:
-                    tkzr.assert_consume(TokenType.SYMBOL, ")")
-                method_arg_list.append(
-                    Arg(arg_id, arg_modifier=arg_modifier, has_paren=has_paren)
-                )
-
+                method_arg_list.append(Arg.from_tokenizer(tkzr))
                 tkzr.try_consume(TokenType.SYMBOL, ",")
             tkzr.assert_consume(TokenType.SYMBOL, ")")
 
@@ -574,21 +561,7 @@ class Parser:
             while not (
                 tkzr.try_token_type(TokenType.SYMBOL) and tkzr.get_token_code() == ")"
             ):
-                if tkzr.try_token_type(
-                    TokenType.IDENTIFIER
-                ) and tkzr.get_token_code() in ["byval", "byref"]:
-                    arg_modifier = tkzr.current_token
-                    tkzr.advance_pos()  # consume modifier
-                else:
-                    arg_modifier = None
-                arg_id = ExtendedID.from_tokenizer(tkzr)
-                has_paren = tkzr.try_consume(TokenType.SYMBOL, "(")
-                if has_paren:
-                    tkzr.assert_consume(TokenType.SYMBOL, ")")
-                method_arg_list.append(
-                    Arg(arg_id, arg_modifier=arg_modifier, has_paren=has_paren)
-                )
-
+                method_arg_list.append(Arg.from_tokenizer(tkzr))
                 tkzr.try_consume(TokenType.SYMBOL, ",")
             tkzr.assert_consume(TokenType.SYMBOL, ")")
 
@@ -633,13 +606,29 @@ class Parser:
         Returns
         -------
         PropertyDecl
+
+        Raises
+        ------
+        ParserError
         """
         tkzr.assert_consume(TokenType.IDENTIFIER, "property")
 
-        assert tkzr.try_token_type(TokenType.IDENTIFIER) and (
-            tkzr.get_token_code() in ["get", "let", "set"]
-        ), "Expected property access type after 'Property'"
-        prop_access_type: Token = tkzr.current_token
+        try:
+            assert tkzr.try_token_type(TokenType.IDENTIFIER)
+            prop_types: typing.Dict[str, PropertyAccessType] = {
+                "get": PropertyAccessType.PROPERTY_GET,
+                "let": PropertyAccessType.PROPERTY_LET,
+                "set": PropertyAccessType.PROPERTY_SET,
+            }
+            prop_access_type = prop_types[tkzr.get_token_code()]
+        except AssertionError as asrt_ex:
+            raise ParserError(
+                "Expected valid identifier for property access type"
+            ) from asrt_ex
+        except KeyError as k_ex:
+            raise ParserError(
+                "Invalid property access type, expected one of: Get, Let, Set"
+            ) from k_ex
         tkzr.advance_pos()  # consume access type
 
         property_id = ExtendedID.from_tokenizer(tkzr)
@@ -649,20 +638,7 @@ class Parser:
             while not (
                 tkzr.try_token_type(TokenType.SYMBOL) and tkzr.get_token_code() == ")"
             ):
-                if tkzr.try_token_type(
-                    TokenType.IDENTIFIER
-                ) and tkzr.get_token_code() in ["byval", "byref"]:
-                    arg_modifier = tkzr.current_token
-                    tkzr.advance_pos()  # consume modifier
-                else:
-                    arg_modifier = None
-                arg_id = ExtendedID.from_tokenizer(tkzr)
-                has_paren = tkzr.try_consume(TokenType.SYMBOL, "(")
-                if has_paren:
-                    tkzr.assert_consume(TokenType.SYMBOL, ")")
-                method_arg_list.append(
-                    Arg(arg_id, arg_modifier=arg_modifier, has_paren=has_paren)
-                )
+                method_arg_list.append(Arg.from_tokenizer(tkzr))
                 tkzr.try_consume(TokenType.SYMBOL, ",")
             tkzr.assert_consume(TokenType.SYMBOL, ")")
 

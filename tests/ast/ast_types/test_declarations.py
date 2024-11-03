@@ -11,21 +11,21 @@ from pyaspparsing.ast.ast_types import *
         (
             # private field declaration
             "Private my_var",
-            FieldName(FieldID(Token.identifier(10, 16))),
+            FieldName(FieldID("my_var")),
             [],
             AccessModifierType.PRIVATE,
         ),
         (
             # public field declaration
             "Public my_var",
-            FieldName(FieldID(Token.identifier(9, 15))),
+            FieldName(FieldID("my_var")),
             [],
             AccessModifierType.PUBLIC,
         ),
         (
             # public field declaration with array rank list
             "Public my_var(1)",
-            FieldName(FieldID(Token.identifier(9, 15)), [Token.int_literal(16, 17)]),
+            FieldName(FieldID("my_var"), [Token.int_literal(16, 17)]),
             [],
             AccessModifierType.PUBLIC,
         ),
@@ -33,7 +33,7 @@ from pyaspparsing.ast.ast_types import *
             # public field declaration with array rank list
             "Public my_var(1, 2)",
             FieldName(
-                FieldID(Token.identifier(9, 15)),
+                FieldID("my_var"),
                 [Token.int_literal(16, 17), Token.int_literal(19, 20)],
             ),
             [],
@@ -42,14 +42,14 @@ from pyaspparsing.ast.ast_types import *
         (
             # public field declaration with other var
             "Public my_var, my_other_var",
-            FieldName(FieldID(Token.identifier(9, 15))),
+            FieldName(FieldID("my_var")),
             [VarName(ExtendedID("my_other_var"))],
             AccessModifierType.PUBLIC,
         ),
         (
             # public field declaration with multiple other var
             "Public my_var, my_other_var, yet_another",
-            FieldName(FieldID(Token.identifier(9, 15))),
+            FieldName(FieldID("my_var")),
             [
                 VarName(ExtendedID("my_other_var")),
                 VarName(ExtendedID("yet_another")),
@@ -59,14 +59,14 @@ from pyaspparsing.ast.ast_types import *
         (
             # public field declaration with other var
             "Public my_var, my_other_var(1)",
-            FieldName(FieldID(Token.identifier(9, 15))),
+            FieldName(FieldID("my_var")),
             [VarName(ExtendedID("my_other_var"), [Token.int_literal(30, 31)])],
             AccessModifierType.PUBLIC,
         ),
         (
             # public field declaration with other var
             "Public my_var, my_other_var(1, 2)",
-            FieldName(FieldID(Token.identifier(9, 15))),
+            FieldName(FieldID("my_var")),
             [
                 VarName(
                     ExtendedID("my_other_var"),

@@ -54,7 +54,7 @@ from pyaspparsing.ast.ast_types.parser import Parser
             [
                 Arg(
                     ExtendedID("first"),
-                    arg_modifier=Token.identifier(20, 25),
+                    arg_modifier=ArgModifierType.ARG_VALUE,
                 )
             ],
             [],
@@ -67,7 +67,7 @@ from pyaspparsing.ast.ast_types.parser import Parser
             [
                 Arg(
                     ExtendedID("first"),
-                    arg_modifier=Token.identifier(20, 25),
+                    arg_modifier=ArgModifierType.ARG_REFERENCE,
                 )
             ],
             [],
