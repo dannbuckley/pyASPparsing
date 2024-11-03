@@ -15,7 +15,7 @@ def test_parse_output_text():
         assert output_text.chunks[1] == Token.file_text(32, 44)
         assert len(output_text.directives) == 1
         assert output_text.directives[0] == OutputDirective(
-            slice(17, 32), LeftExpr(QualifiedID([Token.identifier(21, 29)]))
+            slice(17, 32), LeftExpr("variable")
         )
         for i, (out_type, out_idx) in enumerate(
             [

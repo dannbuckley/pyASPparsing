@@ -14,29 +14,29 @@ from pyaspparsing.ast.ast_types.expression_parser import ExpressionParser
             '"Hello, " & a & "world!"',
             ConcatExpr(
                 EvalExpr("Hello, "),
-                LeftExpr(QualifiedID([Token.identifier(15, 16)])),
+                LeftExpr("a"),
             ),
             EvalExpr("world!"),
         ),
         (
             # strings on right should be folded
             'a & "Hello, " & "world!"',
-            LeftExpr(QualifiedID([Token.identifier(3, 4)])),
+            LeftExpr("a"),
             EvalExpr("Hello, world!"),
         ),
         (
             # strings on left should be folded
             '"Hello, " & "world!" & a',
             EvalExpr("Hello, world!"),
-            LeftExpr(QualifiedID([Token.identifier(26, 27)])),
+            LeftExpr("a"),
         ),
         (
             # string between 'a' and 'b' should be folded
             'a & "Hello, " & "world!" & b',
-            LeftExpr(QualifiedID([Token.identifier(3, 4)])),
+            LeftExpr("a"),
             ConcatExpr(
                 EvalExpr("Hello, world!"),
-                LeftExpr(QualifiedID([Token.identifier(30, 31)])),
+                LeftExpr("b"),
             ),
         ),
         (
@@ -44,21 +44,21 @@ from pyaspparsing.ast.ast_types.expression_parser import ExpressionParser
             '"What?" & a & "Hello, " & "world!" & b',
             ConcatExpr(
                 EvalExpr("What?"),
-                LeftExpr(QualifiedID([Token.identifier(13, 14)])),
+                LeftExpr("a"),
             ),
             ConcatExpr(
                 EvalExpr("Hello, world!"),
-                LeftExpr(QualifiedID([Token.identifier(40, 41)])),
+                LeftExpr("b"),
             ),
         ),
         (
             # strings between 'a' and 'b'
             'a & "Hello, " & "world!" & b & "What?"',
             ConcatExpr(
-                LeftExpr(QualifiedID([Token.identifier(3, 4)])),
+                LeftExpr("a"),
                 ConcatExpr(
                     EvalExpr("Hello, world!"),
-                    LeftExpr(QualifiedID([Token.identifier(30, 31)])),
+                    LeftExpr("b"),
                 ),
             ),
             EvalExpr("What?"),

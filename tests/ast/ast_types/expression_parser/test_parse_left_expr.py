@@ -9,168 +9,64 @@ from pyaspparsing.ast.ast_types.expression_parser import ExpressionParser
 @pytest.mark.parametrize(
     "expr_code,expr_val",
     [
-        ("a", LeftExpr(QualifiedID([Token.identifier(3, 4)]))),
+        ("a", LeftExpr("a")),
         (
             "a(1,, 3)",
-            LeftExpr(
-                QualifiedID([Token.identifier(3, 4)]),
-                [
-                    IndexOrParams(
-                        [
-                            EvalExpr(1),
-                            None,
-                            EvalExpr(3),
-                        ]
-                    )
-                ],
-            ),
+            LeftExpr("a")(EvalExpr(1), None, EvalExpr(3)),
         ),
         (
             "a().b(1,, 3)",
-            LeftExpr(
-                QualifiedID([Token.identifier(3, 4)]),
-                [IndexOrParams(dot=True)],
-                [
-                    LeftExprTail(
-                        QualifiedID([Token.identifier(6, 8, dot_start=True)]),
-                        [
-                            IndexOrParams(
-                                [
-                                    EvalExpr(1),
-                                    None,
-                                    EvalExpr(3),
-                                ]
-                            )
-                        ],
-                    )
-                ],
-            ),
+            LeftExpr("a")().get_subname("b")(EvalExpr(1), None, EvalExpr(3)),
         ),
         (
             "Hello.World()",
-            LeftExpr(
-                QualifiedID(
-                    [Token.identifier(3, 9, dot_end=True), Token.identifier(9, 14)]
-                ),
-                [IndexOrParams()],
-            ),
+            LeftExpr("hello").get_subname("world")(),
         ),
         (
             "HelloWorld()",
-            LeftExpr(QualifiedID([Token.identifier(3, 13)]), [IndexOrParams()]),
+            LeftExpr("helloworld")(),
         ),
         (
             "HelloWorld(1)",
-            LeftExpr(
-                QualifiedID([Token.identifier(3, 13)]),
-                [IndexOrParams([EvalExpr(1)])],
-            ),
+            LeftExpr("helloworld")(EvalExpr(1)),
         ),
         (
             "HelloWorld((1))",
-            LeftExpr(
-                QualifiedID([Token.identifier(3, 13)]),
-                [IndexOrParams([EvalExpr(1)])],
-            ),
+            LeftExpr("helloworld")(EvalExpr(1)),
         ),
         (
             "HelloWorld(a)",
-            LeftExpr(
-                QualifiedID([Token.identifier(3, 13)]),
-                [IndexOrParams([LeftExpr(QualifiedID([Token.identifier(14, 15)]))])],
-            ),
+            LeftExpr("helloworld")(LeftExpr("a")),
         ),
         (
             "HelloWorld()()",
-            LeftExpr(
-                QualifiedID([Token.identifier(3, 13)]),
-                [IndexOrParams(), IndexOrParams()],
-            ),
+            LeftExpr("helloworld")()(),
         ),
         (
             "HelloWorld()(1)",
-            LeftExpr(
-                QualifiedID([Token.identifier(3, 13)]),
-                [
-                    IndexOrParams(),
-                    IndexOrParams([EvalExpr(1)]),
-                ],
-            ),
+            LeftExpr("helloworld")()(EvalExpr(1)),
         ),
         (
             "HelloWorld().GoodMorning()",
-            LeftExpr(
-                QualifiedID([Token.identifier(3, 13)]),
-                [IndexOrParams(dot=True)],
-                [
-                    LeftExprTail(
-                        QualifiedID([Token.identifier(15, 27, dot_start=True)]),
-                        [IndexOrParams()],
-                    )
-                ],
-            ),
+            LeftExpr("helloworld")().get_subname("goodmorning")(),
         ),
         (
             "HelloWorld().GoodMorning()()",
-            LeftExpr(
-                QualifiedID([Token.identifier(3, 13)]),
-                [IndexOrParams(dot=True)],
-                [
-                    LeftExprTail(
-                        QualifiedID([Token.identifier(15, 27, dot_start=True)]),
-                        [IndexOrParams(), IndexOrParams()],
-                    )
-                ],
-            ),
+            LeftExpr("helloworld")().get_subname("goodmorning")()(),
         ),
         (
             "HelloWorld().GoodMorning(1)",
-            LeftExpr(
-                QualifiedID([Token.identifier(3, 13)]),
-                [IndexOrParams(dot=True)],
-                [
-                    LeftExprTail(
-                        QualifiedID([Token.identifier(15, 27, dot_start=True)]),
-                        [IndexOrParams([EvalExpr(1)])],
-                    )
-                ],
-            ),
+            LeftExpr("helloworld")().get_subname("goodmorning")(EvalExpr(1)),
         ),
         (
             "HelloWorld().GoodMorning(1, 2)",
-            LeftExpr(
-                QualifiedID([Token.identifier(3, 13)]),
-                [IndexOrParams(dot=True)],
-                [
-                    LeftExprTail(
-                        QualifiedID([Token.identifier(15, 27, dot_start=True)]),
-                        [
-                            IndexOrParams(
-                                [
-                                    EvalExpr(1),
-                                    EvalExpr(2),
-                                ]
-                            )
-                        ],
-                    )
-                ],
+            LeftExpr("helloworld")().get_subname("goodmorning")(
+                EvalExpr(1), EvalExpr(2)
             ),
         ),
         (
             "HelloWorld().GoodMorning()(1)",
-            LeftExpr(
-                QualifiedID([Token.identifier(3, 13)]),
-                [IndexOrParams(dot=True)],
-                [
-                    LeftExprTail(
-                        QualifiedID([Token.identifier(15, 27, dot_start=True)]),
-                        [
-                            IndexOrParams(),
-                            IndexOrParams([EvalExpr(1)]),
-                        ],
-                    )
-                ],
-            ),
+            LeftExpr("helloworld")().get_subname("goodmorning")()(EvalExpr(1)),
         ),
     ],
 )

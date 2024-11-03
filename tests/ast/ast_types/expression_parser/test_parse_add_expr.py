@@ -37,19 +37,19 @@ def test_parse_add_expr_folded(
             # no moves made, constants stay on left
             "1 + 2 + a",
             EvalExpr(3),
-            LeftExpr(QualifiedID([Token.identifier(11, 12)])),
+            LeftExpr("a"),
         ),
         (
             # 'a' and '2' swap places
             "1 + a + 2",
             EvalExpr(3),
-            LeftExpr(QualifiedID([Token.identifier(7, 8)])),
+            LeftExpr("a"),
         ),
         (
             # 'a' moved to end of expression
             "a + 1 + 2",
             EvalExpr(3),
-            LeftExpr(QualifiedID([Token.identifier(3, 4)])),
+            LeftExpr("a"),
         ),
     ],
 )

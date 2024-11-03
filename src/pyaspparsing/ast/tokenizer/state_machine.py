@@ -245,6 +245,45 @@ class Tokenizer:
         tok_code = self.codeblock[self._pos_tok.token_src]
         return tok_code.casefold() if casefold else tok_code
 
+    def get_identifier_code(
+        self, casefold: bool = True, *, tok: typing.Optional[Token] = None
+    ) -> str:
+        """Strip dot characters from identifier token code
+
+        Parameters
+        ----------
+        casefold : bool, default=True,
+        tok : Token | None, default=None
+
+        Returns
+        -------
+        str
+
+        Raises
+        ------
+        AssertionError
+            If default value given for tok, but self.current_token is None
+        RuntimeError
+            If token type is not a valid identifier type
+        """
+        if tok is None:
+            assert (
+                self.current_token is not None
+            ), "Default value given for tok, but current token is empty"
+            tok = self.current_token
+        tok_code = self.get_token_code(casefold, tok=tok)
+        match tok.token_type:
+            case TokenType.IDENTIFIER:
+                return tok_code
+            case TokenType.IDENTIFIER_DOTID:
+                return tok_code[1:]
+            case TokenType.IDENTIFIER_IDDOT:
+                return tok_code[:-1]
+            case TokenType.IDENTIFIER_DOTIDDOT:
+                return tok_code[1:-1]
+            case _:
+                raise RuntimeError("Invalid identifier token")
+
     def try_token_type(self, tok_type: TokenType) -> bool:
         """Compare the given token type against
         the token type of the current token

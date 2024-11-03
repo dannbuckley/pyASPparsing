@@ -115,7 +115,7 @@ from pyaspparsing.ast.ast_types.parser import Parser
             [],
             [
                 AssignStmt(
-                    LeftExpr(QualifiedID([Token.identifier(24, 25)])),
+                    LeftExpr("a"),
                     EvalExpr(1),
                 )
             ],

@@ -71,63 +71,35 @@ def test_parse_redim_stmt(
         (
             # LeftExpr = Expr
             "a = 1",
-            LeftExpr(QualifiedID([Token.identifier(2, 3)])),
+            LeftExpr("a"),
             EvalExpr(1),
             False,
         ),
         (
             # Set LeftExpr = Expr
             "Set a = 1",
-            LeftExpr(QualifiedID([Token.identifier(6, 7)])),
+            LeftExpr("a"),
             EvalExpr(1),
             False,
         ),
         (
             # Set LeftExpr = New LeftExpr
             "Set a = New b",
-            LeftExpr(QualifiedID([Token.identifier(6, 7)])),
-            LeftExpr(QualifiedID([Token.identifier(14, 15)])),
+            LeftExpr("a"),
+            LeftExpr("b"),
             True,
         ),
         (
             # LeftExpr with omitted expr in index or params list
             "Set a(1,, 3) = 42",
-            LeftExpr(
-                QualifiedID([Token.identifier(6, 7)]),
-                [
-                    IndexOrParams(
-                        [
-                            EvalExpr(1),
-                            None,
-                            EvalExpr(3),
-                        ]
-                    )
-                ],
-            ),
+            LeftExpr("a")(EvalExpr(1), None, EvalExpr(3)),
             EvalExpr(42),
             False,
         ),
         (
             # LeftExpr with omitted expr in tail index or params list
             "Set a().b(1,, 3) = 42",
-            LeftExpr(
-                QualifiedID([Token.identifier(6, 7)]),
-                [IndexOrParams(dot=True)],
-                [
-                    LeftExprTail(
-                        QualifiedID([Token.identifier(9, 11, dot_start=True)]),
-                        [
-                            IndexOrParams(
-                                [
-                                    EvalExpr(1),
-                                    None,
-                                    EvalExpr(3),
-                                ]
-                            )
-                        ],
-                    )
-                ],
-            ),
+            LeftExpr("a")().get_subname("b")(EvalExpr(1), None, EvalExpr(3)),
             EvalExpr(42),
             False,
         ),
@@ -151,124 +123,54 @@ def test_parse_assign_stmt(
         (
             # call QualifiedID with a QualifiedIDTail
             "Call Hello.World()",
-            LeftExpr(
-                QualifiedID(
-                    [Token.identifier(7, 13, dot_end=True), Token.identifier(13, 18)]
-                ),
-                [IndexOrParams()],
-            ),
+            LeftExpr("hello").get_subname("world")(),
         ),
         (
             # no params
             "Call HelloWorld()",
-            LeftExpr(QualifiedID([Token.identifier(7, 17)]), [IndexOrParams()]),
+            LeftExpr("helloworld")(),
         ),
         (
             # one param
             "Call HelloWorld(1)",
-            LeftExpr(
-                QualifiedID([Token.identifier(7, 17)]),
-                [IndexOrParams([EvalExpr(1)])],
-            ),
+            LeftExpr("helloworld")(EvalExpr(1)),
         ),
         (
             # multiple IndexOrParam in LeftExpr
             "Call HelloWorld()()",
-            LeftExpr(
-                QualifiedID([Token.identifier(7, 17)]),
-                [IndexOrParams(), IndexOrParams()],
-            ),
+            LeftExpr("helloworld")()(),
         ),
         (
             # param in later IndexOrParam for LeftExpr
             "Call HelloWorld()(1)",
-            LeftExpr(
-                QualifiedID([Token.identifier(7, 17)]),
-                [
-                    IndexOrParams(),
-                    IndexOrParams([EvalExpr(1)]),
-                ],
-            ),
+            LeftExpr("helloworld")()(EvalExpr(1)),
         ),
         (
             # LeftExprTail
             "Call HelloWorld().GoodMorning()",
-            LeftExpr(
-                QualifiedID([Token.identifier(7, 17)]),
-                [IndexOrParams(dot=True)],
-                [
-                    LeftExprTail(
-                        QualifiedID([Token.identifier(19, 31, dot_start=True)]),
-                        [IndexOrParams()],
-                    )
-                ],
-            ),
+            LeftExpr("helloworld")().get_subname("goodmorning")(),
         ),
         (
             # multiple IndexOrParam in LeftExprTail
             "Call HelloWorld().GoodMorning()()",
-            LeftExpr(
-                QualifiedID([Token.identifier(7, 17)]),
-                [IndexOrParams(dot=True)],
-                [
-                    LeftExprTail(
-                        QualifiedID([Token.identifier(19, 31, dot_start=True)]),
-                        [IndexOrParams(), IndexOrParams()],
-                    )
-                ],
-            ),
+            LeftExpr("helloworld")().get_subname("goodmorning")()(),
         ),
         (
             # param in LeftExprTail
             "Call HelloWorld().GoodMorning(1)",
-            LeftExpr(
-                QualifiedID([Token.identifier(7, 17)]),
-                [IndexOrParams(dot=True)],
-                [
-                    LeftExprTail(
-                        QualifiedID([Token.identifier(19, 31, dot_start=True)]),
-                        [IndexOrParams([EvalExpr(1)])],
-                    )
-                ],
-            ),
+            LeftExpr("helloworld")().get_subname("goodmorning")(EvalExpr(1)),
         ),
         (
             # multiple params in LeftExprTail
             "Call HelloWorld().GoodMorning(1, 2)",
-            LeftExpr(
-                QualifiedID([Token.identifier(7, 17)]),
-                [IndexOrParams(dot=True)],
-                [
-                    LeftExprTail(
-                        QualifiedID([Token.identifier(19, 31, dot_start=True)]),
-                        [
-                            IndexOrParams(
-                                [
-                                    EvalExpr(1),
-                                    EvalExpr(2),
-                                ]
-                            )
-                        ],
-                    )
-                ],
+            LeftExpr("helloworld")().get_subname("goodmorning")(
+                EvalExpr(1), EvalExpr(2)
             ),
         ),
         (
             # param in later IndexOrParam for LeftExprTail
             "Call HelloWorld().GoodMorning()(1)",
-            LeftExpr(
-                QualifiedID([Token.identifier(7, 17)]),
-                [IndexOrParams(dot=True)],
-                [
-                    LeftExprTail(
-                        QualifiedID([Token.identifier(19, 31, dot_start=True)]),
-                        [
-                            IndexOrParams(),
-                            IndexOrParams([EvalExpr(1)]),
-                        ],
-                    )
-                ],
-            ),
+            LeftExpr("helloworld")().get_subname("goodmorning")()(EvalExpr(1)),
         ),
     ],
 )
@@ -286,81 +188,49 @@ def test_parse_call_stmt(codeblock: str, exp_left_expr: LeftExpr):
         (
             # left_expr = <QualifiedID> <SubSafeExpr>
             'Response.Write "Hello, world!"',
-            LeftExpr(
-                QualifiedID(
-                    [Token.identifier(2, 11, dot_end=True), Token.identifier(11, 16)]
-                )
-            ),
+            LeftExpr("response").get_subname("write"),
             EvalExpr("Hello, world!"),
             [],
         ),
         (
             # left_expr = <QualifiedID> <SubSafeExpr> <CommaExprList>
             'Response.Write "Hello, world!", "Second string"',
-            LeftExpr(
-                QualifiedID(
-                    [Token.identifier(2, 11, dot_end=True), Token.identifier(11, 16)]
-                )
-            ),
+            LeftExpr("response").get_subname("write"),
             EvalExpr("Hello, world!"),
             [EvalExpr("Second string")],
         ),
         (
             # left_expr = <QualifiedID> <CommaExprList>
             'Response.Write , "Second param"',
-            LeftExpr(
-                QualifiedID(
-                    [Token.identifier(2, 11, dot_end=True), Token.identifier(11, 16)]
-                )
-            ),
+            LeftExpr("response").get_subname("write"),
             None,
             [EvalExpr("Second param")],
         ),
         (
             # left_expr = <QualifiedID> '(' ')'
             "Response.Write()",
-            LeftExpr(
-                QualifiedID(
-                    [Token.identifier(2, 11, dot_end=True), Token.identifier(11, 16)]
-                ),
-                [IndexOrParams()],
-            ),
+            LeftExpr("response").get_subname("write")(),
             None,
             [],
         ),
         (
             # left_expr = <QualifiedID> '(' <Expr> ')'
             'Response.Write("Hello, world!")',
-            LeftExpr(
-                QualifiedID(
-                    [Token.identifier(2, 11, dot_end=True), Token.identifier(11, 16)]
-                ),
-                [IndexOrParams([EvalExpr("Hello, world!")])],
-            ),
+            LeftExpr("response").get_subname("write")(EvalExpr("Hello, world!")),
             None,
             [],
         ),
         (
             # left_expr = <QualifiedID> '(' <Expr> ')' <CommaExprList>
             'Response.Write("Hello, world!"), "String at end"',
-            LeftExpr(
-                QualifiedID(
-                    [Token.identifier(2, 11, dot_end=True), Token.identifier(11, 16)]
-                ),
-                [IndexOrParams([EvalExpr("Hello, world!")])],
-            ),
+            LeftExpr("response").get_subname("write")(EvalExpr("Hello, world!")),
             None,
             [EvalExpr("String at end")],
         ),
         (
             # left_expr = <QualifiedID> '(' <Expr> ')' <CommaExprList>
             'Response.Write("Hello, world!"), "First",, "Last"',
-            LeftExpr(
-                QualifiedID(
-                    [Token.identifier(2, 11, dot_end=True), Token.identifier(11, 16)]
-                ),
-                [IndexOrParams([EvalExpr("Hello, world!")])],
-            ),
+            LeftExpr("response").get_subname("write")(EvalExpr("Hello, world!")),
             None,
             [
                 EvalExpr("First"),
@@ -371,12 +241,7 @@ def test_parse_call_stmt(codeblock: str, exp_left_expr: LeftExpr):
         (
             # left_expr = <QualifiedID> '(' <Expr> ')' <CommaExprList>
             'Response.Write("Hello, world!"), "String in middle", "String at end"',
-            LeftExpr(
-                QualifiedID(
-                    [Token.identifier(2, 11, dot_end=True), Token.identifier(11, 16)]
-                ),
-                [IndexOrParams([EvalExpr("Hello, world!")])],
-            ),
+            LeftExpr("response").get_subname("write")(EvalExpr("Hello, world!")),
             None,
             [
                 EvalExpr("String in middle"),
@@ -387,18 +252,7 @@ def test_parse_call_stmt(codeblock: str, exp_left_expr: LeftExpr):
             # left_expr = <QualifiedID> { <IndexOrParamsList> '.' | <IndexOrParamsListDot> }
             #       <LeftExprTail>
             "Left.Expr().WithTail()",
-            LeftExpr(
-                QualifiedID(
-                    [Token.identifier(2, 7, dot_end=True), Token.identifier(7, 11)],
-                ),
-                [IndexOrParams(dot=True)],
-                [
-                    LeftExprTail(
-                        QualifiedID([Token.identifier(13, 22, dot_start=True)]),
-                        [IndexOrParams()],
-                    )
-                ],
-            ),
+            LeftExpr("left").get_subname("expr")().get_subname("withtail")(),
             None,
             [],
         ),
@@ -406,18 +260,7 @@ def test_parse_call_stmt(codeblock: str, exp_left_expr: LeftExpr):
             # left_expr = <QualifiedID> { <IndexOrParamsList> '.' | <IndexOrParamsListDot> }
             #       <LeftExprTail> <SubSafeExpr>
             'Left.Expr().WithTail() "Hello, world!"',
-            LeftExpr(
-                QualifiedID(
-                    [Token.identifier(2, 7, dot_end=True), Token.identifier(7, 11)]
-                ),
-                [IndexOrParams(dot=True)],
-                [
-                    LeftExprTail(
-                        QualifiedID([Token.identifier(13, 22, dot_start=True)]),
-                        [IndexOrParams()],
-                    )
-                ],
-            ),
+            LeftExpr("left").get_subname("expr")().get_subname("withtail")(),
             EvalExpr("Hello, world!"),
             [],
         ),
@@ -425,18 +268,7 @@ def test_parse_call_stmt(codeblock: str, exp_left_expr: LeftExpr):
             # left_expr = <QualifiedID> { <IndexOrParamsList> '.' | <IndexOrParamsListDot> }
             #       <LeftExprTail> <SubSafeExpr> <CommaExprList>
             'Left.Expr().WithTail() "Hello, world!", "Second param"',
-            LeftExpr(
-                QualifiedID(
-                    [Token.identifier(2, 7, dot_end=True), Token.identifier(7, 11)]
-                ),
-                [IndexOrParams(dot=True)],
-                [
-                    LeftExprTail(
-                        QualifiedID([Token.identifier(13, 22, dot_start=True)]),
-                        [IndexOrParams()],
-                    )
-                ],
-            ),
+            LeftExpr("left").get_subname("expr")().get_subname("withtail")(),
             EvalExpr("Hello, world!"),
             [EvalExpr("Second param")],
         ),
@@ -444,18 +276,7 @@ def test_parse_call_stmt(codeblock: str, exp_left_expr: LeftExpr):
             # left_expr = <QualifiedID> { <IndexOrParamsList> '.' | <IndexOrParamsListDot> }
             #       <LeftExprTail> <CommaExprList>
             'Left.Expr().WithTail() , "Second param"',
-            LeftExpr(
-                QualifiedID(
-                    [Token.identifier(2, 7, dot_end=True), Token.identifier(7, 11)],
-                ),
-                [IndexOrParams(dot=True)],
-                [
-                    LeftExprTail(
-                        QualifiedID([Token.identifier(13, 22, dot_start=True)]),
-                        [IndexOrParams()],
-                    )
-                ],
-            ),
+            LeftExpr("left").get_subname("expr")().get_subname("withtail")(),
             None,
             [EvalExpr("Second param")],
         ),

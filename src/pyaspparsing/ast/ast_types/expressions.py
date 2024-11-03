@@ -371,13 +371,84 @@ class LeftExpr(FormatterMixin, Value):
 
     Attributes
     ----------
-    qual_id : QualifiedID
-    index_or_params : List[IndexOrParams], default=[]
-    tail : List[LeftExprTail], default=[]
+    sym_name : str
+        Top-level name of the symbol
+    subnames : Dict[int, str]
+        Subnames that have been requested from this symbol
+    call_args : Dict[int, Tuple[Any, ...]]
+        Record of procedure calls for this symbol,
+        either for the top-level name or for subnames
+
+    Methods
+    -------
+    get_subname(subname)
+        Request a subname from the main symbol
     """
 
-    qual_id: QualifiedID
-    index_or_params: typing.List[IndexOrParams] = attrs.field(
-        default=attrs.Factory(list)
+    sym_name: str = attrs.field(validator=attrs.validators.instance_of(str))
+    subnames: typing.Dict[int, str] = attrs.field(
+        default=attrs.Factory(dict), init=False
     )
-    tail: typing.List[LeftExprTail] = attrs.field(default=attrs.Factory(list))
+    call_args: typing.Dict[int, typing.Tuple[typing.Any, ...]] = attrs.field(
+        default=attrs.Factory(dict), init=False
+    )
+    end_idx: int = attrs.field(default=0, init=False, eq=False)
+    num_index_or_param: int = attrs.field(default=0, init=False, eq=False)
+    num_tail: int = attrs.field(default=0, init=False, eq=False)
+
+    def track_index_or_param(self) -> typing.Self:
+        """Increment count of IndexOrParams objects parsed
+
+        Returns
+        -------
+        LeftExpr
+            The current LeftExpr instance
+        """
+        self.num_index_or_param += 1
+        return self
+
+    def track_tail(self) -> typing.Self:
+        """Increment count of LeftExprTail objects parsed
+
+        Returns
+        -------
+        LeftExpr
+            The current LeftExpr instance
+        """
+        self.num_tail += 1
+        return self
+
+    def get_subname(self, subname: str) -> typing.Self:
+        """
+        Parameters
+        ----------
+        subname : str
+
+        Returns
+        -------
+        LeftExpr
+            The current LeftExpr instance
+        """
+        if not isinstance(subname, str):
+            raise ValueError("subname must be a string")
+        self.subnames[self.end_idx] = subname
+        self.end_idx += 1
+        # return self for method-chaining
+        return self
+
+    def __call__(self, *args: typing.Any) -> typing.Self:
+        """Current name has an IndexOrParams object
+
+        Parameters
+        ----------
+        *args : Any
+
+        Returns
+        -------
+        LeftExpr
+            The current LeftExpr instance
+        """
+        self.call_args[self.end_idx] = args
+        self.end_idx += 1
+        # return self for method-chaining
+        return self

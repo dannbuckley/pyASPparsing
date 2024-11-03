@@ -45,7 +45,7 @@ from pyaspparsing.ast.ast_types.parser import Parser
             None,
             None,
             None,
-            LeftExpr(QualifiedID([Token.identifier(21, 26)])),
+            LeftExpr("array"),
         ),
         (
             # '=' 'To' for loop
@@ -53,8 +53,8 @@ from pyaspparsing.ast.ast_types.parser import Parser
             ExtendedID(Token.identifier(6, 12)),
             [
                 AssignStmt(
-                    LeftExpr(QualifiedID([Token.identifier(26, 27)])),
-                    LeftExpr(QualifiedID([Token.identifier(30, 36)])),
+                    LeftExpr("a"),
+                    LeftExpr("target"),
                 )
             ],
             EvalExpr(0),

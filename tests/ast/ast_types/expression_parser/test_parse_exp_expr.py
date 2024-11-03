@@ -41,38 +41,38 @@ def test_parse_exp_expr_folded(
             EvalExpr(1),
             ExpExpr(
                 EvalExpr(2),
-                LeftExpr(QualifiedID([Token.identifier(11, 12)])),
+                LeftExpr("a"),
             ),
         ),
         (
             # "a" is on the left
             # the right can be folded
             "a ^ 1 ^ 2",
-            LeftExpr(QualifiedID([Token.identifier(3, 4)])),
+            LeftExpr("a"),
             EvalExpr(1),
         ),
         (
             "1 ^ a ^ 2",
             EvalExpr(1),
             ExpExpr(
-                LeftExpr(QualifiedID([Token.identifier(7, 8)])),
+                LeftExpr("a"),
                 EvalExpr(2),
             ),
         ),
         (
             # only "4 ^ 5" can be folded
             "a ^ 1 ^ 2 ^ b ^ 3 ^ c ^ 4 ^ 5",
-            LeftExpr(QualifiedID([Token.identifier(3, 4)])),
+            LeftExpr("a"),
             ExpExpr(
                 EvalExpr(1),
                 ExpExpr(
                     EvalExpr(2),
                     ExpExpr(
-                        LeftExpr(QualifiedID([Token.identifier(15, 16)])),
+                        LeftExpr("b"),
                         ExpExpr(
                             EvalExpr(3),
                             ExpExpr(
-                                LeftExpr(QualifiedID([Token.identifier(23, 24)])),
+                                LeftExpr("c"),
                                 EvalExpr(4**5),
                             ),
                         ),

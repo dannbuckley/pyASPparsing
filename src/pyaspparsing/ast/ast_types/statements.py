@@ -535,7 +535,7 @@ class SubCallStmt(FormatterMixin, InlineStmt):
             )
 
         sub_safe_expr = None
-        if len(left_expr.index_or_params) == 0 or len(left_expr.tail) >= 1:
+        if left_expr.num_index_or_param == 0 or left_expr.num_tail >= 1:
             # left_expr = <QualifiedID>
             # or (
             #   left_expr = <QualifiedID> <IndexOrParamsList> '.' <LeftExprTail>
@@ -556,10 +556,9 @@ class SubCallStmt(FormatterMixin, InlineStmt):
             # make sure it matches:
             #   <QualifiedID> '(' [ <Expr> ] ')'
             assert (
-                len(left_expr.index_or_params) == 1
-                and 0 <= len(left_expr.index_or_params[0].expr_list) <= 1
-                and left_expr.index_or_params[0].dot is False
-                and len(left_expr.tail) == 0  # redundant check, but just in case
+                left_expr.num_index_or_param == 1
+                and 0 <= len(left_expr.call_args[left_expr.end_idx - 1]) <= 1
+                and left_expr.num_tail == 0
             ), "Expected left expression to have the form: <QualifiedID> '(' [ <Expr> ] ')'"
 
         # try to parse comma expression list

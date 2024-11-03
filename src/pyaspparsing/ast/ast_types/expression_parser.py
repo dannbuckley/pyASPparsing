@@ -452,10 +452,23 @@ class ExpressionParser:
         -------
         LeftExpr
         """
+
+        def _id_code(tok: Token) -> str:
+            nonlocal tkzr
+            # identifiers are case insensitive
+            # casefold identifiers before returning
+            return tkzr.get_identifier_code(casefold=True, tok=tok)
+
         # attempt to parse qualified identifier
         qual_id = ExpressionParser.parse_qualified_id(tkzr)
+        # first name in qualified identifier will be the symbol name
+        ret_expr = LeftExpr(_id_code(qual_id.id_tokens[0]))
+        # remaining names are subnames of the main symbol name
+        for subname in map(_id_code, qual_id.id_tokens[1:]):
+            ret_expr.get_subname(subname)
         # check for index or params list
-        index_or_params: typing.List[IndexOrParams] = []
+        index_or_params: int = 0
+        dot: bool = False
         while tkzr.try_consume(TokenType.SYMBOL, "("):
             expr_list: typing.List[typing.Optional[Expr]] = []
             found_expr: bool = False  # helper variable for parsing commas
@@ -479,26 +492,31 @@ class ExpressionParser:
             dot = tkzr.try_multiple_token_type(
                 [TokenType.IDENTIFIER_DOTID, TokenType.IDENTIFIER_DOTIDDOT]
             )
-            index_or_params.append(IndexOrParams(expr_list, dot=dot))
-            del dot, expr_list
+            # call with arguments
+            # increment counter (for subcall statements)
+            ret_expr(*expr_list).track_index_or_param()
+            index_or_params += 1
+            del expr_list
 
-        if len(index_or_params) == 0:
-            # left expression is just a qualified identifier
-            return LeftExpr(qual_id)
-
-        if not index_or_params[-1].dot:
+        if index_or_params == 0 or not dot:
             # left expression does not have a tail
-            return LeftExpr(qual_id, index_or_params)
+            return ret_expr
 
-        left_expr_tail: typing.List[LeftExprTail] = []
         parse_tail: bool = True
         while parse_tail:
-            left_expr_tail.append(ExpressionParser.parse_left_expr_tail(tkzr))
+            left_expr_tail = ExpressionParser.parse_left_expr_tail(tkzr)
             # continue if this left expression tail contained a dotted "index or params" list
             parse_tail = (
-                len(left_expr_tail[-1].index_or_params) > 0
-            ) and left_expr_tail[-1].index_or_params[-1].dot
-        return LeftExpr(qual_id, index_or_params, left_expr_tail)
+                len(left_expr_tail.index_or_params) > 0
+            ) and left_expr_tail.index_or_params[-1].dot
+
+            for tail_name in map(_id_code, left_expr_tail.qual_id_tail.id_tokens):
+                ret_expr.get_subname(tail_name)
+            for tail_idx_par in left_expr_tail.index_or_params:
+                ret_expr(*tail_idx_par.expr_list)
+            # increment counter (for subcall statements)
+            ret_expr.track_tail()
+        return ret_expr
 
     @staticmethod
     def parse_imp_expr(tkzr: Tokenizer, sub_safe: bool = False) -> Expr:

@@ -21,10 +21,10 @@ from pyaspparsing.ast.ast_types.parser import Parser
             "Do\nSet a = a + 1\nLoop\n",
             [
                 AssignStmt(
-                    LeftExpr(QualifiedID([Token.identifier(9, 10)])),
+                    LeftExpr("a"),
                     AddExpr(
                         EvalExpr(1),
-                        LeftExpr(QualifiedID([Token.identifier(13, 14)])),
+                        LeftExpr("a"),
                     ),
                 )
             ],
@@ -71,10 +71,10 @@ from pyaspparsing.ast.ast_types.parser import Parser
             "While True\nSet a = a + 1\nWEnd\n",
             [
                 AssignStmt(
-                    LeftExpr(QualifiedID([Token.identifier(17, 18)])),
+                    LeftExpr("a"),
                     AddExpr(
                         EvalExpr(1),
-                        LeftExpr(QualifiedID([Token.identifier(21, 22)])),
+                        LeftExpr("a"),
                     ),
                 )
             ],

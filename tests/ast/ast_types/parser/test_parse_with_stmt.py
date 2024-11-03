@@ -12,16 +12,16 @@ from pyaspparsing.ast.ast_types.parser import Parser
         (
             # empty with statement
             "With my_var\nEnd With\n",
-            LeftExpr(QualifiedID([Token.identifier(7, 13)])),
+            LeftExpr("my_var"),
             [],
         ),
         (
             # with statement, one assignment statement
             'With my_var\n.Name = "This is a name"\nEnd With\n',
-            LeftExpr(QualifiedID([Token.identifier(7, 13)])),
+            LeftExpr("my_var"),
             [
                 AssignStmt(
-                    LeftExpr(QualifiedID([Token.identifier(14, 19, dot_start=True)])),
+                    LeftExpr("name"),
                     EvalExpr("This is a name"),
                 )
             ],

@@ -55,14 +55,8 @@ from pyaspparsing.ast.ast_types.parser import Parser
                 ElseStmt(
                     [
                         SubCallStmt(
-                            LeftExpr(
-                                QualifiedID(
-                                    [
-                                        Token.identifier(34, 43, dot_end=True),
-                                        Token.identifier(43, 48),
-                                    ]
-                                ),
-                                [IndexOrParams([EvalExpr("Hello, world!")])],
+                            LeftExpr("response").get_subname("write")(
+                                EvalExpr("Hello, world!")
                             )
                         )
                     ],
@@ -98,14 +92,8 @@ from pyaspparsing.ast.ast_types.parser import Parser
                 ElseStmt(
                     [
                         SubCallStmt(
-                            LeftExpr(
-                                QualifiedID(
-                                    [
-                                        Token.identifier(21, 30, dot_end=True),
-                                        Token.identifier(30, 35),
-                                    ]
-                                ),
-                                [IndexOrParams([EvalExpr("Hello, world!")])],
+                            LeftExpr("response").get_subname("write")(
+                                EvalExpr("Hello, world!")
                             )
                         )
                     ],
@@ -119,7 +107,7 @@ from pyaspparsing.ast.ast_types.parser import Parser
             EvalExpr(True),
             [
                 AssignStmt(
-                    LeftExpr(QualifiedID([Token.identifier(16, 17)])),
+                    LeftExpr("a"),
                     EvalExpr(1),
                 )
             ],
@@ -131,7 +119,7 @@ from pyaspparsing.ast.ast_types.parser import Parser
             EvalExpr(False),
             [
                 AssignStmt(
-                    LeftExpr(QualifiedID([Token.identifier(16, 17)])),
+                    LeftExpr("a"),
                     EvalExpr(1),
                 )
             ],
@@ -139,7 +127,7 @@ from pyaspparsing.ast.ast_types.parser import Parser
                 ElseStmt(
                     [
                         AssignStmt(
-                            LeftExpr(QualifiedID([Token.identifier(27, 28)])),
+                            LeftExpr("a"),
                             EvalExpr(2),
                         )
                     ],
@@ -153,7 +141,7 @@ from pyaspparsing.ast.ast_types.parser import Parser
             EvalExpr(True),
             [
                 AssignStmt(
-                    LeftExpr(QualifiedID([Token.identifier(16, 17)])),
+                    LeftExpr("a"),
                     EvalExpr(1),
                 )
             ],

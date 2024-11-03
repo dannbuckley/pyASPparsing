@@ -28,26 +28,52 @@ class FormatterMixin:
                 # check if attr_val is a list
                 attr_val_iter = iter(attr_val)
                 attr_val_len = len(attr_val)
+                start_char = "{" if isinstance(attr_val, dict) else "["
+                end_char = "}" if isinstance(attr_val, dict) else "]"
                 if attr_val_len == 0:
                     repr_lines.append(
-                        f"{indent}{attr_name}=[]{',' if i < num_attrs - 1 else ''}"
+                        f"{indent}{attr_name}={start_char}{end_char}"
+                        f"{',' if i < num_attrs - 1 else ''}"
                     )
                     continue
-                repr_lines.append(f"{indent}{attr_name}=[")
+                repr_lines.append(f"{indent}{attr_name}={start_char}")
                 # apply repr to each element of attr_val individually
                 obj_idx: int = 0
                 while (attr_val_obj := next(attr_val_iter, None)) is not None:
-                    obj_repr = repr(attr_val_obj).splitlines()
-                    if len(obj_repr) > 1:
-                        repr_lines.extend(
-                            map(lambda x: f"{indent * 2}{x}", obj_repr[:-1])
+                    if isinstance(attr_val, dict):
+                        # attr_val is a dictionary
+                        key_repr = repr(attr_val_obj)
+                        obj_repr = repr(attr_val.get(attr_val_obj)).splitlines()
+                        if len(obj_repr) == 1:
+                            repr_lines.append(
+                                f"{indent * 2}{key_repr}: {obj_repr[0]}"
+                                f"{',' if obj_idx < attr_val_len - 1 else ''}"
+                            )
+                        else:
+                            repr_lines.append(f"{indent * 2}{key_repr}: {obj_repr[0]}")
+                            repr_lines.extend(
+                                map(lambda x: f"{indent * 2}{x}", obj_repr[1:-1])
+                            )
+                            repr_lines.append(
+                                f"{indent * 2}{obj_repr[-1]}"
+                                f"{',' if obj_idx < attr_val_len - 1 else ''}"
+                            )
+                        del key_repr, obj_repr
+                    else:
+                        # attr_val is some other iterable
+                        obj_repr = repr(attr_val_obj).splitlines()
+                        if len(obj_repr) > 1:
+                            repr_lines.extend(
+                                map(lambda x: f"{indent * 2}{x}", obj_repr[:-1])
+                            )
+                        repr_lines.append(
+                            f"{indent * 2}{obj_repr[-1]}{',' if obj_idx < attr_val_len - 1 else ''}"
                         )
-                    repr_lines.append(
-                        f"{indent * 2}{obj_repr[-1]}{',' if obj_idx < attr_val_len - 1 else ''}"
-                    )
+                        del obj_repr
                     obj_idx += 1
-                    del obj_repr
-                repr_lines.append(f"{indent}]{',' if i < num_attrs - 1 else ''}")
+                repr_lines.append(
+                    f"{indent}{end_char}{',' if i < num_attrs - 1 else ''}"
+                )
             except TypeError:
                 # attr_val is not iterable
                 attr_repr = repr(attr_val).splitlines()

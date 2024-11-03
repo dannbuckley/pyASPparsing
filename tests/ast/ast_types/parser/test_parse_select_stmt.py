@@ -12,25 +12,25 @@ from pyaspparsing.ast.ast_types.parser import Parser
         (
             # select statement, empty case list
             "Select Case a\nEnd Select\n",
-            LeftExpr(QualifiedID([Token.identifier(14, 15)])),
+            LeftExpr("a"),
             [],
         ),
         (
             # select statement, one empty case without newline
             "Select Case a\nCase 1 End Select\n",
-            LeftExpr(QualifiedID([Token.identifier(14, 15)])),
+            LeftExpr("a"),
             [CaseStmt(case_expr_list=[EvalExpr(1)])],
         ),
         (
             # select statement, one empty case with newline
             "Select Case a\nCase 1\nEnd Select\n",
-            LeftExpr(QualifiedID([Token.identifier(14, 15)])),
+            LeftExpr("a"),
             [CaseStmt(case_expr_list=[EvalExpr(1)])],
         ),
         (
             # select statement, one case without newline
             "Select Case a\nCase 1 Dim my_var\nEnd Select\n",
-            LeftExpr(QualifiedID([Token.identifier(14, 15)])),
+            LeftExpr("a"),
             [
                 CaseStmt(
                     [VarDecl([VarName(ExtendedID(Token.identifier(27, 33)))])],
@@ -41,7 +41,7 @@ from pyaspparsing.ast.ast_types.parser import Parser
         (
             # select statement, one case without newline
             "Select Case a\nCase 1 Dim my_var\nEnd Select\n",
-            LeftExpr(QualifiedID([Token.identifier(14, 15)])),
+            LeftExpr("a"),
             [
                 CaseStmt(
                     [VarDecl([VarName(ExtendedID(Token.identifier(27, 33)))])],
@@ -52,7 +52,7 @@ from pyaspparsing.ast.ast_types.parser import Parser
         (
             # select statement, one case without newline
             "Select Case a\nCase 1\nDim my_var\nEnd Select\n",
-            LeftExpr(QualifiedID([Token.identifier(14, 15)])),
+            LeftExpr("a"),
             [
                 CaseStmt(
                     [VarDecl([VarName(ExtendedID(Token.identifier(27, 33)))])],
@@ -63,19 +63,19 @@ from pyaspparsing.ast.ast_types.parser import Parser
         (
             # select statement, empty case else without newline
             "Select Case a\nCase Else End Select\n",
-            LeftExpr(QualifiedID([Token.identifier(14, 15)])),
+            LeftExpr("a"),
             [CaseStmt(is_else=True)],
         ),
         (
             # select statement, empty case else with newline
             "Select Case a\nCase Else\nEnd Select\n",
-            LeftExpr(QualifiedID([Token.identifier(14, 15)])),
+            LeftExpr("a"),
             [CaseStmt(is_else=True)],
         ),
         (
             # select statement, one empty case and empty case else
             "Select Case a\nCase 1 Case Else End Select\n",
-            LeftExpr(QualifiedID([Token.identifier(14, 15)])),
+            LeftExpr("a"),
             [
                 CaseStmt(case_expr_list=[EvalExpr(1)]),
                 CaseStmt(is_else=True),
@@ -84,7 +84,7 @@ from pyaspparsing.ast.ast_types.parser import Parser
         (
             # select statement, case else without newline
             "Select Case a\nCase Else Dim my_var\nEnd Select\n",
-            LeftExpr(QualifiedID([Token.identifier(14, 15)])),
+            LeftExpr("a"),
             [
                 CaseStmt(
                     [VarDecl([VarName(ExtendedID(Token.identifier(30, 36)))])],
@@ -95,7 +95,7 @@ from pyaspparsing.ast.ast_types.parser import Parser
         (
             # select statement, case else with newline
             "Select Case a\nCase Else\nDim my_var\nEnd Select\n",
-            LeftExpr(QualifiedID([Token.identifier(14, 15)])),
+            LeftExpr("a"),
             [
                 CaseStmt(
                     [VarDecl([VarName(ExtendedID(Token.identifier(30, 36)))])],
