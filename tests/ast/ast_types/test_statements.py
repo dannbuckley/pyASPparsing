@@ -20,7 +20,7 @@ def test_parse_option_explicit():
             "ReDim my_array(10)",
             [
                 RedimDecl(
-                    ExtendedID(Token.identifier(8, 16)),
+                    ExtendedID("my_array"),
                     [EvalExpr(10)],
                 )
             ],
@@ -30,7 +30,7 @@ def test_parse_option_explicit():
             "ReDim my_array(10, 10)",
             [
                 RedimDecl(
-                    ExtendedID(Token.identifier(8, 16)),
+                    ExtendedID("my_array"),
                     [
                         EvalExpr(10),
                         EvalExpr(10),
@@ -43,7 +43,7 @@ def test_parse_option_explicit():
             "ReDim Preserve my_array(10, 10)",
             [
                 RedimDecl(
-                    ExtendedID(Token.identifier(17, 25)),
+                    ExtendedID("my_array"),
                     [
                         EvalExpr(10),
                         EvalExpr(10),
@@ -335,7 +335,7 @@ def test_parse_exit_stmt(codeblock: str, exp_exit_token: Token):
 
 
 @pytest.mark.parametrize(
-    "codeblock,exp_extended_id", [("Erase my_var", ExtendedID(Token.identifier(8, 14)))]
+    "codeblock,exp_extended_id", [("Erase my_var", ExtendedID("my_var"))]
 )
 def test_parse_erase_stmt(codeblock: str, exp_extended_id: ExtendedID):
     with Tokenizer(f"<%{codeblock}%>", False) as tkzr:

@@ -18,7 +18,7 @@ from pyaspparsing.ast.ast_types.parser import Parser
         (
             # function declaration
             "Function my_function\nEnd Function\n",
-            ExtendedID(Token.identifier(11, 22)),
+            ExtendedID("my_function"),
             [],
             [],
             None,
@@ -26,7 +26,7 @@ from pyaspparsing.ast.ast_types.parser import Parser
         (
             # function declaration with parentheses
             "Function my_function()\nEnd Function\n",
-            ExtendedID(Token.identifier(11, 22)),
+            ExtendedID("my_function"),
             [],
             [],
             None,
@@ -34,26 +34,26 @@ from pyaspparsing.ast.ast_types.parser import Parser
         (
             # function declaration with arg
             "Function my_function(first)\nEnd Function\n",
-            ExtendedID(Token.identifier(11, 22)),
-            [Arg(ExtendedID(Token.identifier(23, 28)))],
+            ExtendedID("my_function"),
+            [Arg(ExtendedID("first"))],
             [],
             None,
         ),
         (
             # function declaration with paren arg
             "Function my_function(first())\nEnd Function\n",
-            ExtendedID(Token.identifier(11, 22)),
-            [Arg(ExtendedID(Token.identifier(23, 28)), has_paren=True)],
+            ExtendedID("my_function"),
+            [Arg(ExtendedID("first"), has_paren=True)],
             [],
             None,
         ),
         (
             # function declaration with byval arg
             "Function my_function(ByVal first)\nEnd Function\n",
-            ExtendedID(Token.identifier(11, 22)),
+            ExtendedID("my_function"),
             [
                 Arg(
-                    ExtendedID(Token.identifier(29, 34)),
+                    ExtendedID("first"),
                     arg_modifier=Token.identifier(23, 28),
                 )
             ],
@@ -63,10 +63,10 @@ from pyaspparsing.ast.ast_types.parser import Parser
         (
             # function declaration with byref arg
             "Function my_function(ByRef first)\nEnd Function\n",
-            ExtendedID(Token.identifier(11, 22)),
+            ExtendedID("my_function"),
             [
                 Arg(
-                    ExtendedID(Token.identifier(29, 34)),
+                    ExtendedID("first"),
                     arg_modifier=Token.identifier(23, 28),
                 )
             ],
@@ -76,10 +76,10 @@ from pyaspparsing.ast.ast_types.parser import Parser
         (
             # function declaration with multiple args
             "Function my_function(first, second)\nEnd Function\n",
-            ExtendedID(Token.identifier(11, 22)),
+            ExtendedID("my_function"),
             [
-                Arg(ExtendedID(Token.identifier(23, 28))),
-                Arg(ExtendedID(Token.identifier(30, 36))),
+                Arg(ExtendedID("first")),
+                Arg(ExtendedID("second")),
             ],
             [],
             None,
@@ -87,7 +87,7 @@ from pyaspparsing.ast.ast_types.parser import Parser
         (
             # private function
             "Private Function my_function\nEnd Function\n",
-            ExtendedID(Token.identifier(19, 30)),
+            ExtendedID("my_function"),
             [],
             [],
             AccessModifierType.PRIVATE,
@@ -95,7 +95,7 @@ from pyaspparsing.ast.ast_types.parser import Parser
         (
             # public function
             "Public Function my_function\nEnd Function\n",
-            ExtendedID(Token.identifier(18, 29)),
+            ExtendedID("my_function"),
             [],
             [],
             AccessModifierType.PUBLIC,
@@ -103,7 +103,7 @@ from pyaspparsing.ast.ast_types.parser import Parser
         (
             # public default function
             "Public Default Function my_function\nEnd Function\n",
-            ExtendedID(Token.identifier(26, 37)),
+            ExtendedID("my_function"),
             [],
             [],
             AccessModifierType.PUBLIC_DEFAULT,
@@ -111,7 +111,7 @@ from pyaspparsing.ast.ast_types.parser import Parser
         (
             # function with inline statement
             "Function my_function Set a = 1 End Function\n",
-            ExtendedID(Token.identifier(11, 22)),
+            ExtendedID("my_function"),
             [],
             [
                 AssignStmt(
@@ -124,13 +124,13 @@ from pyaspparsing.ast.ast_types.parser import Parser
         (
             # function with statement list
             "Function my_function\nDim a, b\nEnd Function\n",
-            ExtendedID(Token.identifier(11, 22)),
+            ExtendedID("my_function"),
             [],
             [
                 VarDecl(
                     [
-                        VarName(ExtendedID(Token.identifier(27, 28))),
-                        VarName(ExtendedID(Token.identifier(30, 31))),
+                        VarName(ExtendedID("a")),
+                        VarName(ExtendedID("b")),
                     ]
                 )
             ],

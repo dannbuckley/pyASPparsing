@@ -27,7 +27,7 @@ class ExtendedID(FormatterMixin):
     from_tokenizer(tkzr)
     """
 
-    id_token: Token
+    id_code: str = attrs.field(validator=attrs.validators.instance_of(str))
 
     @staticmethod
     def from_tokenizer(tkzr: Tokenizer):
@@ -42,11 +42,11 @@ class ExtendedID(FormatterMixin):
         """
         if (safe_kw := tkzr.try_safe_keyword_id()) is not None:
             tkzr.advance_pos()  # consume safe keyword
-            return ExtendedID(safe_kw)
+            return ExtendedID(tkzr.get_identifier_code(True, tok=safe_kw))
         if tkzr.try_token_type(TokenType.IDENTIFIER):
             id_token = tkzr.current_token
             tkzr.advance_pos()  # consume identifier
-            return ExtendedID(id_token)
+            return ExtendedID(tkzr.get_identifier_code(True, tok=id_token))
         raise ParserError(
             "Expected an identifier token for the extended identifier symbol"
         )

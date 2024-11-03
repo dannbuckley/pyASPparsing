@@ -9,11 +9,11 @@ from pyaspparsing.ast.ast_types.parser import Parser
 @pytest.mark.parametrize(
     "codeblock,exp_extended_id,exp_member_decl_list",
     [
-        ("Class MyClass\nEnd Class\n", ExtendedID(Token.identifier(8, 15)), []),
+        ("Class MyClass\nEnd Class\n", ExtendedID("myclass"), []),
         (
             # class with private field declaration
             "Class MyClass\nPrivate my_var\nEnd Class\n",
-            ExtendedID(Token.identifier(8, 15)),
+            ExtendedID("myclass"),
             [
                 FieldDecl(
                     FieldName(FieldID(Token.identifier(24, 30))),
@@ -24,7 +24,7 @@ from pyaspparsing.ast.ast_types.parser import Parser
         (
             # class with public field declaration
             "Class MyClass\nPublic my_var\nEnd Class\n",
-            ExtendedID(Token.identifier(8, 15)),
+            ExtendedID("myclass"),
             [
                 FieldDecl(
                     FieldName(FieldID(Token.identifier(23, 29))),
@@ -35,18 +35,18 @@ from pyaspparsing.ast.ast_types.parser import Parser
         (
             # class with variable declaration
             "Class MyClass\nDim my_var\nEnd Class\n",
-            ExtendedID(Token.identifier(8, 15)),
-            [VarDecl([VarName(ExtendedID(Token.identifier(20, 26)))])],
+            ExtendedID("myclass"),
+            [VarDecl([VarName(ExtendedID("my_var"))])],
         ),
         (
             # class with const declaration
             "Class MyClass\nConst a = 42\nEnd Class\n",
-            ExtendedID(Token.identifier(8, 15)),
+            ExtendedID("myclass"),
             [
                 ConstDecl(
                     [
                         ConstListItem(
-                            ExtendedID(Token.identifier(22, 23)),
+                            ExtendedID("a"),
                             EvalExpr(42),
                         )
                     ]
@@ -56,12 +56,12 @@ from pyaspparsing.ast.ast_types.parser import Parser
         (
             # class with public const declaration
             "Class MyClass\nPublic Const a = 42\nEnd Class\n",
-            ExtendedID(Token.identifier(8, 15)),
+            ExtendedID("myclass"),
             [
                 ConstDecl(
                     [
                         ConstListItem(
-                            ExtendedID(Token.identifier(29, 30)),
+                            ExtendedID("a"),
                             EvalExpr(42),
                         )
                     ],
@@ -72,12 +72,12 @@ from pyaspparsing.ast.ast_types.parser import Parser
         (
             # class with private const declaration
             "Class MyClass\nPrivate Const a = 42\nEnd Class\n",
-            ExtendedID(Token.identifier(8, 15)),
+            ExtendedID("myclass"),
             [
                 ConstDecl(
                     [
                         ConstListItem(
-                            ExtendedID(Token.identifier(30, 31)),
+                            ExtendedID("a"),
                             EvalExpr(42),
                         )
                     ],
@@ -88,90 +88,74 @@ from pyaspparsing.ast.ast_types.parser import Parser
         (
             # class with sub declaration
             "Class MyClass\nSub my_subroutine\nEnd Sub\nEnd Class\n",
-            ExtendedID(Token.identifier(8, 15)),
-            [SubDecl(ExtendedID(Token.identifier(20, 33)))],
+            ExtendedID("myclass"),
+            [SubDecl(ExtendedID("my_subroutine"))],
         ),
         (
             # class with function declaration
             "Class MyClass\nFunction my_function\nEnd Function\nEnd Class\n",
-            ExtendedID(Token.identifier(8, 15)),
-            [FunctionDecl(ExtendedID(Token.identifier(25, 36)))],
+            ExtendedID("myclass"),
+            [FunctionDecl(ExtendedID("my_function"))],
         ),
         (
             # class with get property declaration
             "Class MyClass\nProperty Get my_property\nEnd Property\nEnd Class\n",
-            ExtendedID(Token.identifier(8, 15)),
-            [
-                PropertyDecl(
-                    Token.identifier(25, 28), ExtendedID(Token.identifier(29, 40))
-                )
-            ],
+            ExtendedID("myclass"),
+            [PropertyDecl(Token.identifier(25, 28), ExtendedID("my_property"))],
         ),
         (
             # class with let property declaration
             "Class MyClass\nProperty Let my_property\nEnd Property\nEnd Class\n",
-            ExtendedID(Token.identifier(8, 15)),
-            [
-                PropertyDecl(
-                    Token.identifier(25, 28), ExtendedID(Token.identifier(29, 40))
-                )
-            ],
+            ExtendedID("myclass"),
+            [PropertyDecl(Token.identifier(25, 28), ExtendedID("my_property"))],
         ),
         (
             # class with set property declaration
             "Class MyClass\nProperty Set my_property\nEnd Property\nEnd Class\n",
-            ExtendedID(Token.identifier(8, 15)),
-            [
-                PropertyDecl(
-                    Token.identifier(25, 28), ExtendedID(Token.identifier(29, 40))
-                )
-            ],
+            ExtendedID("myclass"),
+            [PropertyDecl(Token.identifier(25, 28), ExtendedID("my_property"))],
         ),
         (
             # class with property declaration, empty arg list
             "Class MyClass\nProperty Get my_property()\nEnd Property\nEnd Class\n",
-            ExtendedID(Token.identifier(8, 15)),
-            [
-                PropertyDecl(
-                    Token.identifier(25, 28), ExtendedID(Token.identifier(29, 40))
-                )
-            ],
+            ExtendedID("myclass"),
+            [PropertyDecl(Token.identifier(25, 28), ExtendedID("my_property"))],
         ),
         (
             # class with property declaration, single arg
             "Class MyClass\nProperty Get my_property(first)\nEnd Property\nEnd Class\n",
-            ExtendedID(Token.identifier(8, 15)),
+            ExtendedID("myclass"),
             [
                 PropertyDecl(
                     Token.identifier(25, 28),
-                    ExtendedID(Token.identifier(29, 40)),
-                    [Arg(ExtendedID(Token.identifier(41, 46)))],
+                    ExtendedID("my_property"),
+                    [Arg(ExtendedID("first"))],
                 )
             ],
         ),
         (
             # class with property declaration, single arg with paren
             "Class MyClass\nProperty Get my_property(first())\nEnd Property\nEnd Class\n",
-            ExtendedID(Token.identifier(8, 15)),
+            ExtendedID("myclass"),
             [
                 PropertyDecl(
                     Token.identifier(25, 28),
-                    ExtendedID(Token.identifier(29, 40)),
-                    [Arg(ExtendedID(Token.identifier(41, 46)), has_paren=True)],
+                    ExtendedID("my_property"),
+                    [Arg(ExtendedID("first"), has_paren=True)],
                 )
             ],
         ),
         (
             # class with property declaration, byval arg
             "Class MyClass\nProperty Get my_property(ByVal first)\nEnd Property\nEnd Class\n",
-            ExtendedID(Token.identifier(8, 15)),
+            ExtendedID("myclass"),
             [
                 PropertyDecl(
                     Token.identifier(25, 28),
-                    ExtendedID(Token.identifier(29, 40)),
+                    ExtendedID("my_property"),
                     [
                         Arg(
-                            ExtendedID(Token.identifier(47, 52)),
+                            ExtendedID("first"),
                             arg_modifier=Token.identifier(41, 46),
                         )
                     ],
@@ -181,14 +165,14 @@ from pyaspparsing.ast.ast_types.parser import Parser
         (
             # class with property declaration, byref arg
             "Class MyClass\nProperty Get my_property(ByRef first)\nEnd Property\nEnd Class\n",
-            ExtendedID(Token.identifier(8, 15)),
+            ExtendedID("myclass"),
             [
                 PropertyDecl(
                     Token.identifier(25, 28),
-                    ExtendedID(Token.identifier(29, 40)),
+                    ExtendedID("my_property"),
                     [
                         Arg(
-                            ExtendedID(Token.identifier(47, 52)),
+                            ExtendedID("first"),
                             arg_modifier=Token.identifier(41, 46),
                         )
                     ],
@@ -198,14 +182,14 @@ from pyaspparsing.ast.ast_types.parser import Parser
         (
             # class with property declaration, multiple args
             "Class MyClass\nProperty Get my_property(first, second)\nEnd Property\nEnd Class\n",
-            ExtendedID(Token.identifier(8, 15)),
+            ExtendedID("myclass"),
             [
                 PropertyDecl(
                     Token.identifier(25, 28),
-                    ExtendedID(Token.identifier(29, 40)),
+                    ExtendedID("my_property"),
                     [
-                        Arg(ExtendedID(Token.identifier(41, 46))),
-                        Arg(ExtendedID(Token.identifier(48, 54))),
+                        Arg(ExtendedID("first")),
+                        Arg(ExtendedID("second")),
                     ],
                 )
             ],
@@ -213,16 +197,16 @@ from pyaspparsing.ast.ast_types.parser import Parser
         (
             # class with property declaration, single method statement
             "Class MyClass\nProperty Get my_property\nDim c, d\nEnd Property\nEnd Class\n",
-            ExtendedID(Token.identifier(8, 15)),
+            ExtendedID("myclass"),
             [
                 PropertyDecl(
                     Token.identifier(25, 28),
-                    ExtendedID(Token.identifier(29, 40)),
+                    ExtendedID("my_property"),
                     method_stmt_list=[
                         VarDecl(
                             [
-                                VarName(ExtendedID(Token.identifier(45, 46))),
-                                VarName(ExtendedID(Token.identifier(48, 49))),
+                                VarName(ExtendedID("c")),
+                                VarName(ExtendedID("d")),
                             ]
                         )
                     ],
@@ -231,33 +215,33 @@ from pyaspparsing.ast.ast_types.parser import Parser
         ),
         (
             "Class MyClass\nPublic Property Get my_property\nEnd Property\nEnd Class\n",
-            ExtendedID(Token.identifier(8, 15)),
+            ExtendedID("myclass"),
             [
                 PropertyDecl(
                     Token.identifier(32, 35),
-                    ExtendedID(Token.identifier(36, 47)),
+                    ExtendedID("my_property"),
                     access_mod=AccessModifierType.PUBLIC,
                 )
             ],
         ),
         (
             "Class MyClass\nPublic Default Property Get my_property\nEnd Property\nEnd Class\n",
-            ExtendedID(Token.identifier(8, 15)),
+            ExtendedID("myclass"),
             [
                 PropertyDecl(
                     Token.identifier(40, 43),
-                    ExtendedID(Token.identifier(44, 55)),
+                    ExtendedID("my_property"),
                     access_mod=AccessModifierType.PUBLIC_DEFAULT,
                 )
             ],
         ),
         (
             "Class MyClass\nPrivate Property Get my_property\nEnd Property\nEnd Class\n",
-            ExtendedID(Token.identifier(8, 15)),
+            ExtendedID("myclass"),
             [
                 PropertyDecl(
                     Token.identifier(33, 36),
-                    ExtendedID(Token.identifier(37, 48)),
+                    ExtendedID("my_property"),
                     access_mod=AccessModifierType.PRIVATE,
                 )
             ],

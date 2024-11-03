@@ -20,7 +20,7 @@ from pyaspparsing.ast.ast_types.parser import Parser
         (
             # empty '=' 'To' type for loop without step
             "For target = 0 To 5\nNext\n",
-            ExtendedID(Token.identifier(6, 12)),
+            ExtendedID("target"),
             [],
             EvalExpr(0),
             EvalExpr(5),
@@ -30,7 +30,7 @@ from pyaspparsing.ast.ast_types.parser import Parser
         (
             # empty '=' 'To' type for loop with step
             "For target = 0 To 5 Step 2\nNext\n",
-            ExtendedID(Token.identifier(6, 12)),
+            ExtendedID("target"),
             [],
             EvalExpr(0),
             EvalExpr(5),
@@ -40,7 +40,7 @@ from pyaspparsing.ast.ast_types.parser import Parser
         (
             # empty 'Each' 'In' type for loop
             "For Each target In array\nNext\n",
-            ExtendedID(Token.identifier(11, 17)),
+            ExtendedID("target"),
             [],
             None,
             None,
@@ -50,7 +50,7 @@ from pyaspparsing.ast.ast_types.parser import Parser
         (
             # '=' 'To' for loop
             "For target = 0 To 5\nSet a = target\nNext\n",
-            ExtendedID(Token.identifier(6, 12)),
+            ExtendedID("target"),
             [
                 AssignStmt(
                     LeftExpr("a"),

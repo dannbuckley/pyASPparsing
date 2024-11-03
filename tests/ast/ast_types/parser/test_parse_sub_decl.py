@@ -18,7 +18,7 @@ from pyaspparsing.ast.ast_types.parser import Parser
         (
             # sub declaration
             "Sub my_subroutine\nEnd Sub\n",
-            ExtendedID(Token.identifier(6, 19)),
+            ExtendedID("my_subroutine"),
             [],
             [],
             None,
@@ -26,7 +26,7 @@ from pyaspparsing.ast.ast_types.parser import Parser
         (
             # sub declaration with parentheses
             "Sub my_subroutine()\nEnd Sub\n",
-            ExtendedID(Token.identifier(6, 19)),
+            ExtendedID("my_subroutine"),
             [],
             [],
             None,
@@ -34,26 +34,26 @@ from pyaspparsing.ast.ast_types.parser import Parser
         (
             # sub declaration with arg
             "Sub my_subroutine(first)\nEnd Sub\n",
-            ExtendedID(Token.identifier(6, 19)),
-            [Arg(ExtendedID(Token.identifier(20, 25)))],
+            ExtendedID("my_subroutine"),
+            [Arg(ExtendedID("first"))],
             [],
             None,
         ),
         (
             # sub declaration with paren arg
             "Sub my_subroutine(first())\nEnd Sub\n",
-            ExtendedID(Token.identifier(6, 19)),
-            [Arg(ExtendedID(Token.identifier(20, 25)), has_paren=True)],
+            ExtendedID("my_subroutine"),
+            [Arg(ExtendedID("first"), has_paren=True)],
             [],
             None,
         ),
         (
             # sub declaration with byval arg
             "Sub my_subroutine(ByVal first)\nEnd Sub\n",
-            ExtendedID(Token.identifier(6, 19)),
+            ExtendedID("my_subroutine"),
             [
                 Arg(
-                    ExtendedID(Token.identifier(26, 31)),
+                    ExtendedID("first"),
                     arg_modifier=Token.identifier(20, 25),
                 )
             ],
@@ -63,10 +63,10 @@ from pyaspparsing.ast.ast_types.parser import Parser
         (
             # sub declaration with byref arg
             "Sub my_subroutine(ByRef first)\nEnd Sub\n",
-            ExtendedID(Token.identifier(6, 19)),
+            ExtendedID("my_subroutine"),
             [
                 Arg(
-                    ExtendedID(Token.identifier(26, 31)),
+                    ExtendedID("first"),
                     arg_modifier=Token.identifier(20, 25),
                 )
             ],
@@ -76,10 +76,10 @@ from pyaspparsing.ast.ast_types.parser import Parser
         (
             # sub declaration with multiple args
             "Sub my_subroutine(first, second)\nEnd Sub\n",
-            ExtendedID(Token.identifier(6, 19)),
+            ExtendedID("my_subroutine"),
             [
-                Arg(ExtendedID(Token.identifier(20, 25))),
-                Arg(ExtendedID(Token.identifier(27, 33))),
+                Arg(ExtendedID("first")),
+                Arg(ExtendedID("second")),
             ],
             [],
             None,
@@ -87,7 +87,7 @@ from pyaspparsing.ast.ast_types.parser import Parser
         (
             # private sub
             "Private Sub my_subroutine\nEnd Sub\n",
-            ExtendedID(Token.identifier(14, 27)),
+            ExtendedID("my_subroutine"),
             [],
             [],
             AccessModifierType.PRIVATE,
@@ -95,7 +95,7 @@ from pyaspparsing.ast.ast_types.parser import Parser
         (
             # public sub
             "Public Sub my_subroutine\nEnd Sub\n",
-            ExtendedID(Token.identifier(13, 26)),
+            ExtendedID("my_subroutine"),
             [],
             [],
             AccessModifierType.PUBLIC,
@@ -103,7 +103,7 @@ from pyaspparsing.ast.ast_types.parser import Parser
         (
             # public default sub
             "Public Default Sub my_subroutine\nEnd Sub\n",
-            ExtendedID(Token.identifier(21, 34)),
+            ExtendedID("my_subroutine"),
             [],
             [],
             AccessModifierType.PUBLIC_DEFAULT,
@@ -111,7 +111,7 @@ from pyaspparsing.ast.ast_types.parser import Parser
         (
             # sub with inline statement
             "Sub my_subroutine Set a = 1 End Sub\n",
-            ExtendedID(Token.identifier(6, 19)),
+            ExtendedID("my_subroutine"),
             [],
             [
                 AssignStmt(
@@ -124,13 +124,13 @@ from pyaspparsing.ast.ast_types.parser import Parser
         (
             # sub with statement list
             "Sub my_subroutine\nDim c, d\nEnd Sub\n",
-            ExtendedID(Token.identifier(6, 19)),
+            ExtendedID("my_subroutine"),
             [],
             [
                 VarDecl(
                     [
-                        VarName(ExtendedID(Token.identifier(24, 25))),
-                        VarName(ExtendedID(Token.identifier(27, 28))),
+                        VarName(ExtendedID("c")),
+                        VarName(ExtendedID("d")),
                     ]
                 )
             ],
@@ -139,13 +139,13 @@ from pyaspparsing.ast.ast_types.parser import Parser
         (
             # const declaration as method statement
             "Sub my_subroutine\nConst a = 42\nEnd Sub\n",
-            ExtendedID(Token.identifier(6, 19)),
+            ExtendedID("my_subroutine"),
             [],
             [
                 ConstDecl(
                     [
                         ConstListItem(
-                            ExtendedID(Token.identifier(26, 27)),
+                            ExtendedID("a"),
                             EvalExpr(42),
                         )
                     ]
@@ -156,13 +156,13 @@ from pyaspparsing.ast.ast_types.parser import Parser
         (
             # public const declaration as method statement
             "Sub my_subroutine\nPublic Const a = 42\nEnd Sub\n",
-            ExtendedID(Token.identifier(6, 19)),
+            ExtendedID("my_subroutine"),
             [],
             [
                 ConstDecl(
                     [
                         ConstListItem(
-                            ExtendedID(Token.identifier(33, 34)),
+                            ExtendedID("a"),
                             EvalExpr(42),
                         )
                     ],
@@ -174,13 +174,13 @@ from pyaspparsing.ast.ast_types.parser import Parser
         (
             # private const declaration as method statement
             "Sub my_subroutine\nPrivate Const a = 42\nEnd Sub\n",
-            ExtendedID(Token.identifier(6, 19)),
+            ExtendedID("my_subroutine"),
             [],
             [
                 ConstDecl(
                     [
                         ConstListItem(
-                            ExtendedID(Token.identifier(34, 35)),
+                            ExtendedID("a"),
                             EvalExpr(42),
                         )
                     ],

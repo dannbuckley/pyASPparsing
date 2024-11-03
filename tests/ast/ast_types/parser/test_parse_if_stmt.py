@@ -19,7 +19,7 @@ from pyaspparsing.ast.ast_types.parser import Parser
             # if statement (BlockStmtList), one block statement
             "If 1 = 1 Then\nDim my_var\nEnd If\n",
             EvalExpr(True),
-            [VarDecl([VarName(ExtendedID(Token.identifier(20, 26)))])],
+            [VarDecl([VarName(ExtendedID("my_var"))])],
             [],
         ),
         (
@@ -41,7 +41,7 @@ from pyaspparsing.ast.ast_types.parser import Parser
             [],
             [
                 ElseStmt(
-                    [VarDecl([VarName(ExtendedID(Token.identifier(38, 44)))])],
+                    [VarDecl([VarName(ExtendedID("my_var"))])],
                     elif_expr=EvalExpr(True),
                 )
             ],
@@ -78,7 +78,7 @@ from pyaspparsing.ast.ast_types.parser import Parser
             [],
             [
                 ElseStmt(
-                    [VarDecl([VarName(ExtendedID(Token.identifier(25, 31)))])],
+                    [VarDecl([VarName(ExtendedID("my_var"))])],
                     is_else=True,
                 )
             ],

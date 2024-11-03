@@ -43,7 +43,7 @@ from pyaspparsing.ast.ast_types import *
             # public field declaration with other var
             "Public my_var, my_other_var",
             FieldName(FieldID(Token.identifier(9, 15))),
-            [VarName(ExtendedID(Token.identifier(17, 29)))],
+            [VarName(ExtendedID("my_other_var"))],
             AccessModifierType.PUBLIC,
         ),
         (
@@ -51,8 +51,8 @@ from pyaspparsing.ast.ast_types import *
             "Public my_var, my_other_var, yet_another",
             FieldName(FieldID(Token.identifier(9, 15))),
             [
-                VarName(ExtendedID(Token.identifier(17, 29))),
-                VarName(ExtendedID(Token.identifier(31, 42))),
+                VarName(ExtendedID("my_other_var")),
+                VarName(ExtendedID("yet_another")),
             ],
             AccessModifierType.PUBLIC,
         ),
@@ -60,11 +60,7 @@ from pyaspparsing.ast.ast_types import *
             # public field declaration with other var
             "Public my_var, my_other_var(1)",
             FieldName(FieldID(Token.identifier(9, 15))),
-            [
-                VarName(
-                    ExtendedID(Token.identifier(17, 29)), [Token.int_literal(30, 31)]
-                )
-            ],
+            [VarName(ExtendedID("my_other_var"), [Token.int_literal(30, 31)])],
             AccessModifierType.PUBLIC,
         ),
         (
@@ -73,7 +69,7 @@ from pyaspparsing.ast.ast_types import *
             FieldName(FieldID(Token.identifier(9, 15))),
             [
                 VarName(
-                    ExtendedID(Token.identifier(17, 29)),
+                    ExtendedID("my_other_var"),
                     [Token.int_literal(30, 31), Token.int_literal(33, 34)],
                 )
             ],
@@ -101,28 +97,28 @@ def test_parse_field_decl(
 @pytest.mark.parametrize(
     "codeblock,exp_var_name",
     [
-        ("Dim my_var", [VarName(ExtendedID(Token.identifier(6, 12)))]),
+        ("Dim my_var", [VarName(ExtendedID("my_var"))]),
         (
             "Dim vara, var_b",
             [
-                VarName(ExtendedID(Token.identifier(6, 10))),
-                VarName(ExtendedID(Token.identifier(12, 17))),
+                VarName(ExtendedID("vara")),
+                VarName(ExtendedID("var_b")),
             ],
         ),
         (
             "Dim my_array(3)",
-            [VarName(ExtendedID(Token.identifier(6, 14)), [Token.int_literal(15, 16)])],
+            [VarName(ExtendedID("my_array"), [Token.int_literal(15, 16)])],
         ),
-        ("Dim my_array()", [VarName(ExtendedID(Token.identifier(6, 14)))]),
+        ("Dim my_array()", [VarName(ExtendedID("my_array"))]),
         (
             "Dim my_array(3,)",
-            [VarName(ExtendedID(Token.identifier(6, 14)), [Token.int_literal(15, 16)])],
+            [VarName(ExtendedID("my_array"), [Token.int_literal(15, 16)])],
         ),
         (
             "Dim my_table(4, 6)",
             [
                 VarName(
-                    ExtendedID(Token.identifier(6, 14)),
+                    ExtendedID("my_table"),
                     [Token.int_literal(15, 16), Token.int_literal(18, 19)],
                 )
             ],
@@ -145,7 +141,7 @@ def test_parse_var_decl(codeblock: str, exp_var_name: typing.List[VarName]):
             "Const a = 1",
             [
                 ConstListItem(
-                    ExtendedID(Token.identifier(8, 9)),
+                    ExtendedID("a"),
                     EvalExpr(1),
                 )
             ],
@@ -156,7 +152,7 @@ def test_parse_var_decl(codeblock: str, exp_var_name: typing.List[VarName]):
             "Const a = (1)",
             [
                 ConstListItem(
-                    ExtendedID(Token.identifier(8, 9)),
+                    ExtendedID("a"),
                     EvalExpr(1),
                 )
             ],
@@ -167,7 +163,7 @@ def test_parse_var_decl(codeblock: str, exp_var_name: typing.List[VarName]):
             "Const a = ((1))",
             [
                 ConstListItem(
-                    ExtendedID(Token.identifier(8, 9)),
+                    ExtendedID("a"),
                     EvalExpr(1),
                 )
             ],
@@ -178,7 +174,7 @@ def test_parse_var_decl(codeblock: str, exp_var_name: typing.List[VarName]):
             "Const a = -1",
             [
                 ConstListItem(
-                    ExtendedID(Token.identifier(8, 9)),
+                    ExtendedID("a"),
                     EvalExpr(-1),
                 )
             ],
@@ -189,7 +185,7 @@ def test_parse_var_decl(codeblock: str, exp_var_name: typing.List[VarName]):
             "Const a = +-1",
             [
                 ConstListItem(
-                    ExtendedID(Token.identifier(8, 9)),
+                    ExtendedID("a"),
                     EvalExpr(-1),
                 )
             ],
@@ -200,7 +196,7 @@ def test_parse_var_decl(codeblock: str, exp_var_name: typing.List[VarName]):
             "Const a = -(1)",
             [
                 ConstListItem(
-                    ExtendedID(Token.identifier(8, 9)),
+                    ExtendedID("a"),
                     EvalExpr(-1),
                 )
             ],
@@ -211,7 +207,7 @@ def test_parse_var_decl(codeblock: str, exp_var_name: typing.List[VarName]):
             "Const a = +(-(1))",
             [
                 ConstListItem(
-                    ExtendedID(Token.identifier(8, 9)),
+                    ExtendedID("a"),
                     EvalExpr(-1),
                 )
             ],
@@ -222,11 +218,11 @@ def test_parse_var_decl(codeblock: str, exp_var_name: typing.List[VarName]):
             "Const a = 1, b = 2",
             [
                 ConstListItem(
-                    ExtendedID(Token.identifier(8, 9)),
+                    ExtendedID("a"),
                     EvalExpr(1),
                 ),
                 ConstListItem(
-                    ExtendedID(Token.identifier(15, 16)),
+                    ExtendedID("b"),
                     EvalExpr(2),
                 ),
             ],
@@ -237,7 +233,7 @@ def test_parse_var_decl(codeblock: str, exp_var_name: typing.List[VarName]):
             "Public Const a = 1",
             [
                 ConstListItem(
-                    ExtendedID(Token.identifier(15, 16)),
+                    ExtendedID("a"),
                     EvalExpr(1),
                 )
             ],
@@ -248,7 +244,7 @@ def test_parse_var_decl(codeblock: str, exp_var_name: typing.List[VarName]):
             "Private Const a = 1",
             [
                 ConstListItem(
-                    ExtendedID(Token.identifier(16, 17)),
+                    ExtendedID("a"),
                     EvalExpr(1),
                 )
             ],

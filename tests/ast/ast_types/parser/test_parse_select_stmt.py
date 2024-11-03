@@ -33,7 +33,7 @@ from pyaspparsing.ast.ast_types.parser import Parser
             LeftExpr("a"),
             [
                 CaseStmt(
-                    [VarDecl([VarName(ExtendedID(Token.identifier(27, 33)))])],
+                    [VarDecl([VarName(ExtendedID("my_var"))])],
                     [EvalExpr(1)],
                 )
             ],
@@ -44,7 +44,7 @@ from pyaspparsing.ast.ast_types.parser import Parser
             LeftExpr("a"),
             [
                 CaseStmt(
-                    [VarDecl([VarName(ExtendedID(Token.identifier(27, 33)))])],
+                    [VarDecl([VarName(ExtendedID("my_var"))])],
                     [EvalExpr(1)],
                 )
             ],
@@ -55,7 +55,7 @@ from pyaspparsing.ast.ast_types.parser import Parser
             LeftExpr("a"),
             [
                 CaseStmt(
-                    [VarDecl([VarName(ExtendedID(Token.identifier(27, 33)))])],
+                    [VarDecl([VarName(ExtendedID("my_var"))])],
                     [EvalExpr(1)],
                 )
             ],
@@ -87,7 +87,7 @@ from pyaspparsing.ast.ast_types.parser import Parser
             LeftExpr("a"),
             [
                 CaseStmt(
-                    [VarDecl([VarName(ExtendedID(Token.identifier(30, 36)))])],
+                    [VarDecl([VarName(ExtendedID("my_var"))])],
                     is_else=True,
                 )
             ],
@@ -98,7 +98,7 @@ from pyaspparsing.ast.ast_types.parser import Parser
             LeftExpr("a"),
             [
                 CaseStmt(
-                    [VarDecl([VarName(ExtendedID(Token.identifier(30, 36)))])],
+                    [VarDecl([VarName(ExtendedID("my_var"))])],
                     is_else=True,
                 )
             ],
