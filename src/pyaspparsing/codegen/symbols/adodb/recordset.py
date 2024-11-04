@@ -1,0 +1,1 @@
+"""ADODB Recordset object"""

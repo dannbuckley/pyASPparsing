@@ -22,7 +22,7 @@ class VirtualDirectory:
         Physical path of the virtual directory
     """
 
-    root_name: Path
+    root_name: Path = attrs.field(validator=attrs.validators.instance_of(Path))
     actual_path: Path = attrs.field()
     # cache included files upon first request
     # if an error occurs during parsing, use None as placeholder
@@ -32,7 +32,7 @@ class VirtualDirectory:
 
     @actual_path.validator
     def _check_actual_path(self, _, value: Path):
-        if not value.exists() or not value.is_dir():
+        if not isinstance(value, Path) or not value.exists() or not value.is_dir():
             raise ValueError(
                 "actual_path must point to an accessible physical directory"
             )

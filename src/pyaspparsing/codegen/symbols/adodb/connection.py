@@ -1,0 +1,1 @@
+"""ADODB Connection object"""
