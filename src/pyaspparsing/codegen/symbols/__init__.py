@@ -1,8 +1,7 @@
 """symbols module"""
 
-from .symbol import SymbolTable
+from .symbol import SymbolTable, ValueSymbol, ArraySymbol
 from .request import Request
 from .response import Response
 from .server import Server
-from .adodb.connection import Connection
-from .adodb.recordset import Recordset
+from .adodb import Connection, Recordset

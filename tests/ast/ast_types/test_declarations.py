@@ -25,7 +25,7 @@ from pyaspparsing.ast.ast_types import *
         (
             # public field declaration with array rank list
             "Public my_var(1)",
-            FieldName(FieldID("my_var"), [Token.int_literal(16, 17)]),
+            FieldName(FieldID("my_var"), [1]),
             [],
             AccessModifierType.PUBLIC,
         ),
@@ -34,7 +34,7 @@ from pyaspparsing.ast.ast_types import *
             "Public my_var(1, 2)",
             FieldName(
                 FieldID("my_var"),
-                [Token.int_literal(16, 17), Token.int_literal(19, 20)],
+                [1, 2],
             ),
             [],
             AccessModifierType.PUBLIC,
@@ -60,7 +60,7 @@ from pyaspparsing.ast.ast_types import *
             # public field declaration with other var
             "Public my_var, my_other_var(1)",
             FieldName(FieldID("my_var")),
-            [VarName(ExtendedID("my_other_var"), [Token.int_literal(30, 31)])],
+            [VarName(ExtendedID("my_other_var"), [1])],
             AccessModifierType.PUBLIC,
         ),
         (
@@ -70,7 +70,7 @@ from pyaspparsing.ast.ast_types import *
             [
                 VarName(
                     ExtendedID("my_other_var"),
-                    [Token.int_literal(30, 31), Token.int_literal(33, 34)],
+                    [1, 2],
                 )
             ],
             AccessModifierType.PUBLIC,
@@ -107,19 +107,19 @@ def test_parse_field_decl(
         ),
         (
             "Dim my_array(3)",
-            [VarName(ExtendedID("my_array"), [Token.int_literal(15, 16)])],
+            [VarName(ExtendedID("my_array"), [3])],
         ),
         ("Dim my_array()", [VarName(ExtendedID("my_array"))]),
         (
             "Dim my_array(3,)",
-            [VarName(ExtendedID("my_array"), [Token.int_literal(15, 16)])],
+            [VarName(ExtendedID("my_array"), [3])],
         ),
         (
             "Dim my_table(4, 6)",
             [
                 VarName(
                     ExtendedID("my_table"),
-                    [Token.int_literal(15, 16), Token.int_literal(18, 19)],
+                    [4, 6],
                 )
             ],
         ),

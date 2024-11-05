@@ -48,7 +48,10 @@ class FieldName(FormatterMixin):
     """
 
     field_id: FieldID
-    array_rank_list: typing.List[Token] = attrs.field(default=attrs.Factory(list))
+    array_rank_list: typing.List[int] = attrs.field(
+        default=attrs.Factory(list),
+        validator=attrs.validators.deep_iterable(attrs.validators.instance_of(int)),
+    )
 
 
 @attrs.define(repr=False, slots=False)
@@ -70,7 +73,10 @@ class VarName(FormatterMixin):
     """
 
     extended_id: ExtendedID
-    array_rank_list: typing.List[Token] = attrs.field(default=attrs.Factory(list))
+    array_rank_list: typing.List[int] = attrs.field(
+        default=attrs.Factory(list),
+        validator=attrs.validators.deep_iterable(attrs.validators.instance_of(int)),
+    )
 
 
 @attrs.define(repr=False, slots=False)
@@ -142,7 +148,7 @@ class FieldDecl(FormatterMixin, GlobalStmt, MemberDecl):
                         "Invalid token type found in array rank list "
                         "of field name declaration"
                     )
-                int_literals.append(tkzr.current_token)
+                int_literals.append(int(tkzr.get_token_code()))
                 tkzr.advance_pos()  # consume int literal
 
                 tkzr.try_consume(TokenType.SYMBOL, ",")
@@ -187,7 +193,7 @@ class FieldDecl(FormatterMixin, GlobalStmt, MemberDecl):
                             "Invalid token type found in array rank list "
                             "of variable name declaration (part of field declaration)"
                         )
-                    int_literals.append(tkzr.current_token)
+                    int_literals.append(int(tkzr.get_token_code()))
                     tkzr.advance_pos()  # consume int literal
 
                     tkzr.try_consume(TokenType.SYMBOL, ",")
@@ -276,7 +282,7 @@ class VarDecl(FormatterMixin, MemberDecl, BlockStmt):
                             "Invalid token type found in array rank list "
                             "of variable name declaration"
                         )
-                    int_literals.append(tkzr.current_token)
+                    int_literals.append(int(tkzr.get_token_code()))
                     tkzr.advance_pos()  # consume int literal
 
                     tkzr.try_consume(TokenType.SYMBOL, ",")
