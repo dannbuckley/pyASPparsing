@@ -273,6 +273,24 @@ def eval_concat_expr(fld: ConcatExpr) -> EvalExpr:
     )
 
 
+@create_expr_eval_func(AddNegated)
+def eval_add_negated(fld: AddNegated) -> EvalExpr:
+    """NOT CALLED DIRECTLY
+
+    Evaluate a negation annotation
+
+    Parameters
+    ----------
+    fld : AddNegated
+        Foldable AddNegated object
+
+    Returns
+    -------
+    EvalExpr
+    """
+    return operator.neg(evaluate_expr(fld.wrapped_expr))
+
+
 @create_expr_eval_func(AddExpr)
 def eval_add_expr(fld: AddExpr) -> EvalExpr:
     """NOT CALLED DIRECTLY
@@ -288,27 +306,11 @@ def eval_add_expr(fld: AddExpr) -> EvalExpr:
     -------
     EvalExpr
     """
-
-    def _eval_add_term(term: Expr) -> EvalExpr:
-        """
-        Parameters
-        ----------
-        term : Expr
-            Foldable subtree of an AddExpr object
-
-        Returns
-        -------
-        EvalExpr
-        """
-        if isinstance(term, AddNegated):
-            return operator.neg(evaluate_expr(term.wrapped_expr))
-        return evaluate_expr(term)
-
     return operator.add(
         # reduce left subtree
-        _eval_add_term(fld.left),
+        evaluate_expr(fld.left),
         # reduce right subtree
-        _eval_add_term(fld.right),
+        evaluate_expr(fld.right),
     )
 
 
@@ -358,6 +360,24 @@ def eval_int_div_expr(fld: IntDivExpr) -> EvalExpr:
     )
 
 
+@create_expr_eval_func(MultReciprocal)
+def eval_mult_reciprocal(fld: MultReciprocal) -> EvalExpr:
+    """NOT CALLED DIRECTLY
+
+    Evaluate a reciprocal annotation
+
+    Parameters
+    ----------
+    fld : MultReciprocal
+        Foldable MultReciprocal object
+
+    Returns
+    -------
+    EvalExpr
+    """
+    return evaluate_expr(fld.wrapped_expr).reciprocal()
+
+
 @create_expr_eval_func(MultExpr)
 def eval_mult_expr(fld: MultExpr) -> EvalExpr:
     """NOT CALLED DIRECTLY
@@ -373,27 +393,11 @@ def eval_mult_expr(fld: MultExpr) -> EvalExpr:
     -------
     EvalExpr
     """
-
-    def _eval_mult_term(term: Expr) -> EvalExpr:
-        """
-        Parameters
-        ----------
-        term : Expr
-            Foldable subtree of a MultExpr object
-
-        Returns
-        -------
-        EvalExpr
-        """
-        if isinstance(term, MultReciprocal):
-            return evaluate_expr(term.wrapped_expr).reciprocal()
-        return evaluate_expr(term)
-
     return operator.mul(
         # reduce left subtree
-        _eval_mult_term(fld.left),
+        evaluate_expr(fld.left),
         # reduce right subtree
-        _eval_mult_term(fld.right),
+        evaluate_expr(fld.right),
     )
 
 
