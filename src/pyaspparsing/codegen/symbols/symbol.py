@@ -127,9 +127,6 @@ class ASPObject(Symbol):
             assert isinstance(
                 left_expr, LeftExpr
             ), f"left_expr must be a valid left expression, got {repr(type(left_expr))}"
-            assert (
-                left_expr.sym_name == self.symbol_name
-            ), "left_expr.sym_name must match the name of the current symbol"
             assert left_expr.end_idx >= 1, "left_expr cannot contain only symbol name"
             idx = 0
             ret_obj = self
@@ -210,7 +207,14 @@ class SymbolTable(FormatterMixin):
         else:
             if isinstance(self.sym_table[left_expr.sym_name], ValueSymbol):
                 # simple variable assignment
-                self.sym_table[left_expr.sym_name].value = asgn.assign_expr
+                if isinstance(asgn.assign_expr, LeftExpr):
+                    # overwrite symbol type with evaluated left expression
+                    self.sym_table[left_expr.sym_name] = self.sym_table[
+                        asgn.assign_expr.sym_name
+                    ](asgn.assign_expr)
+                else:
+                    # overwrite value with assignment expression
+                    self.sym_table[left_expr.sym_name].value = asgn.assign_expr
             elif isinstance(self.sym_table[left_expr.sym_name], ArraySymbol):
                 # array item assignment
                 def _get_array_idx() -> typing.Generator[int, None, None]:
@@ -246,11 +250,13 @@ class SymbolTable(FormatterMixin):
                     tuple(_get_array_idx()), asgn.assign_expr
                 )
             elif isinstance(self.sym_table[left_expr.sym_name], ASPObject):
+                # TODO: establish appropriate assign target (properties?)
                 pass
 
 
 def prepare_symbol_name(symbol_type: type[Symbol]):
-    """
+    """Auto-generate symbol name from casefolded class name
+    
     Parameters
     ----------
     symbol_type : type[Symbol]

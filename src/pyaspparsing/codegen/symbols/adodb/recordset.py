@@ -20,7 +20,7 @@ class Recordset(ASPObject):
             ex = ex_wrong_sig
         finally:
             if ex is not None:
-                raise ValueError("Invalid call on Response object") from ex
+                raise ValueError("Invalid call on Recordset object") from ex
 
     def addnew(self, param_fieldlist=None, param_values=None, /):
         """"""
