@@ -35,6 +35,14 @@ class ValueSymbol(Symbol):
 
     value: typing.Any = attrs.field(default=None)
 
+    def __repr__(self):
+        base_repr = f"<ValueSymbol {repr(self.symbol_name)}"
+        if self.value is None:
+            return base_repr + ">"
+        if isinstance(self.value, EvalExpr):
+            return base_repr + f"; value={repr(self.value.expr_value)}>"
+        return base_repr + f"; value of type {repr(type(self.value).__name__)}>"
+
     @staticmethod
     def from_var_name(var_name: VarName):
         """
@@ -64,6 +72,11 @@ class ArraySymbol(Symbol):
     array_data: typing.Dict[typing.Tuple[int, ...], typing.Any] = attrs.field(
         default=attrs.Factory(dict), init=False
     )
+
+    def __repr__(self):
+        return (
+            f"<ArraySymbol {repr(self.symbol_name)}; rank_list={repr(self.rank_list)}>"
+        )
 
     @staticmethod
     def from_var_name(var_name: VarName):
@@ -98,6 +111,49 @@ class ArraySymbol(Symbol):
 
 class ASPObject(Symbol):
     """An ASP object that may have methods, properties, or collections"""
+
+    def __call__(self, left_expr: LeftExpr) -> typing.Any:
+        """
+        Parameters
+        ----------
+        left_expr : LeftExpr
+
+        Returns
+        -------
+        Any
+        """
+        try:
+            ex = None
+            assert isinstance(
+                left_expr, LeftExpr
+            ), f"left_expr must be a valid left expression, got {repr(type(left_expr))}"
+            assert (
+                left_expr.sym_name == self.symbol_name
+            ), "left_expr.sym_name must match the name of the current symbol"
+            assert left_expr.end_idx >= 1, "left_expr cannot contain only symbol name"
+            idx = 0
+            ret_obj = self
+            while idx < left_expr.end_idx:
+                if (l_subname := left_expr.subnames.get(idx, None)) is not None:
+                    ret_obj = ret_obj.__getattribute__(l_subname)
+                elif (l_callargs := left_expr.call_args.get(idx, None)) is not None:
+                    ret_obj = ret_obj(*l_callargs)
+                else:
+                    # don't catch, something is seriously wrong
+                    raise RuntimeError(f"Index {idx} of left expression is not valid")
+                idx += 1
+            return ret_obj
+        except AssertionError as ex_wrong_type:
+            ex = ex_wrong_type
+        except AttributeError as ex_wrong_name:
+            ex = ex_wrong_name
+        except TypeError as ex_wrong_sig:
+            ex = ex_wrong_sig
+        finally:
+            if ex is not None:
+                raise ValueError(
+                    f"Invalid call on {self.__class__.__name__} object symbol"
+                ) from ex
 
 
 @attrs.define(repr=False, slots=False)
@@ -144,27 +200,46 @@ class SymbolTable(FormatterMixin):
         asgn : AssignStmt
         """
         left_expr = asgn.target_expr
-        assert isinstance(left_expr, LeftExpr)
-        # value_expr = asgn.assign_expr
         if left_expr.sym_name not in self.sym_table:
             assert (
                 not self.option_explicit
             ), "Option Explicit is set, variables must be defined before use"
+            # TODO: how to handle subnames of symbol that doesn't exist?
+            assert len(left_expr.subnames) == 0 and len(left_expr.call_args) == 0
             self.add_symbol(ValueSymbol(left_expr.sym_name, asgn.assign_expr))
         else:
             if isinstance(self.sym_table[left_expr.sym_name], ValueSymbol):
+                # simple variable assignment
                 self.sym_table[left_expr.sym_name].value = asgn.assign_expr
             elif isinstance(self.sym_table[left_expr.sym_name], ArraySymbol):
+                # array item assignment
+                def _get_array_idx() -> typing.Generator[int, None, None]:
+                    """Extract array indices from target expression
 
-                def _get_array_idx():
+                    Yields
+                    ------
+                    int
+                        Array index
+
+                    Raises
+                    ------
+                    AssertionError
+                    """
                     nonlocal left_expr
-                    assert isinstance(left_expr, LeftExpr)
-                    assert len(left_expr.subnames) == 0
-                    assert left_expr.call_args.get(0, None) is not None
+                    assert (
+                        len(left_expr.subnames) == 0
+                    ), "Target of array assignment cannot have subnames"
+                    assert (
+                        len(left_expr.call_args) == 1
+                        and (array_rank := left_expr.call_args.get(0, None)) is not None
+                    ), "Target of array assignment must have exactly one non-None call record"
+                    assert (
+                        len(array_rank) >= 1
+                    ), "Call record in array assignment must have at least one value"
                     for idx in left_expr.call_args[0]:
                         assert isinstance(idx, EvalExpr) and isinstance(
                             idx.expr_value, int
-                        )
+                        ), "Item in call record of array assignment target must be an integer"
                         yield idx.expr_value
 
                 self.sym_table[left_expr.sym_name].insert(
@@ -182,7 +257,7 @@ def prepare_symbol_name(symbol_type: type[Symbol]):
 
     Returns
     -------
-    partial[Symbol]
+    Wrapped Symbol (sub)class
 
     Raises
     ------

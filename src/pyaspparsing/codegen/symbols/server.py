@@ -12,22 +12,9 @@ server_object_types: typing.Dict[str, typing.Dict[str, type[ASPObject]]] = {
 
 
 @prepare_symbol_name
-@attrs.define(slots=False)
+@attrs.define(repr=False, slots=False)
 class Server(ASPObject):
     """"""
-
-    def __call__(self, *args, name: str):
-        assert isinstance(name, str), "name must be a string"
-        try:
-            ex = None
-            return self.__getattribute__(name.casefold())(*args)
-        except AttributeError as ex_wrong_name:
-            ex = ex_wrong_name
-        except TypeError as ex_wrong_sig:
-            ex = ex_wrong_sig
-        finally:
-            if ex is not None:
-                raise ValueError("Invalid call on Server object") from ex
 
     def createobject(self, param_progid, /) -> ASPObject:
         """NOT CALLED DIRECTLY

@@ -10,8 +10,8 @@ from .symbols import SymbolTable, ValueSymbol, ArraySymbol, Response, Request, S
 from .symbols.functions import vbscript_builtin as vb_blt
 
 
-@attrs.define(slots=False)
-class Codegen:
+@attrs.define(repr=False, slots=False)
+class Codegen(FormatterMixin):
     """
     Attributes
     ----------

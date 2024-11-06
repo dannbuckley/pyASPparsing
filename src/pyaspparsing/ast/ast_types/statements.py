@@ -388,7 +388,7 @@ class AssignStmt(FormatterMixin, InlineStmt):
     """
 
     # left side of '='
-    target_expr: Expr
+    target_expr: LeftExpr
     # right side of '='
     assign_expr: Expr
     is_new: bool = attrs.field(default=False, kw_only=True)

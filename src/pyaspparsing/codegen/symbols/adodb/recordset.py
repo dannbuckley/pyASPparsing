@@ -5,7 +5,7 @@ from ..symbol import ASPObject, prepare_symbol_name
 
 
 @prepare_symbol_name
-@attrs.define(slots=False)
+@attrs.define(repr=False, slots=False)
 class Recordset(ASPObject):
     """"""
 
