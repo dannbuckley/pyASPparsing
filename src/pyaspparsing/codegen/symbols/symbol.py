@@ -4,10 +4,14 @@ from functools import wraps
 from inspect import signature
 import typing
 import attrs
+from ...ast.ast_types.base import FormatterMixin
 from ...ast.ast_types.declarations import VarName
+from ...ast.ast_types.expressions import LeftExpr
+from ...ast.ast_types.optimize import EvalExpr
+from ...ast.ast_types.statements import AssignStmt
 
 
-@attrs.define(slots=False)
+@attrs.define(repr=False, slots=False)
 class Symbol:
     """
     Attributes
@@ -17,8 +21,11 @@ class Symbol:
 
     symbol_name: str = attrs.field(validator=attrs.validators.instance_of(str))
 
+    def __repr__(self):
+        return f"<{self.__class__.__name__} {repr(self.symbol_name)}>"
 
-@attrs.define(slots=False)
+
+@attrs.define(repr=False, slots=False)
 class ValueSymbol(Symbol):
     """
     Attributes
@@ -42,7 +49,7 @@ class ValueSymbol(Symbol):
         return ValueSymbol(var_name.extended_id.id_code)
 
 
-@attrs.define(slots=False)
+@attrs.define(repr=False, slots=False)
 class ArraySymbol(Symbol):
     """
     Attributes
@@ -93,8 +100,8 @@ class ASPObject(Symbol):
     """An ASP object that may have methods, properties, or collections"""
 
 
-@attrs.define(slots=False)
-class SymbolTable:
+@attrs.define(repr=False, slots=False)
+class SymbolTable(FormatterMixin):
     """
     Attributes
     ----------
@@ -104,6 +111,12 @@ class SymbolTable:
     sym_table: typing.Dict[str, Symbol] = attrs.field(
         default=attrs.Factory(dict), init=False
     )
+    option_explicit: bool = attrs.field(default=False, init=False)
+
+    def set_explicit(self):
+        """Register the Option Explicit statement with the symbol table"""
+        assert not self.option_explicit, "Option Explicit can only be set once"
+        self.option_explicit = True
 
     def add_symbol(self, symbol: Symbol) -> bool:
         """Add a new symbol to the symbol table
@@ -123,6 +136,42 @@ class SymbolTable:
             return False
         self.sym_table[symbol.symbol_name] = symbol
         return True
+
+    def assign(self, asgn: AssignStmt):
+        """
+        Parameters
+        ----------
+        asgn : AssignStmt
+        """
+        left_expr = asgn.target_expr
+        assert isinstance(left_expr, LeftExpr)
+        # value_expr = asgn.assign_expr
+        if left_expr.sym_name not in self.sym_table:
+            assert (
+                not self.option_explicit
+            ), "Option Explicit is set, variables must be defined before use"
+            self.add_symbol(ValueSymbol(left_expr.sym_name, asgn.assign_expr))
+        else:
+            if isinstance(self.sym_table[left_expr.sym_name], ValueSymbol):
+                self.sym_table[left_expr.sym_name].value = asgn.assign_expr
+            elif isinstance(self.sym_table[left_expr.sym_name], ArraySymbol):
+
+                def _get_array_idx():
+                    nonlocal left_expr
+                    assert isinstance(left_expr, LeftExpr)
+                    assert len(left_expr.subnames) == 0
+                    assert left_expr.call_args.get(0, None) is not None
+                    for idx in left_expr.call_args[0]:
+                        assert isinstance(idx, EvalExpr) and isinstance(
+                            idx.expr_value, int
+                        )
+                        yield idx.expr_value
+
+                self.sym_table[left_expr.sym_name].insert(
+                    tuple(_get_array_idx()), asgn.assign_expr
+                )
+            elif isinstance(self.sym_table[left_expr.sym_name], ASPObject):
+                pass
 
 
 def prepare_symbol_name(symbol_type: type[Symbol]):

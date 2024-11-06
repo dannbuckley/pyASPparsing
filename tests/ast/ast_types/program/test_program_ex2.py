@@ -14,7 +14,7 @@ codeblock = """<%@ Language= "VBScript" %>
 <% 
  'Create a variable. 
  dim strTemp 
- dim font1, font2, font3, font, size 
+ dim font1, font2, font3, fontsize 
 
  'Set the variable. 
  strTemp= "BUY MY PRODUCT!" 
