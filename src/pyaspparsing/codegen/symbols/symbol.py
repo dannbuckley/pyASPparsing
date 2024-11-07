@@ -1,7 +1,6 @@
 """Symbol base class"""
 
-from functools import wraps
-from inspect import signature
+from functools import partial
 import typing
 import attrs
 from ...ast.ast_types.base import FormatterMixin
@@ -166,6 +165,33 @@ class SymbolTable(FormatterMixin):
     )
     option_explicit: bool = attrs.field(default=False, init=False)
 
+    # how many times has the symbol been retrieved?
+    _sym_get: typing.Dict[str, int] = attrs.field(
+        default=attrs.Factory(dict), init=False
+    )
+    # how many times has the symbol been assigned to?
+    _sym_set: typing.Dict[str, int] = attrs.field(
+        default=attrs.Factory(dict), init=False
+    )
+
+    def __getitem__(self, key: str) -> Symbol:
+        if not isinstance(key, str):
+            raise TypeError("key must be a string")
+        # don't catch KeyError
+        ret = self.sym_table[key]
+        # record retrieval for later use
+        self._sym_get[key] = self._sym_get.get(key, 0) + 1
+        return ret
+
+    def __setitem__(self, key: str, value: Symbol) -> None:
+        if not isinstance(key, str):
+            raise TypeError("key must be a string")
+        if not isinstance(value, Symbol):
+            raise TypeError("value must be a subclass of Symbol")
+        self.sym_table[key] = value
+        # record assignment for later use
+        self._sym_set[key] = self._sym_set.get(key, 0) + 1
+
     def set_explicit(self):
         """Register the Option Explicit statement with the symbol table"""
         assert not self.option_explicit, "Option Explicit can only be set once"
@@ -187,6 +213,7 @@ class SymbolTable(FormatterMixin):
         """
         if symbol.symbol_name in self.sym_table:
             return False
+        # don't track this as assignment
         self.sym_table[symbol.symbol_name] = symbol
         return True
 
@@ -202,19 +229,45 @@ class SymbolTable(FormatterMixin):
                 not self.option_explicit
             ), "Option Explicit is set, variables must be defined before use"
             # TODO: how to handle subnames of symbol that doesn't exist?
-            assert len(left_expr.subnames) == 0 and len(left_expr.call_args) == 0
+            assert left_expr.end_idx == 0
             self.add_symbol(ValueSymbol(left_expr.sym_name, asgn.assign_expr))
+            self._sym_set[left_expr.sym_name] = (
+                self._sym_set.get(left_expr.sym_name, 0) + 1
+            )
         else:
             if isinstance(self.sym_table[left_expr.sym_name], ValueSymbol):
-                # simple variable assignment
-                if isinstance(asgn.assign_expr, LeftExpr):
-                    # overwrite symbol type with evaluated left expression
-                    self.sym_table[left_expr.sym_name] = self.sym_table[
-                        asgn.assign_expr.sym_name
-                    ](asgn.assign_expr)
-                else:
+                if left_expr.end_idx == 0:
+                    # simple variable assignment
                     # overwrite value with assignment expression
-                    self.sym_table[left_expr.sym_name].value = asgn.assign_expr
+                    self[left_expr.sym_name] = ValueSymbol(
+                        left_expr.sym_name,
+                        (
+                            # assignment expression should be evaluated
+                            (
+                                self[asgn.assign_expr.sym_name].value(asgn.assign_expr)
+                                if isinstance(
+                                    self.sym_table[asgn.assign_expr.sym_name],
+                                    ValueSymbol,
+                                )
+                                and isinstance(
+                                    self.sym_table[asgn.assign_expr.sym_name].value,
+                                    ASPObject,
+                                )
+                                else self[asgn.assign_expr.sym_name](asgn.assign_expr)
+                            )
+                            if isinstance(asgn.assign_expr, LeftExpr)
+                            else
+                            # use assignment expression as-is
+                            asgn.assign_expr
+                        ),
+                    )
+                elif len(left_expr.subnames) > 0 and isinstance(
+                    self.sym_table[left_expr.sym_name].value, ASPObject
+                ):
+                    # property assignment
+                    pass
+                else:
+                    raise RuntimeError
             elif isinstance(self.sym_table[left_expr.sym_name], ArraySymbol):
                 # array item assignment
                 def _get_array_idx() -> typing.Generator[int, None, None]:
@@ -253,10 +306,26 @@ class SymbolTable(FormatterMixin):
                 # TODO: establish appropriate assign target (properties?)
                 pass
 
+    def call(self, left_expr: LeftExpr):
+        """
+        Parameters
+        ----------
+        left_expr : LeftExpr
+        """
+        try:
+            sym = self[left_expr.sym_name]
+            if isinstance(sym, ASPObject):
+                sym(left_expr)
+            elif isinstance(sym, ValueSymbol) and isinstance(sym.value, ASPObject):
+                sym.value(left_expr)
+            # TODO: symbol is a function?
+        except KeyError as ex:
+            raise ValueError("Invalid symbol name in left_expr") from ex
 
-def prepare_symbol_name(symbol_type: type[Symbol]):
+
+def prepare_symbol_name[T](symbol_type: type[T]) -> partial[T]:
     """Auto-generate symbol name from casefolded class name
-    
+
     Parameters
     ----------
     symbol_type : type[Symbol]
@@ -271,13 +340,4 @@ def prepare_symbol_name(symbol_type: type[Symbol]):
         If symbol_type is not a subclass of Symbol
     """
     assert issubclass(symbol_type, Symbol), "symbol_type must be a subclass of Symbol"
-
-    @wraps(symbol_type)
-    def wrapper(*args, **kwargs):
-        # generate symbol name from casefolded class name
-        return symbol_type(symbol_type.__name__.casefold(), *args, **kwargs)
-
-    sig = signature(symbol_type)
-    wrapper.__signature__ = sig.replace(parameters=tuple(sig.parameters.values())[1:])
-
-    return wrapper
+    return partial(symbol_type, symbol_type.__name__.casefold())

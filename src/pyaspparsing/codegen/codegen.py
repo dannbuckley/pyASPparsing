@@ -55,5 +55,7 @@ class Codegen(FormatterMixin):
                         )
                 elif isinstance(glob_st, AssignStmt):
                     self.sym_table.assign(glob_st)
+                elif isinstance(glob_st, SubCallStmt):
+                    self.sym_table.call(glob_st.left_expr)
                 else:
                     print(type(glob_st))

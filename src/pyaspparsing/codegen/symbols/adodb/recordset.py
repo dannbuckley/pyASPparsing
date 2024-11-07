@@ -1,7 +1,9 @@
 """ADODB Recordset object"""
 
+from typing import Optional
 import attrs
 from ..symbol import ASPObject, prepare_symbol_name
+from .base import Query
 
 
 @prepare_symbol_name
@@ -9,18 +11,7 @@ from ..symbol import ASPObject, prepare_symbol_name
 class Recordset(ASPObject):
     """"""
 
-    def __call__(self, *args, name: str):
-        assert isinstance(name, str), "name must be a string"
-        try:
-            ex = None
-            return self.__getattribute__(name.casefold())(*args)
-        except AttributeError as ex_wrong_name:
-            ex = ex_wrong_name
-        except TypeError as ex_wrong_sig:
-            ex = ex_wrong_sig
-        finally:
-            if ex is not None:
-                raise ValueError("Invalid call on Recordset object") from ex
+    query: Optional[Query] = attrs.field(default=None, init=False)
 
     def addnew(self, param_fieldlist=None, param_values=None, /):
         """"""

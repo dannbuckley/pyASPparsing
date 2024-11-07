@@ -38,11 +38,11 @@ class Server(ASPObject):
         if not isinstance(param_progid, EvalExpr) or not isinstance(
             param_progid.expr_value, str
         ):
-            raise ValueError("Server.CreateObject expects a string for param_progid")
+            raise ValueError("Server.CreateObject expects a string for progid")
         parts = param_progid.expr_value.split(".")
-        assert len(parts) == 2, "param_progid should match 'Vendor.Component'"
+        assert len(parts) == 2, "progid should match 'Vendor.Component'"
         try:
-            return server_object_types[parts[0]][parts[1]]()
+            return server_object_types[parts[0].casefold()][parts[1].casefold()]()
         except KeyError as ex:
             raise ValueError(
                 f"Could not determine type of component: '{param_progid.expr_value}'"

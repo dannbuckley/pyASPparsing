@@ -469,7 +469,7 @@ class SubCallStmt(FormatterMixin, InlineStmt):
     from_tokenizer(tkzr, left_expr, ...)
     """
 
-    left_expr: Expr
+    left_expr: LeftExpr
 
     @staticmethod
     def from_tokenizer(
