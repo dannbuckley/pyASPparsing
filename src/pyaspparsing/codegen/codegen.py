@@ -23,6 +23,7 @@ class Codegen(FormatterMixin):
     lnk: Linker = attrs.field(default=attrs.Factory(Linker), init=False)
 
     def __attrs_post_init__(self):
+        # initialize symbol table with built-in symbols
         self.sym_table.add_symbol(Response())
         self.sym_table.add_symbol(Request())
         self.sym_table.add_symbol(Server())
