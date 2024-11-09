@@ -1,7 +1,7 @@
 """Declaration AST classes"""
 
 import enum
-import typing
+from typing import Optional
 
 import attrs
 
@@ -48,7 +48,7 @@ class FieldName(FormatterMixin):
     """
 
     field_id: FieldID
-    array_rank_list: typing.List[int] = attrs.field(
+    array_rank_list: list[int] = attrs.field(
         default=attrs.Factory(list),
         validator=attrs.validators.deep_iterable(attrs.validators.instance_of(int)),
     )
@@ -73,7 +73,7 @@ class VarName(FormatterMixin):
     """
 
     extended_id: ExtendedID
-    array_rank_list: typing.List[int] = attrs.field(
+    array_rank_list: list[int] = attrs.field(
         default=attrs.Factory(list),
         validator=attrs.validators.deep_iterable(attrs.validators.instance_of(int)),
     )
@@ -99,10 +99,8 @@ class FieldDecl(FormatterMixin, GlobalStmt, MemberDecl):
     """
 
     field_name: FieldName
-    other_vars: typing.List[VarName] = attrs.field(default=attrs.Factory(list))
-    access_mod: typing.Optional[AccessModifierType] = attrs.field(
-        default=None, kw_only=True
-    )
+    other_vars: list[VarName] = attrs.field(default=attrs.Factory(list))
+    access_mod: Optional[AccessModifierType] = attrs.field(default=None, kw_only=True)
 
     @staticmethod
     def from_tokenizer(tkzr: Tokenizer, access_mod: AccessModifierType):
@@ -127,7 +125,7 @@ class FieldDecl(FormatterMixin, GlobalStmt, MemberDecl):
         field_id = FieldID(tkzr.get_identifier_code())
         tkzr.advance_pos()  # consume identifier
 
-        int_literals: typing.List[Token] = []
+        int_literals: list[Token] = []
         if tkzr.try_consume(TokenType.SYMBOL, "("):
             find_int_literal = tkzr.try_multiple_token_type(
                 [
@@ -168,7 +166,7 @@ class FieldDecl(FormatterMixin, GlobalStmt, MemberDecl):
         # prepare for other vars
         tkzr.try_consume(TokenType.SYMBOL, ",")
 
-        other_vars: typing.List[VarName] = []
+        other_vars: list[VarName] = []
         parse_var_name = tkzr.try_token_type(TokenType.IDENTIFIER)
         while parse_var_name:
             var_id = ExtendedID.from_tokenizer(tkzr)
@@ -180,7 +178,7 @@ class FieldDecl(FormatterMixin, GlobalStmt, MemberDecl):
                         TokenType.LITERAL_OCT,
                     ]
                 )
-                int_literals: typing.List[Token] = []
+                int_literals: list[Token] = []
                 while find_int_literal:
                     if not tkzr.try_multiple_token_type(
                         [
@@ -240,7 +238,7 @@ class VarDecl(FormatterMixin, MemberDecl, BlockStmt):
     from_tokenizer(tkzr)
     """
 
-    var_name: typing.List[VarName] = attrs.field(default=attrs.Factory(list))
+    var_name: list[VarName] = attrs.field(default=attrs.Factory(list))
 
     @staticmethod
     def from_tokenizer(tkzr: Tokenizer):
@@ -255,7 +253,7 @@ class VarDecl(FormatterMixin, MemberDecl, BlockStmt):
         VarDecl
         """
         tkzr.assert_consume(TokenType.IDENTIFIER, "dim")
-        var_name: typing.List[VarName] = []
+        var_name: list[VarName] = []
         parse_var_name = True
         while parse_var_name:
             var_id = ExtendedID.from_tokenizer(tkzr)
@@ -269,7 +267,7 @@ class VarDecl(FormatterMixin, MemberDecl, BlockStmt):
                         TokenType.LITERAL_OCT,
                     ]
                 )
-                int_literals: typing.List[Token] = []
+                int_literals: list[Token] = []
                 while find_int_literal:
                     if not tkzr.try_multiple_token_type(
                         [
@@ -352,14 +350,12 @@ class ConstDecl(FormatterMixin, GlobalStmt, MethodStmt, MemberDecl):
     from_tokenizer(tkzr, access_mod=None)
     """
 
-    const_list: typing.List[ConstListItem] = attrs.field(default=attrs.Factory(list))
-    access_mod: typing.Optional[AccessModifierType] = attrs.field(
-        default=None, kw_only=True
-    )
+    const_list: list[ConstListItem] = attrs.field(default=attrs.Factory(list))
+    access_mod: Optional[AccessModifierType] = attrs.field(default=None, kw_only=True)
 
     @staticmethod
     def from_tokenizer(
-        tkzr: Tokenizer, access_mod: typing.Optional[AccessModifierType] = None
+        tkzr: Tokenizer, access_mod: Optional[AccessModifierType] = None
     ):
         """Construct a ConstDecl object from an active Tokenizer
 
@@ -373,16 +369,16 @@ class ConstDecl(FormatterMixin, GlobalStmt, MethodStmt, MemberDecl):
         ConstDecl
         """
         tkzr.assert_consume(TokenType.IDENTIFIER, "const")
-        const_list: typing.List[ConstListItem] = []
+        const_list: list[ConstListItem] = []
         while not tkzr.try_multiple_token_type(
             [TokenType.NEWLINE, TokenType.DELIM_END]
         ):
             const_id = ExtendedID.from_tokenizer(tkzr)
             tkzr.assert_consume(TokenType.SYMBOL, "=")
-            const_expr: typing.Optional[Expr] = None
+            const_expr: Optional[Expr] = None
             num_paren: int = 0
             # signs expand to the right, use a stack
-            sign_stack: typing.List[Token] = []
+            sign_stack: list[Token] = []
             while not (
                 tkzr.try_multiple_token_type([TokenType.NEWLINE, TokenType.DELIM_END])
                 or (
@@ -462,9 +458,7 @@ class Arg(FormatterMixin):
     """
 
     extended_id: ExtendedID
-    arg_modifier: typing.Optional[ArgModifierType] = attrs.field(
-        default=None, kw_only=True
-    )
+    arg_modifier: Optional[ArgModifierType] = attrs.field(default=None, kw_only=True)
     has_paren: bool = attrs.field(default=False, kw_only=True)
 
     @staticmethod
@@ -478,7 +472,7 @@ class Arg(FormatterMixin):
         -------
         Arg
         """
-        mod_types: typing.Dict[str, ArgModifierType] = {
+        mod_types: dict[str, ArgModifierType] = {
             "byref": ArgModifierType.ARG_REFERENCE,
             "byval": ArgModifierType.ARG_VALUE,
         }
@@ -514,11 +508,9 @@ class SubDecl(FormatterMixin, GlobalStmt, MemberDecl):
     """
 
     extended_id: ExtendedID
-    method_arg_list: typing.List[Arg] = attrs.field(default=attrs.Factory(list))
-    method_stmt_list: typing.List[MethodStmt] = attrs.field(default=attrs.Factory(list))
-    access_mod: typing.Optional[AccessModifierType] = attrs.field(
-        default=None, kw_only=True
-    )
+    method_arg_list: list[Arg] = attrs.field(default=attrs.Factory(list))
+    method_stmt_list: list[MethodStmt] = attrs.field(default=attrs.Factory(list))
+    access_mod: Optional[AccessModifierType] = attrs.field(default=None, kw_only=True)
 
 
 @attrs.define(repr=False, slots=False)
@@ -540,11 +532,9 @@ class FunctionDecl(FormatterMixin, GlobalStmt, MemberDecl):
     """
 
     extended_id: ExtendedID
-    method_arg_list: typing.List[Arg] = attrs.field(default=attrs.Factory(list))
-    method_stmt_list: typing.List[MethodStmt] = attrs.field(default=attrs.Factory(list))
-    access_mod: typing.Optional[AccessModifierType] = attrs.field(
-        default=None, kw_only=True
-    )
+    method_arg_list: list[Arg] = attrs.field(default=attrs.Factory(list))
+    method_stmt_list: list[MethodStmt] = attrs.field(default=attrs.Factory(list))
+    access_mod: Optional[AccessModifierType] = attrs.field(default=None, kw_only=True)
 
 
 @enum.verify(enum.CONTINUOUS, enum.UNIQUE)
@@ -578,11 +568,9 @@ class PropertyDecl(FormatterMixin, MemberDecl):
 
     prop_access_type: PropertyAccessType
     extended_id: ExtendedID
-    method_arg_list: typing.List[Arg] = attrs.field(default=attrs.Factory(list))
-    method_stmt_list: typing.List[MethodStmt] = attrs.field(default=attrs.Factory(list))
-    access_mod: typing.Optional[AccessModifierType] = attrs.field(
-        default=None, kw_only=True
-    )
+    method_arg_list: list[Arg] = attrs.field(default=attrs.Factory(list))
+    method_stmt_list: list[MethodStmt] = attrs.field(default=attrs.Factory(list))
+    access_mod: Optional[AccessModifierType] = attrs.field(default=None, kw_only=True)
 
 
 @attrs.define(repr=False, slots=False)
@@ -601,4 +589,4 @@ class ClassDecl(FormatterMixin, GlobalStmt):
     """
 
     extended_id: ExtendedID
-    member_decl_list: typing.List[MemberDecl] = attrs.field(default=attrs.Factory(list))
+    member_decl_list: list[MemberDecl] = attrs.field(default=attrs.Factory(list))

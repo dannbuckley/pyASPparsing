@@ -3,7 +3,7 @@
 from contextlib import ExitStack
 from io import StringIO
 from pathlib import Path
-import typing
+from typing import Optional
 
 import attrs
 
@@ -26,7 +26,7 @@ class VirtualDirectory:
     actual_path: Path = attrs.field()
     # cache included files upon first request
     # if an error occurs during parsing, use None as placeholder
-    _req_cache: typing.Dict[Path, typing.Optional[Program]] = attrs.field(
+    _req_cache: dict[Path, Optional[Program]] = attrs.field(
         default=attrs.Factory(dict), init=False
     )
 
@@ -37,7 +37,7 @@ class VirtualDirectory:
                 "actual_path must point to an accessible physical directory"
             )
 
-    def request(self, file_path: Path) -> typing.Optional[Program]:
+    def request(self, file_path: Path) -> Optional[Program]:
         """
         Parameters
         ----------

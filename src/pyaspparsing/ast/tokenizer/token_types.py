@@ -1,7 +1,7 @@
 """Classic ASP tokens"""
 
 import enum
-import typing
+from typing import Optional
 
 import attrs
 
@@ -138,7 +138,7 @@ class Token:
     token_src: slice = attrs.field(default=slice(None, None, None))
 
     # don't include in equality comparison
-    line_info: typing.Optional[DebugLineInfo] = attrs.field(
+    line_info: Optional[DebugLineInfo] = attrs.field(
         default=None, eq=False, kw_only=True
     )
 
@@ -159,7 +159,7 @@ class Token:
         start: int,
         stop: int,
         *,
-        line_info: typing.Optional[DebugLineInfo] = None,
+        line_info: Optional[DebugLineInfo] = None,
     ):
         """Base factory method, constructs token_src argument from start and stop"""
         if start is None or stop is None:
@@ -168,21 +168,21 @@ class Token:
 
     @staticmethod
     def newline(
-        start: int, stop: int, *, line_info: typing.Optional[DebugLineInfo] = None
+        start: int, stop: int, *, line_info: Optional[DebugLineInfo] = None
     ):
         """Factory method for Token of type NEWLINE"""
         return Token._factory(TokenType.NEWLINE, start, stop, line_info=line_info)
 
     @staticmethod
     def symbol(
-        start: int, stop: int, *, line_info: typing.Optional[DebugLineInfo] = None
+        start: int, stop: int, *, line_info: Optional[DebugLineInfo] = None
     ):
         """Factory method for Token of type SYMBOL"""
         return Token._factory(TokenType.SYMBOL, start, stop, line_info=line_info)
 
     @staticmethod
     def file_text(
-        start: int, stop: int, *, line_info: typing.Optional[DebugLineInfo] = None
+        start: int, stop: int, *, line_info: Optional[DebugLineInfo] = None
     ):
         """Factory method for Token of type FILE_TEXT"""
         return Token._factory(TokenType.FILE_TEXT, start, stop, line_info=line_info)
@@ -194,7 +194,7 @@ class Token:
         *,
         dot_start: bool = False,
         dot_end: bool = False,
-        line_info: typing.Optional[DebugLineInfo] = None,
+        line_info: Optional[DebugLineInfo] = None,
     ):
         """Factory method for Tokens of types IDENTIFIER, IDENTIFIER_DOTID,
         IDENTIFIER_IDDOT, or IDENTIFIER_DOTIDDOT"""
@@ -210,7 +210,7 @@ class Token:
 
     @staticmethod
     def string_literal(
-        start: int, stop: int, *, line_info: typing.Optional[DebugLineInfo] = None
+        start: int, stop: int, *, line_info: Optional[DebugLineInfo] = None
     ):
         """Factory method for Token of type LITERAL_STRING"""
         return Token._factory(
@@ -219,35 +219,35 @@ class Token:
 
     @staticmethod
     def int_literal(
-        start: int, stop: int, *, line_info: typing.Optional[DebugLineInfo] = None
+        start: int, stop: int, *, line_info: Optional[DebugLineInfo] = None
     ):
         """Factory method for Token of type LITERAL_INT"""
         return Token._factory(TokenType.LITERAL_INT, start, stop, line_info=line_info)
 
     @staticmethod
     def hex_literal(
-        start: int, stop: int, *, line_info: typing.Optional[DebugLineInfo] = None
+        start: int, stop: int, *, line_info: Optional[DebugLineInfo] = None
     ):
         """Factory method for Token of type LITERAL_HEX"""
         return Token._factory(TokenType.LITERAL_HEX, start, stop, line_info=line_info)
 
     @staticmethod
     def oct_literal(
-        start: int, stop: int, *, line_info: typing.Optional[DebugLineInfo] = None
+        start: int, stop: int, *, line_info: Optional[DebugLineInfo] = None
     ):
         """Factory method for Token of type LITERAL_OCT"""
         return Token._factory(TokenType.LITERAL_OCT, start, stop, line_info=line_info)
 
     @staticmethod
     def float_literal(
-        start: int, stop: int, *, line_info: typing.Optional[DebugLineInfo] = None
+        start: int, stop: int, *, line_info: Optional[DebugLineInfo] = None
     ):
         """Factory method for Token of type LITERAL_FLOAT"""
         return Token._factory(TokenType.LITERAL_FLOAT, start, stop, line_info=line_info)
 
     @staticmethod
     def date_literal(
-        start: int, stop: int, *, line_info: typing.Optional[DebugLineInfo] = None
+        start: int, stop: int, *, line_info: Optional[DebugLineInfo] = None
     ):
         """Factory method for Token of type LITERAL_DATE"""
         return Token._factory(TokenType.LITERAL_DATE, start, stop, line_info=line_info)

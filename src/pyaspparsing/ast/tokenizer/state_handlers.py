@@ -3,27 +3,27 @@
 from collections.abc import Callable
 from dataclasses import dataclass
 from functools import wraps
-import typing
+from typing import Optional, Any, Generator
 
 from .codewrapper import CharacterType, CodeWrapper
 from .tokenizer_state import TokenizerState, TokenizerStateStack
 from .token_types import TokenType, Token
 
-type TokenGen = typing.Generator[None, typing.Any, Token]
-type TokenGenOpt = typing.Optional[TokenGen]
-type TokenOpt = typing.Optional[Token]
+type TokenGen = Generator[None, Any, Token]
+type TokenGenOpt = Optional[TokenGen]
+type TokenOpt = Optional[Token]
 
 # states that use curr_token_gen
-reg_state_starts_token: typing.List[TokenizerState] = []
+reg_state_starts_token: list[TokenizerState] = []
 
 # states that return a token
-reg_state_returns_token: typing.List[TokenizerState] = []
+reg_state_returns_token: list[TokenizerState] = []
 
 # states that need to cleanup curr_token_gen
-reg_state_cleans_token: typing.List[TokenizerState] = []
+reg_state_cleans_token: list[TokenizerState] = []
 
 # map state enum to handler function
-reg_state_handlers: typing.Dict[
+reg_state_handlers: dict[
     TokenizerState,
     Callable[[CodeWrapper, TokenizerStateStack, TokenGenOpt], TokenOpt],
 ] = {}
@@ -168,7 +168,7 @@ def state_return_perc_symbol(sargs: StateArgs) -> TokenOpt:
     -------
     Token
     """
-    ret_token: typing.Optional[Token] = None
+    ret_token: Optional[Token] = None
     try:
         sargs.curr_token_gen.send(sargs.cwrap.current_idx - 1)  # slice_start
         sargs.curr_token_gen.send(TokenType.SYMBOL)  # token_type
@@ -227,7 +227,7 @@ def state_end_delim(sargs: StateArgs) -> TokenOpt:
     -------
     Token
     """
-    ret_token: typing.Optional[Token] = None
+    ret_token: Optional[Token] = None
     try:
         sargs.curr_token_gen.send(sargs.cwrap.current_idx)  # slice_end
         sargs.curr_token_gen.send(False)  # debug_info
@@ -337,7 +337,7 @@ def state_end_file_text(sargs: StateArgs) -> TokenOpt:
     -------
     Token
     """
-    ret_token: typing.Optional[Token] = None
+    ret_token: Optional[Token] = None
     try:
         sargs.curr_token_gen.send(False)  # debug_info
     except StopIteration as ex:
@@ -357,7 +357,7 @@ def state_check_html_comment(sargs: StateArgs) -> TokenOpt:
     -------
     Token
     """
-    ret_token: typing.Optional[Token] = None
+    ret_token: Optional[Token] = None
     try:
         sargs.curr_token_gen.send(sargs.cwrap.current_idx - 4)  # slice_start
         sargs.curr_token_gen.send(TokenType.HTML_START_COMMENT)  # token_type
@@ -381,7 +381,7 @@ def state_check_end_html_comment(sargs: StateArgs) -> TokenOpt:
     -------
     Token
     """
-    ret_token: typing.Optional[Token] = None
+    ret_token: Optional[Token] = None
     while not sargs.cwrap.check_for_end():
         while sargs.cwrap.current_char != "-":
             sargs.cwrap.advance_pos()
@@ -421,7 +421,7 @@ def state_check_html_doctype(sargs: StateArgs) -> TokenOpt:
         sargs.cwrap.advance_pos()
     sargs.cwrap.assert_next(next_char=">")
 
-    ret_token: typing.Optional[Token] = None
+    ret_token: Optional[Token] = None
     try:
         sargs.curr_token_gen.send(tok_start)  # slice_start
         sargs.curr_token_gen.send(TokenType.FILE_TEXT)  # token_type
@@ -470,7 +470,7 @@ def state_return_include_kw(sargs: StateArgs) -> TokenOpt:
     -------
     Token
     """
-    ret_token: typing.Optional[Token] = None
+    ret_token: Optional[Token] = None
     try:
         sargs.curr_token_gen.send(False)  # debug_info
     except StopIteration as ex:
@@ -508,7 +508,7 @@ def state_check_include_type(sargs: StateArgs) -> TokenOpt:
     for kw_char in inc_type_kws[sargs.cwrap.current_char]:
         sargs.cwrap.assert_next(next_char=kw_char)
 
-    ret_token: typing.Optional[Token] = None
+    ret_token: Optional[Token] = None
     try:
         sargs.curr_token_gen.send(kw_start)  # slice_start
         sargs.curr_token_gen.send(TokenType.INCLUDE_TYPE)  # token_type
@@ -542,7 +542,7 @@ def state_return_eq_symbol(sargs: StateArgs) -> TokenOpt:
     eq_start = sargs.cwrap.current_idx
     sargs.cwrap.assert_next(next_char="=")
 
-    ret_token: typing.Optional[Token] = None
+    ret_token: Optional[Token] = None
     try:
         sargs.curr_token_gen.send(eq_start)  # slice_start
         sargs.curr_token_gen.send(TokenType.SYMBOL)  # token_type
@@ -577,7 +577,7 @@ def state_check_include_path(sargs: StateArgs) -> TokenOpt:
         sargs.cwrap.advance_pos()
     sargs.cwrap.assert_next(next_char='"')
 
-    ret_token: typing.Optional[Token] = None
+    ret_token: Optional[Token] = None
     try:
         sargs.curr_token_gen.send(path_start)  # slice_start
         sargs.curr_token_gen.send(TokenType.INCLUDE_PATH)  # token_type
@@ -778,7 +778,7 @@ def state_end_newline(sargs: StateArgs) -> TokenOpt:
     ------
     AssertionError
     """
-    ret_token: typing.Optional[Token] = None
+    ret_token: Optional[Token] = None
     try:
         sargs.curr_token_gen.send(sargs.cwrap.current_idx)  # slice_end
         sargs.curr_token_gen.send(False)  # debug_info
@@ -800,7 +800,7 @@ def state_start_terminal(sargs: StateArgs) -> TokenOpt:
     sargs.curr_token_gen.send(sargs.cwrap.current_idx)  # slice_start
 
     # terminals with known starting characters
-    terminal_begin: typing.Dict[str, TokenizerState] = {
+    terminal_begin: dict[str, TokenizerState] = {
         ".": TokenizerState.START_DOT,
         "[": TokenizerState.START_ID_ESCAPE,
         '"': TokenizerState.START_STRING,
@@ -838,7 +838,7 @@ def state_end_terminal(sargs: StateArgs) -> TokenOpt:
     ------
     AssertionError
     """
-    ret_token: typing.Optional[Token] = None
+    ret_token: Optional[Token] = None
     try:
         sargs.curr_token_gen.send(sargs.cwrap.current_idx)  # slice_end
         sargs.curr_token_gen.send(True)  # debug_info

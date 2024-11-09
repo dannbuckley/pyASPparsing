@@ -1,6 +1,6 @@
 """ADODB Connection object"""
 
-from typing import Optional, List
+from typing import Optional
 import attrs
 from ....ast.ast_types.base import Expr
 from ..symbol import ASPObject, prepare_symbol_name
@@ -14,7 +14,7 @@ class Connection(ASPObject):
     """"""
 
     db: Optional[Database] = attrs.field(default=None, init=False)
-    db_queries: List[Query] = attrs.field(default=attrs.Factory(list), init=False)
+    db_queries: list[Query] = attrs.field(default=attrs.Factory(list), init=False)
 
     def begintrans(self):
         """"""

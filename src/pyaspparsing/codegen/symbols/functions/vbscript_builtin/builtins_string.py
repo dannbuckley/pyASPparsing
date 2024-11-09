@@ -1,13 +1,12 @@
 """VBScript builtin string functions"""
 
-import typing
 from .make_builtin import make_builtin_function
 
 
 @make_builtin_function
 def builtin_instr(*params):
     """"""
-    param_opts: typing.Dict[int, typing.Tuple[str, ...]] = {
+    param_opts: dict[int, tuple[str, ...]] = {
         2: ("param_string1", "param_string2"),
         3: ("param_start", "param_string1", "param_string2"),
         4: ("param_start", "param_string1", "param_string2", "param_compare"),

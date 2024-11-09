@@ -1,6 +1,6 @@
 """program module"""
 
-import typing
+from typing import Generator
 import attrs
 from .parser import Parser
 from ..tokenizer.token_types import TokenType
@@ -8,7 +8,7 @@ from ..tokenizer.state_machine import Tokenizer
 from .base import FormatterMixin, GlobalStmt
 
 
-def generate_program(tkzr: Tokenizer) -> typing.Generator[GlobalStmt, None, None]:
+def generate_program(tkzr: Tokenizer) -> Generator[GlobalStmt, None, None]:
     """
     Parameters
     ----------
@@ -70,7 +70,7 @@ class Program(FormatterMixin):
     global_stmt_list : List[GlobalStmt], default=[]
     """
 
-    global_stmt_list: typing.List[GlobalStmt] = attrs.field(default=attrs.Factory(list))
+    global_stmt_list: list[GlobalStmt] = attrs.field(default=attrs.Factory(list))
 
     @staticmethod
     def from_tokenizer(tkzr: Tokenizer):

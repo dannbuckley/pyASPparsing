@@ -1,7 +1,7 @@
 """ASP high-level constructs"""
 
 import enum
-import typing
+from typing import Self, Generator, Union
 import attrs
 from .base import FormatterMixin, Expr, GlobalStmt, BlockStmt
 from ..tokenizer.token_types import Token, TokenType
@@ -30,7 +30,7 @@ class ProcessingDirective(FormatterMixin, GlobalStmt):
     settings : List[ProcessingSetting], default=[]
     """
 
-    settings: typing.List[ProcessingSetting] = attrs.field(default=attrs.Factory(list))
+    settings: list[ProcessingSetting] = attrs.field(default=attrs.Factory(list))
 
 
 @enum.verify(enum.CONTINUOUS, enum.UNIQUE)
@@ -97,16 +97,16 @@ class OutputText(FormatterMixin, BlockStmt):
         Reconstruct the correct output
     """
 
-    chunks: typing.List[Token] = attrs.field(default=attrs.Factory(list))
-    directives: typing.List[OutputDirective] = attrs.field(default=attrs.Factory(list))
+    chunks: list[Token] = attrs.field(default=attrs.Factory(list))
+    directives: list[OutputDirective] = attrs.field(default=attrs.Factory(list))
     # stitch_order defines how the output is to be reconstructed when evaluating code
     # this will match the order in which output elements are encountered
-    stitch_order: typing.List[typing.Tuple[OutputType, int]] = attrs.field(
+    stitch_order: list[tuple[OutputType, int]] = attrs.field(
         default=attrs.Factory(list), kw_only=True
     )
 
     @chunks.validator
-    def _check_chunks(self, _, value: typing.List[Token]):
+    def _check_chunks(self, _, value: list[Token]):
         try:
             for chunk in value:
                 assert chunk.token_type == TokenType.FILE_TEXT
@@ -142,7 +142,7 @@ class OutputText(FormatterMixin, BlockStmt):
                     "An error occurred when validating OutputText object"
                 ) from ex
 
-    def merge(self, other: typing.Self) -> typing.Self:
+    def merge(self, other: Self) -> Self:
         """Combines this OutputText with `other` to produce a merged OutputText object
 
         Parameters
@@ -174,8 +174,8 @@ class OutputText(FormatterMixin, BlockStmt):
 
     def stitch(
         self,
-    ) -> typing.Generator[
-        typing.Tuple[OutputType, typing.Union[Token, OutputDirective]], None, None
+    ) -> Generator[
+        tuple[OutputType, Union[Token, OutputDirective]], None, None
     ]:
         """Stitch the output text block together in the order it was originally specified
 

@@ -1,7 +1,7 @@
 """tokenizer_state module"""
 
 import enum
-import typing
+from typing import Optional, Iterable
 import attrs
 
 
@@ -116,10 +116,10 @@ class TokenizerState(enum.IntEnum):
 class TokenizerStateStack:
     """Stack implementation to handle transitioning between tokenizer states"""
 
-    state_stack: typing.List[TokenizerState] = attrs.field(
+    state_stack: list[TokenizerState] = attrs.field(
         default=attrs.Factory(list), init=False
     )
-    _prev_state: typing.Optional[int] = attrs.field(default=None, init=False)
+    _prev_state: Optional[int] = attrs.field(default=None, init=False)
     _leave_on_next: bool = attrs.field(default=False, init=False)
 
     def __iter__(self):
@@ -150,7 +150,7 @@ class TokenizerStateStack:
         return self.current_state
 
     @property
-    def current_state(self) -> typing.Optional[TokenizerState]:
+    def current_state(self) -> Optional[TokenizerState]:
         """If the stack is empty, returns None;
         otherwise, returns the state at the top of the stack"""
         try:
@@ -168,7 +168,7 @@ class TokenizerStateStack:
         self.state_stack.append(state)
 
     def enter_multiple(
-        self, states: typing.Iterable[TokenizerState], top_first: bool = True
+        self, states: Iterable[TokenizerState], top_first: bool = True
     ):
         """Push multiple new states onto the stack
 

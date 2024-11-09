@@ -2,7 +2,7 @@
 
 import sys
 import traceback
-import typing
+from typing import Optional, Self, Iterable, Generator, IO
 
 import attrs
 
@@ -79,8 +79,8 @@ def token_generator() -> TokenGen:
 
 
 def tokenize(
-    codeblock: str, suppress_exc: bool = False, output_file: typing.IO = sys.stdout
-) -> typing.Generator[Token, None, None]:
+    codeblock: str, suppress_exc: bool = False, output_file: IO = sys.stdout
+) -> Generator[Token, None, None]:
     """
     Parameters
     ----------
@@ -144,18 +144,18 @@ class Tokenizer:
 
     codeblock: str
     suppress_exc: bool = attrs.field(default=True)
-    output_file: typing.IO = attrs.field(default=sys.stdout)
-    _tok_iter: typing.Optional[typing.Generator[Token, None, None]] = attrs.field(
+    output_file: IO = attrs.field(default=sys.stdout)
+    _tok_iter: Optional[Generator[Token, None, None]] = attrs.field(
         default=None, repr=False, init=False
     )
-    _pos_tok: typing.Optional[Token] = attrs.field(default=None, repr=False, init=False)
+    _pos_tok: Optional[Token] = attrs.field(default=None, repr=False, init=False)
 
     @property
-    def current_token(self) -> typing.Optional[Token]:
+    def current_token(self) -> Optional[Token]:
         """Current token object"""
         return self._pos_tok
 
-    def __enter__(self) -> typing.Self:
+    def __enter__(self) -> Self:
         """"""
         self._tok_iter = tokenize(self.codeblock, self.suppress_exc, self.output_file)
         # preload first token
@@ -215,7 +215,7 @@ class Tokenizer:
         return self._pos_tok is not None
 
     def get_token_code(
-        self, casefold: bool = True, *, tok: typing.Optional[Token] = None
+        self, casefold: bool = True, *, tok: Optional[Token] = None
     ) -> str:
         """
         Parameters
@@ -246,7 +246,7 @@ class Tokenizer:
         return tok_code.casefold() if casefold else tok_code
 
     def get_identifier_code(
-        self, casefold: bool = True, *, tok: typing.Optional[Token] = None
+        self, casefold: bool = True, *, tok: Optional[Token] = None
     ) -> str:
         """Strip dot characters from identifier token code
 
@@ -311,7 +311,7 @@ class Tokenizer:
             return False
         return self._pos_tok.token_type == tok_type
 
-    def try_multiple_token_type(self, tok_types: typing.Iterable[TokenType]) -> bool:
+    def try_multiple_token_type(self, tok_types: Iterable[TokenType]) -> bool:
         """Compare the current token type against
         multiple possible token types
 
@@ -337,7 +337,7 @@ class Tokenizer:
     def assert_consume(
         self,
         tok_type: TokenType,
-        tok_code: typing.Optional[str] = None,
+        tok_code: Optional[str] = None,
         *,
         casefold: bool = True,
     ):
@@ -426,7 +426,7 @@ class Tokenizer:
         self.advance_pos()  # consume
         return True
 
-    def try_safe_keyword_id(self) -> typing.Optional[Token]:
+    def try_safe_keyword_id(self) -> Optional[Token]:
         """
         Returns
         -------
@@ -452,7 +452,7 @@ class Tokenizer:
             return self._pos_tok
         return None
 
-    def try_keyword_id(self) -> typing.Optional[Token]:
+    def try_keyword_id(self) -> Optional[Token]:
         """
         Returns
         -------

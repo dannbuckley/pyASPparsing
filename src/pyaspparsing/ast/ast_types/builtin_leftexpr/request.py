@@ -1,6 +1,5 @@
 """AST types for Request left expressions"""
 
-import typing
 import attrs
 from ..expressions import LeftExpr
 

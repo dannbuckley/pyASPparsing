@@ -1,6 +1,6 @@
 """parser module"""
 
-import typing
+from typing import Optional, Union
 from ... import ParserError
 from ..tokenizer.token_types import Token, TokenType
 from ..tokenizer.state_machine import Tokenizer
@@ -70,7 +70,7 @@ class Parser:
         ProcessingDirective
         """
         tkzr.assert_consume(TokenType.DELIM_START_PROCESSING)
-        settings: typing.List[ProcessingSetting] = []
+        settings: list[ProcessingSetting] = []
         while not tkzr.try_token_type(TokenType.DELIM_END):
             assert tkzr.try_token_type(
                 TokenType.IDENTIFIER
@@ -103,9 +103,9 @@ class Parser:
         -------
         OutputText
         """
-        chunks: typing.List[Token] = []
-        directives: typing.List[OutputDirective] = []
-        stitch_order: typing.List[typing.Tuple[OutputType, int]] = []
+        chunks: list[Token] = []
+        directives: list[OutputDirective] = []
+        stitch_order: list[tuple[OutputType, int]] = []
 
         while tkzr.try_multiple_token_type(
             [TokenType.FILE_TEXT, TokenType.DELIM_START_OUTPUT]
@@ -133,7 +133,7 @@ class Parser:
         return OutputText(chunks, directives, stitch_order=stitch_order)
 
     @staticmethod
-    def parse_html_comment(tkzr: Tokenizer) -> typing.Union[IncludeFile, OutputText]:
+    def parse_html_comment(tkzr: Tokenizer) -> Union[IncludeFile, OutputText]:
         """
         Parameters
         ----------
@@ -180,7 +180,7 @@ class Parser:
         )
 
     @staticmethod
-    def parse_nonscript_block(tkzr: Tokenizer) -> typing.List[BlockStmt]:
+    def parse_nonscript_block(tkzr: Tokenizer) -> list[BlockStmt]:
         """
         Parameters
         ----------
@@ -190,7 +190,7 @@ class Parser:
         -------
         List[BlockStmt]
         """
-        nonscript_stmts: typing.List[BlockStmt] = []
+        nonscript_stmts: list[BlockStmt] = []
         while tkzr.current_token is not None and not tkzr.try_token_type(
             TokenType.DELIM_START_SCRIPT
         ):
@@ -338,13 +338,11 @@ class Parser:
     @staticmethod
     def parse_inline_stmt(
         tkzr: Tokenizer,
-        terminal_type: typing.Optional[TokenType] = None,
-        terminal_code: typing.Optional[str] = None,
+        terminal_type: Optional[TokenType] = None,
+        terminal_code: Optional[str] = None,
         terminal_casefold: bool = True,
         *,
-        terminal_pairs: typing.Optional[
-            typing.List[typing.Tuple[TokenType, typing.Optional[str]]]
-        ] = None,
+        terminal_pairs: Optional[list[tuple[TokenType, Optional[str]]]] = None,
     ) -> InlineStmt:
         """If inline statement is a subcall statement, uses the given terminal token type
         to determine the where the statement ends
@@ -427,7 +425,7 @@ class Parser:
         tkzr.assert_consume(TokenType.NEWLINE)
 
         # member declaration list could be empty
-        member_decl_list: typing.List[MemberDecl] = []
+        member_decl_list: list[MemberDecl] = []
         while not (
             tkzr.try_token_type(TokenType.IDENTIFIER) and tkzr.get_token_code() == "end"
         ):
@@ -461,7 +459,7 @@ class Parser:
             return VarDecl.from_tokenizer(tkzr)
 
         # identify access modifier
-        access_mod: typing.Optional[AccessModifierType] = None
+        access_mod: Optional[AccessModifierType] = None
         if tkzr.try_consume(TokenType.IDENTIFIER, "public"):
             if tkzr.try_consume(TokenType.IDENTIFIER, "default"):
                 access_mod = AccessModifierType.PUBLIC_DEFAULT
@@ -495,7 +493,7 @@ class Parser:
 
     @staticmethod
     def parse_sub_decl(
-        tkzr: Tokenizer, access_mod: typing.Optional[AccessModifierType] = None
+        tkzr: Tokenizer, access_mod: Optional[AccessModifierType] = None
     ) -> SubDecl:
         """
         Parameters
@@ -509,7 +507,7 @@ class Parser:
         """
         tkzr.assert_consume(TokenType.IDENTIFIER, "sub")
         sub_id = ExtendedID.from_tokenizer(tkzr)
-        method_arg_list: typing.List[Arg] = []
+        method_arg_list: list[Arg] = []
         if tkzr.try_consume(TokenType.SYMBOL, "("):
             while not (
                 tkzr.try_token_type(TokenType.SYMBOL) and tkzr.get_token_code() == ")"
@@ -518,7 +516,7 @@ class Parser:
                 tkzr.try_consume(TokenType.SYMBOL, ",")
             tkzr.assert_consume(TokenType.SYMBOL, ")")
 
-        method_stmt_list: typing.List[MethodStmt] = []
+        method_stmt_list: list[MethodStmt] = []
         if tkzr.try_multiple_token_type([TokenType.NEWLINE, TokenType.DELIM_END]):
             if tkzr.try_token_type(TokenType.NEWLINE):
                 tkzr.advance_pos()  # consume newline
@@ -546,7 +544,7 @@ class Parser:
 
     @staticmethod
     def parse_function_decl(
-        tkzr: Tokenizer, access_mod: typing.Optional[AccessModifierType] = None
+        tkzr: Tokenizer, access_mod: Optional[AccessModifierType] = None
     ) -> FunctionDecl:
         """
         Parameters
@@ -560,7 +558,7 @@ class Parser:
         """
         tkzr.assert_consume(TokenType.IDENTIFIER, "function")
         function_id = ExtendedID.from_tokenizer(tkzr)
-        method_arg_list: typing.List[Arg] = []
+        method_arg_list: list[Arg] = []
         if tkzr.try_consume(TokenType.SYMBOL, "("):
             while not (
                 tkzr.try_token_type(TokenType.SYMBOL) and tkzr.get_token_code() == ")"
@@ -569,7 +567,7 @@ class Parser:
                 tkzr.try_consume(TokenType.SYMBOL, ",")
             tkzr.assert_consume(TokenType.SYMBOL, ")")
 
-        method_stmt_list: typing.List[MethodStmt] = []
+        method_stmt_list: list[MethodStmt] = []
         if tkzr.try_multiple_token_type([TokenType.NEWLINE, TokenType.DELIM_END]):
             if tkzr.try_token_type(TokenType.NEWLINE):
                 tkzr.advance_pos()  # consume newline
@@ -599,7 +597,7 @@ class Parser:
 
     @staticmethod
     def parse_property_decl(
-        tkzr: Tokenizer, access_mod: typing.Optional[AccessModifierType] = None
+        tkzr: Tokenizer, access_mod: Optional[AccessModifierType] = None
     ) -> PropertyDecl:
         """
         Parameters
@@ -619,7 +617,7 @@ class Parser:
 
         try:
             assert tkzr.try_token_type(TokenType.IDENTIFIER)
-            prop_types: typing.Dict[str, PropertyAccessType] = {
+            prop_types: dict[str, PropertyAccessType] = {
                 "get": PropertyAccessType.PROPERTY_GET,
                 "let": PropertyAccessType.PROPERTY_LET,
                 "set": PropertyAccessType.PROPERTY_SET,
@@ -637,7 +635,7 @@ class Parser:
 
         property_id = ExtendedID.from_tokenizer(tkzr)
 
-        method_arg_list: typing.List[Arg] = []
+        method_arg_list: list[Arg] = []
         if tkzr.try_consume(TokenType.SYMBOL, "("):
             while not (
                 tkzr.try_token_type(TokenType.SYMBOL) and tkzr.get_token_code() == ")"
@@ -649,7 +647,7 @@ class Parser:
         # property declaration requires newline after arg list
         tkzr.assert_newline_or_script_end()
 
-        method_stmt_list: typing.List[MethodStmt] = []
+        method_stmt_list: list[MethodStmt] = []
         while not (
             tkzr.try_token_type(TokenType.IDENTIFIER) and tkzr.get_token_code() == "end"
         ):
@@ -777,8 +775,8 @@ class Parser:
         if_expr = ExpressionParser.parse_expr(tkzr)
         tkzr.assert_consume(TokenType.IDENTIFIER, "then")
 
-        block_stmt_list: typing.List[BlockStmt] = []
-        else_stmt_list: typing.List[ElseStmt] = []
+        block_stmt_list: list[BlockStmt] = []
+        else_stmt_list: list[ElseStmt] = []
         if tkzr.try_multiple_token_type([TokenType.NEWLINE, TokenType.DELIM_END]):
             if tkzr.try_token_type(TokenType.NEWLINE):
                 tkzr.advance_pos()  # consume newline
@@ -804,7 +802,7 @@ class Parser:
                     tkzr.try_token_type(TokenType.IDENTIFIER)
                     and tkzr.get_token_code() in ["else", "end"]
                 ):
-                    elif_stmt_list: typing.List[BlockStmt] = []
+                    elif_stmt_list: list[BlockStmt] = []
                     tkzr.assert_consume(TokenType.IDENTIFIER, "elseif")
                     elif_expr = ExpressionParser.parse_expr(tkzr)
                     tkzr.assert_consume(TokenType.IDENTIFIER, "then")
@@ -845,7 +843,7 @@ class Parser:
                     del elif_expr, elif_stmt_list
             # check for 'Else' statement
             if tkzr.try_consume(TokenType.IDENTIFIER, "else"):
-                else_block_list: typing.List[BlockStmt] = []
+                else_block_list: list[BlockStmt] = []
                 if tkzr.try_multiple_token_type(
                     [TokenType.NEWLINE, TokenType.DELIM_END]
                 ):
@@ -933,7 +931,7 @@ class Parser:
         tkzr.assert_consume(TokenType.IDENTIFIER, "with")
         with_expr = ExpressionParser.parse_expr(tkzr)
         tkzr.assert_newline_or_script_end()
-        block_stmt_list: typing.List[BlockStmt] = []
+        block_stmt_list: list[BlockStmt] = []
         while not (
             tkzr.try_token_type(TokenType.IDENTIFIER) and tkzr.get_token_code() == "end"
         ):
@@ -965,7 +963,7 @@ class Parser:
             "do",
             "while",
         ], "Loop statement must start with 'Do' or 'While'"
-        block_stmt_list: typing.List[BlockStmt] = []
+        block_stmt_list: list[BlockStmt] = []
         if tkzr.get_token_code() == "while":
             # loop type is 'While'
             loop_type: Token = tkzr.current_token
@@ -990,8 +988,8 @@ class Parser:
 
         # must be 'Do' loop
         tkzr.assert_consume(TokenType.IDENTIFIER, "do")
-        loop_type: typing.Optional[Token] = None
-        loop_expr: typing.Optional[Expr] = None
+        loop_type: Optional[Token] = None
+        loop_expr: Optional[Expr] = None
 
         def _check_for_loop_type() -> bool:
             nonlocal tkzr, loop_type, loop_expr
@@ -1049,11 +1047,11 @@ class Parser:
         tkzr.assert_consume(TokenType.IDENTIFIER, "for")
 
         # 'For' target_id '=' eq_expr 'To' to_expr [ 'Step' step_expr ]
-        eq_expr: typing.Optional[Expr] = None
-        to_expr: typing.Optional[Expr] = None
-        step_expr: typing.Optional[Expr] = None
+        eq_expr: Optional[Expr] = None
+        to_expr: Optional[Expr] = None
+        step_expr: Optional[Expr] = None
         # 'For' 'Each' target_id 'In' each_in_expr
-        each_in_expr: typing.Optional[Expr] = None
+        each_in_expr: Optional[Expr] = None
 
         # check for loop type
         for_each: bool = tkzr.try_consume(TokenType.IDENTIFIER, "each")
@@ -1071,7 +1069,7 @@ class Parser:
                 step_expr = ExpressionParser.parse_expr(tkzr)
         tkzr.assert_newline_or_script_end()
         # parse block statement list
-        block_stmt_list: typing.List[BlockStmt] = []
+        block_stmt_list: list[BlockStmt] = []
         while not (
             tkzr.try_token_type(TokenType.IDENTIFIER)
             and tkzr.get_token_code() == "next"
@@ -1118,13 +1116,13 @@ class Parser:
             tkzr.assert_consume(TokenType.DELIM_START_SCRIPT)
             if tkzr.try_token_type(TokenType.NEWLINE):
                 tkzr.advance_pos()
-        case_stmt_list: typing.List[CaseStmt] = []
+        case_stmt_list: list[CaseStmt] = []
         while not (
             tkzr.try_token_type(TokenType.IDENTIFIER) and tkzr.get_token_code() == "end"
         ):
             tkzr.assert_consume(TokenType.IDENTIFIER, "case")
             is_else: bool = tkzr.try_consume(TokenType.IDENTIFIER, "else")
-            case_expr_list: typing.List[Expr] = []
+            case_expr_list: list[Expr] = []
             if not is_else:
                 # parse expression list
                 parse_case_expr: bool = True
@@ -1136,7 +1134,7 @@ class Parser:
             if tkzr.try_token_type(TokenType.NEWLINE):
                 tkzr.advance_pos()  # consume newline
             # check for block statements
-            block_stmt_list: typing.List[BlockStmt] = []
+            block_stmt_list: list[BlockStmt] = []
             while not (
                 tkzr.try_token_type(TokenType.IDENTIFIER)
                 and tkzr.get_token_code() in ["case", "end"]

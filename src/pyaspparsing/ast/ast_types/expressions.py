@@ -1,7 +1,7 @@
 """Expression AST classes"""
 
 import enum
-import typing
+from typing import Optional, Any, Self
 
 import attrs
 
@@ -308,7 +308,7 @@ class QualifiedID(FormatterMixin):
     id_tokens : List[Token], default=[]
     """
 
-    id_tokens: typing.List[Token] = attrs.field(default=attrs.Factory(list))
+    id_tokens: list[Token] = attrs.field(default=attrs.Factory(list))
 
 
 @attrs.define(repr=False, slots=False)
@@ -321,9 +321,7 @@ class IndexOrParams(FormatterMixin):
     dot : bool, default=False
     """
 
-    expr_list: typing.List[typing.Optional[Expr]] = attrs.field(
-        default=attrs.Factory(list)
-    )
+    expr_list: list[Optional[Expr]] = attrs.field(default=attrs.Factory(list))
     dot: bool = attrs.field(default=False, kw_only=True)
 
 
@@ -338,9 +336,7 @@ class LeftExprTail(FormatterMixin):
     """
 
     qual_id_tail: QualifiedID
-    index_or_params: typing.List[IndexOrParams] = attrs.field(
-        default=attrs.Factory(list)
-    )
+    index_or_params: list[IndexOrParams] = attrs.field(default=attrs.Factory(list))
 
 
 @attrs.define(repr=False, slots=False)
@@ -364,17 +360,15 @@ class LeftExpr(FormatterMixin, Value):
     """
 
     sym_name: str = attrs.field(validator=attrs.validators.instance_of(str))
-    subnames: typing.Dict[int, str] = attrs.field(
-        default=attrs.Factory(dict), init=False
-    )
-    call_args: typing.Dict[int, typing.Tuple[typing.Any, ...]] = attrs.field(
+    subnames: dict[int, str] = attrs.field(default=attrs.Factory(dict), init=False)
+    call_args: dict[int, tuple[Any, ...]] = attrs.field(
         default=attrs.Factory(dict), init=False
     )
     end_idx: int = attrs.field(default=0, init=False, eq=False)
     num_index_or_param: int = attrs.field(default=0, init=False, eq=False)
     num_tail: int = attrs.field(default=0, init=False, eq=False)
 
-    def track_index_or_param(self) -> typing.Self:
+    def track_index_or_param(self) -> Self:
         """Increment count of IndexOrParams objects parsed
 
         Returns
@@ -385,7 +379,7 @@ class LeftExpr(FormatterMixin, Value):
         self.num_index_or_param += 1
         return self
 
-    def track_tail(self) -> typing.Self:
+    def track_tail(self) -> Self:
         """Increment count of LeftExprTail objects parsed
 
         Returns
@@ -396,7 +390,7 @@ class LeftExpr(FormatterMixin, Value):
         self.num_tail += 1
         return self
 
-    def get_subname(self, subname: str) -> typing.Self:
+    def get_subname(self, subname: str) -> Self:
         """
         Parameters
         ----------
@@ -414,7 +408,7 @@ class LeftExpr(FormatterMixin, Value):
         # return self for method-chaining
         return self
 
-    def __call__(self, *args: typing.Any) -> typing.Self:
+    def __call__(self, *args: Any) -> Self:
         """Current name has an IndexOrParams object
 
         Parameters

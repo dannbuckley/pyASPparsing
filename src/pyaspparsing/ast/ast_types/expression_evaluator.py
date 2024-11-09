@@ -3,7 +3,6 @@
 from collections.abc import Callable
 from functools import wraps
 import operator
-import typing
 from ... import EvaluatorError
 from .base import Expr, CompareExprType
 from .expressions import (
@@ -26,7 +25,7 @@ from .expressions import (
 from .optimize import EvalExpr, FoldableExpr, AddNegated, MultReciprocal
 
 
-reg_expr_eval: typing.Dict[type[Expr], Callable[[Expr], EvalExpr]] = {}
+reg_expr_eval: dict[type[Expr], Callable[[Expr], EvalExpr]] = {}
 
 
 def evaluate_expr(fld: Expr) -> EvalExpr:

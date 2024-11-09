@@ -1,12 +1,11 @@
 """ASP Server object"""
 
-import typing
 import attrs
 from ...ast.ast_types.optimize import EvalExpr
 from .symbol import ASPObject, prepare_symbol_name
 from .adodb import Connection, Recordset
 
-server_object_types: typing.Dict[str, typing.Dict[str, type[ASPObject]]] = {
+server_object_types: dict[str, dict[str, type[ASPObject]]] = {
     "adodb": {"connection": Connection, "recordset": Recordset}
 }
 

@@ -1,7 +1,7 @@
 """linker module"""
 
 from pathlib import Path
-import typing
+from typing import Optional, Generator
 import attrs
 from ..ast.tokenizer.state_machine import Tokenizer
 from ..ast.ast_types import (
@@ -30,7 +30,7 @@ class Linker:
         Request a file from a registered virtual directory
     """
 
-    virtual_dirs: typing.Dict[str, VirtualDirectory] = attrs.field(
+    virtual_dirs: dict[str, VirtualDirectory] = attrs.field(
         default=attrs.Factory(dict), init=False
     )
 
@@ -53,7 +53,7 @@ class Linker:
         ), f"A virtual directory already exists under the name '{root_name}'"
         self.virtual_dirs[root_name] = VirtualDirectory(Path(f"/{root_name}"), act_path)
 
-    def request(self, file_path: Path) -> typing.Optional[Program]:
+    def request(self, file_path: Path) -> Optional[Program]:
         """
         Parameters
         ----------
@@ -81,7 +81,7 @@ class Linker:
 
 def generate_linked_program(
     tkzr: Tokenizer, lnk: Linker
-) -> typing.Generator[GlobalStmt, None, None]:
+) -> Generator[GlobalStmt, None, None]:
     """Generate a program where the IncludeFile AST types are replaced with
     the parsed content of the included file
 

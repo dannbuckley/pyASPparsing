@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 import operator
-import typing
+from typing import Union, Any
 import attrs
 from .base import FormatterMixin, Expr
 from .expressions import ConstExpr, Nothing
@@ -29,7 +29,7 @@ class EvalExpr(FormatterMixin, Expr):
     expr_value : int | float | bool | str
     """
 
-    expr_value: typing.Union[int, float, bool, str]
+    expr_value: Union[int, float, bool, str]
 
     def str_cast(self):
         """Cast expression to string for concatenation operator"""
@@ -111,7 +111,7 @@ class FoldableExpr(ExprAnnotation):
     """
 
     @staticmethod
-    def can_fold(eval_expr: Expr) -> typing.Tuple[bool, bool]:
+    def can_fold(eval_expr: Expr) -> tuple[bool, bool]:
         """
         Parameters
         ----------
@@ -136,7 +136,7 @@ class FoldableExpr(ExprAnnotation):
 
     @staticmethod
     def try_fold(
-        expr_left: Expr, expr_right: Expr, expr_type: type, *args: typing.Any
+        expr_left: Expr, expr_right: Expr, expr_type: type, *args: Any
     ) -> Expr:
         """
         Parameters

@@ -1,6 +1,6 @@
 """parse_expressions module"""
 
-import typing
+from typing import Optional, Any, Union
 import attrs
 from ... import ParserError
 from ..tokenizer.token_types import Token, TokenType
@@ -51,7 +51,7 @@ class ExprQueue:
     fold(expr_type)
     """
 
-    queue: typing.List[Expr] = attrs.field(default=attrs.Factory(list))
+    queue: list[Expr] = attrs.field(default=attrs.Factory(list))
 
     def must_combine(self) -> bool:
         """
@@ -80,7 +80,7 @@ class ExprQueue:
         """
         return self.queue.pop(0)
 
-    def fold_front(self, expr_type: type[Expr], *args: typing.Any):
+    def fold_front(self, expr_type: type[Expr], *args: Any):
         """Combine two expressions at the front of the queue into a single expression
 
         Parameters
@@ -132,7 +132,7 @@ class ExprStack:
     fold(expr_type)
     """
 
-    stack: typing.List[Expr] = attrs.field(default=attrs.Factory(list))
+    stack: list[Expr] = attrs.field(default=attrs.Factory(list))
 
     def must_combine(self) -> bool:
         """
@@ -161,7 +161,7 @@ class ExprStack:
         """
         return self.stack.pop(-1)
 
-    def fold_back(self, expr_type: type[Expr], *args: typing.Any):
+    def fold_back(self, expr_type: type[Expr], *args: Any):
         """Combine two expressions at the top of the stack into a single expression
 
         Parameters
@@ -262,7 +262,7 @@ class ExpressionParser:
         raise ParserError("Invalid token in value expression")
 
     @staticmethod
-    def parse_const_expr(tkzr: Tokenizer) -> typing.Union[ConstExpr, EvalExpr]:
+    def parse_const_expr(tkzr: Tokenizer) -> Union[ConstExpr, EvalExpr]:
         """NOT CALLED DIRECTLY
 
         Parse constant expression
@@ -372,7 +372,7 @@ class ExpressionParser:
         if tkzr.try_multiple_token_type(
             [TokenType.IDENTIFIER_IDDOT, TokenType.IDENTIFIER_DOTIDDOT]
         ):
-            id_tokens: typing.List[Token] = [tkzr.current_token]
+            id_tokens: list[Token] = [tkzr.current_token]
             tkzr.advance_pos()  # consume identifier
             expand_tail = True
             while expand_tail:
@@ -407,9 +407,9 @@ class ExpressionParser:
         """
         qual_id_tail: QualifiedID = ExpressionParser.parse_qualified_id(tkzr)
         # check for index or params list
-        index_or_params_tail: typing.List[IndexOrParams] = []
+        index_or_params_tail: list[IndexOrParams] = []
         while tkzr.try_consume(TokenType.SYMBOL, "("):
-            expr_list: typing.List[typing.Optional[Expr]] = []
+            expr_list: list[Optional[Expr]] = []
             found_expr: bool = False  # helper variable for parsing commas
             while not (
                 tkzr.try_token_type(TokenType.SYMBOL) and tkzr.get_token_code() == ")"
@@ -481,7 +481,7 @@ class ExpressionParser:
         index_or_params: int = 0
         dot: bool = False
         while tkzr.try_consume(TokenType.SYMBOL, "("):
-            expr_list: typing.List[typing.Optional[Expr]] = []
+            expr_list: list[Optional[Expr]] = []
             found_expr: bool = False  # helper variable for parsing commas
             while not (
                 tkzr.try_token_type(TokenType.SYMBOL) and tkzr.get_token_code() == ")"
@@ -699,7 +699,7 @@ class ExpressionParser:
         Expr
         """
         # comparison expression expands to the left, use a queue
-        cmp_queue: typing.List[CompareExprType] = []
+        cmp_queue: list[CompareExprType] = []
         expr_queue = ExprQueue([ExpressionParser.parse_concat_expr(tkzr, sub_safe)])
         while (
             tkzr.try_token_type(TokenType.IDENTIFIER) and tkzr.get_token_code() == "is"
@@ -800,10 +800,10 @@ class ExpressionParser:
         Expr
         """
         # terms in expression can be evaluated immediately
-        imm_expr: typing.Optional[Expr] = None
+        imm_expr: Optional[Expr] = None
         # expression contains terms that cannot be evaluated immediately
         # evaluation must be deferred
-        dfr_expr: typing.Optional[Expr] = None
+        dfr_expr: Optional[Expr] = None
 
         def _consume_mod_expr(sub_op: bool = False):
             """
@@ -908,10 +908,10 @@ class ExpressionParser:
         Expr
         """
         # terms in expression can be evaluated immediately
-        imm_expr: typing.Optional[Expr] = None
+        imm_expr: Optional[Expr] = None
         # expression contains terms that cannot be evaluated immediately
         # evaluation must be deferred
-        dfr_expr: typing.Optional[Expr] = None
+        dfr_expr: Optional[Expr] = None
 
         def _consume_unary_expr(div_op: bool = False):
             """
@@ -972,7 +972,7 @@ class ExpressionParser:
         Expr
         """
         # unary expression expands to the right, use a stack
-        sign_stack: typing.List[Token] = []
+        sign_stack: list[Token] = []
         while tkzr.try_token_type(TokenType.SYMBOL) and tkzr.get_token_code() in "-+":
             sign_stack.append(tkzr.current_token)
             tkzr.advance_pos()  # consume sign

@@ -5,7 +5,7 @@
 import enum
 import sys
 import traceback
-import typing
+from typing import Optional, Self, Iterator, IO
 
 import attrs
 
@@ -43,19 +43,19 @@ class CodeWrapper:
 
     codeblock: str
     suppress_error: bool = attrs.field(default=True)
-    output_file: typing.IO = attrs.field(default=sys.stdout)
+    output_file: IO = attrs.field(default=sys.stdout)
 
     # iterating through codeblock
-    _code_iter: typing.Optional[typing.Iterator[str]] = attrs.field(
+    _code_iter: Optional[Iterator[str]] = attrs.field(
         default=None, init=False
     )
-    _pos_char: typing.Optional[str] = attrs.field(default=None, init=False)
-    _pos_idx: typing.Optional[int] = attrs.field(default=None, init=False)
+    _pos_char: Optional[str] = attrs.field(default=None, init=False)
+    _pos_idx: Optional[int] = attrs.field(default=None, init=False)
 
     # debug line info
-    line_no: typing.Optional[int] = attrs.field(default=None, init=False)
-    line_start: typing.Optional[int] = attrs.field(default=None, init=False)
-    line_code_start: typing.Optional[int] = attrs.field(default=None, init=False)
+    line_no: Optional[int] = attrs.field(default=None, init=False)
+    line_start: Optional[int] = attrs.field(default=None, init=False)
+    line_code_start: Optional[int] = attrs.field(default=None, init=False)
 
     @property
     def current_char(self):
@@ -83,7 +83,7 @@ class CodeWrapper:
             )
         return (self._pos_char is None) and (self._pos_idx is not None)
 
-    def __enter__(self) -> typing.Self:
+    def __enter__(self) -> Self:
         if not (
             self._code_iter is None and self._pos_char is None and self._pos_idx is None
         ):
@@ -168,7 +168,7 @@ class CodeWrapper:
             return False
         # http://www.goldparser.org/doc/grammars/index.htm
         # predefined character sets -> "Printable"
-        printable: typing.Set[int] = set([0xA0, *range(0x20, 0x7F)])
+        printable: set[int] = set([0xA0, *range(0x20, 0x7F)])
         match char_type:
             case CharacterType.LETTER:
                 return self._pos_char.isalpha()
@@ -194,8 +194,8 @@ class CodeWrapper:
     def try_next(
         self,
         *,
-        next_char: typing.Optional[str] = None,
-        next_type: typing.Optional[CharacterType] = None,
+        next_char: Optional[str] = None,
+        next_type: Optional[CharacterType] = None,
     ) -> bool:
         """
         Parameters
@@ -236,8 +236,8 @@ class CodeWrapper:
     def assert_next(
         self,
         *,
-        next_char: typing.Optional[str] = None,
-        next_type: typing.Optional[CharacterType] = None,
+        next_char: Optional[str] = None,
+        next_type: Optional[CharacterType] = None,
     ) -> bool:
         """
         Parameters
@@ -278,7 +278,7 @@ class CodeWrapper:
             assert self._pos_char == next_char, ""
 
         elif next_type is not None:
-            assert_msg: typing.Dict[CharacterType, str] = {
+            assert_msg: dict[CharacterType, str] = {
                 CharacterType.LETTER: "Expected an alphabet character",
                 CharacterType.DIGIT: "Expected a digit",
                 CharacterType.STRING_CHAR: "Expected a valid character, not including '\"'",

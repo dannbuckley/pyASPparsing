@@ -1,7 +1,7 @@
 """codegen module"""
 
 import sys
-import typing
+from typing import IO
 import attrs
 from ..ast.tokenizer.state_machine import Tokenizer
 from ..ast.ast_types import *
@@ -34,7 +34,7 @@ class Codegen(FormatterMixin):
         self,
         codeblock: str,
         suppress_exc: bool = True,
-        output_file: typing.IO = sys.stdout,
+        output_file: IO = sys.stdout,
     ):
         """
         Parameters

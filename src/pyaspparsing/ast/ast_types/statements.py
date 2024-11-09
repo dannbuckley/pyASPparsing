@@ -1,6 +1,6 @@
 """Statement AST classes"""
 
-import typing
+from typing import Optional
 
 import attrs
 
@@ -97,7 +97,7 @@ class RedimDecl(FormatterMixin):
     """
 
     extended_id: ExtendedID
-    expr_list: typing.List[Expr] = attrs.field(default=attrs.Factory(list))
+    expr_list: list[Expr] = attrs.field(default=attrs.Factory(list))
 
 
 @attrs.define(repr=False, slots=False)
@@ -118,7 +118,7 @@ class RedimStmt(FormatterMixin, BlockStmt):
     from_tokenizer(tkzr)
     """
 
-    redim_decl_list: typing.List[RedimDecl] = attrs.field(default=attrs.Factory(list))
+    redim_decl_list: list[RedimDecl] = attrs.field(default=attrs.Factory(list))
     preserve: bool = attrs.field(default=False, kw_only=True)
 
     @staticmethod
@@ -134,13 +134,13 @@ class RedimStmt(FormatterMixin, BlockStmt):
         """
         tkzr.assert_consume(TokenType.IDENTIFIER, "redim")
         preserve = tkzr.try_consume(TokenType.IDENTIFIER, "preserve")
-        redim_decl_list: typing.List[RedimDecl] = []
+        redim_decl_list: list[RedimDecl] = []
         while not tkzr.try_multiple_token_type(
             [TokenType.NEWLINE, TokenType.DELIM_END]
         ):
             redim_id = ExtendedID.from_tokenizer(tkzr)
             tkzr.assert_consume(TokenType.SYMBOL, "(")
-            redim_expr: typing.List[Expr] = []
+            redim_expr: list[Expr] = []
             while not (
                 tkzr.try_token_type(TokenType.SYMBOL) and tkzr.get_token_code() == ")"
             ):
@@ -176,8 +176,8 @@ class ElseStmt(FormatterMixin):
     is_else : bool, default=False
     """
 
-    stmt_list: typing.List[BlockStmt] = attrs.field(default=attrs.Factory(list))
-    elif_expr: typing.Optional[Expr] = attrs.field(default=None, kw_only=True)
+    stmt_list: list[BlockStmt] = attrs.field(default=attrs.Factory(list))
+    elif_expr: Optional[Expr] = attrs.field(default=None, kw_only=True)
     # use bool flag instead of doing a "elif_expr is None" check
     is_else: bool = attrs.field(default=False, kw_only=True)
 
@@ -204,8 +204,8 @@ class IfStmt(FormatterMixin, BlockStmt):
     """
 
     if_expr: Expr
-    block_stmt_list: typing.List[BlockStmt] = attrs.field(default=attrs.Factory(list))
-    else_stmt_list: typing.List[ElseStmt] = attrs.field(default=attrs.Factory(list))
+    block_stmt_list: list[BlockStmt] = attrs.field(default=attrs.Factory(list))
+    else_stmt_list: list[ElseStmt] = attrs.field(default=attrs.Factory(list))
 
 
 @attrs.define(repr=False, slots=False)
@@ -224,7 +224,7 @@ class WithStmt(FormatterMixin, BlockStmt):
     """
 
     with_expr: Expr
-    block_stmt_list: typing.List[BlockStmt] = attrs.field(default=attrs.Factory(list))
+    block_stmt_list: list[BlockStmt] = attrs.field(default=attrs.Factory(list))
 
 
 @attrs.define(repr=False, slots=False)
@@ -248,8 +248,8 @@ class CaseStmt(FormatterMixin):
     is_else : bool, default=False
     """
 
-    block_stmt_list: typing.List[BlockStmt] = attrs.field(default=attrs.Factory(list))
-    case_expr_list: typing.List[Expr] = attrs.field(default=attrs.Factory(list))
+    block_stmt_list: list[BlockStmt] = attrs.field(default=attrs.Factory(list))
+    case_expr_list: list[Expr] = attrs.field(default=attrs.Factory(list))
     is_else: bool = attrs.field(default=False, kw_only=True)
 
 
@@ -269,7 +269,7 @@ class SelectStmt(FormatterMixin, BlockStmt):
     """
 
     select_case_expr: Expr
-    case_stmt_list: typing.List[CaseStmt] = attrs.field(default=attrs.Factory(list))
+    case_stmt_list: list[CaseStmt] = attrs.field(default=attrs.Factory(list))
 
 
 @attrs.define(repr=False, slots=False)
@@ -299,10 +299,10 @@ class LoopStmt(FormatterMixin, BlockStmt):
     loop_expr : Expr | None, default=None
     """
 
-    block_stmt_list: typing.List[BlockStmt] = attrs.field(default=attrs.Factory(list))
+    block_stmt_list: list[BlockStmt] = attrs.field(default=attrs.Factory(list))
     # 'While' or 'Until'
-    loop_type: typing.Optional[Token] = attrs.field(default=None, kw_only=True)
-    loop_expr: typing.Optional[Expr] = attrs.field(default=None, kw_only=True)
+    loop_type: Optional[Token] = attrs.field(default=None, kw_only=True)
+    loop_expr: Optional[Expr] = attrs.field(default=None, kw_only=True)
 
 
 @attrs.define(repr=False, slots=False)
@@ -331,15 +331,15 @@ class ForStmt(FormatterMixin, BlockStmt):
     """
 
     target_id: ExtendedID
-    block_stmt_list: typing.List[BlockStmt] = attrs.field(default=attrs.Factory(list))
+    block_stmt_list: list[BlockStmt] = attrs.field(default=attrs.Factory(list))
 
     # 'For' target_id '=' eq_expr 'To' to_expr [ 'Step' step_expr ]
-    eq_expr: typing.Optional[Expr] = attrs.field(default=None, kw_only=True)
-    to_expr: typing.Optional[Expr] = attrs.field(default=None, kw_only=True)
-    step_expr: typing.Optional[Expr] = attrs.field(default=None, kw_only=True)
+    eq_expr: Optional[Expr] = attrs.field(default=None, kw_only=True)
+    to_expr: Optional[Expr] = attrs.field(default=None, kw_only=True)
+    step_expr: Optional[Expr] = attrs.field(default=None, kw_only=True)
 
     # 'For' 'Each' target_id 'In' each_in_expr
-    each_in_expr: typing.Optional[Expr] = attrs.field(default=None, kw_only=True)
+    each_in_expr: Optional[Expr] = attrs.field(default=None, kw_only=True)
 
     def __attrs_post_init__(self):
         """Verify that the for statement is either
@@ -475,12 +475,12 @@ class SubCallStmt(FormatterMixin, InlineStmt):
     def from_tokenizer(
         tkzr: Tokenizer,
         left_expr: LeftExpr,
-        terminal_type: typing.Optional[TokenType] = None,
-        terminal_code: typing.Optional[str] = None,
+        terminal_type: Optional[TokenType] = None,
+        terminal_code: Optional[str] = None,
         terminal_casefold: bool = True,
         *,
-        terminal_pairs: typing.Optional[
-            typing.List[typing.Tuple[TokenType, typing.Optional[str]]]
+        terminal_pairs: Optional[
+            list[tuple[TokenType, Optional[str]]]
         ] = None,
     ):
         """
@@ -556,7 +556,7 @@ class SubCallStmt(FormatterMixin, InlineStmt):
             ), "Expected left expression to have the form: <QualifiedID> '(' [ <Expr> ] ')'"
 
         # try to parse comma expression list
-        comma_expr_list: typing.List[typing.Optional[Expr]] = []
+        comma_expr_list: list[Optional[Expr]] = []
         found_expr: bool = True  # fix: prevents erroneous None on first iteration
         while not _check_terminal():
             if tkzr.try_consume(TokenType.SYMBOL, ","):
@@ -608,7 +608,7 @@ class ErrorStmt(FormatterMixin, InlineStmt):
     """
 
     resume_next: bool = attrs.field(default=False, kw_only=True)
-    goto_spec: typing.Optional[Token] = attrs.field(default=None, kw_only=True)
+    goto_spec: Optional[Token] = attrs.field(default=None, kw_only=True)
 
     @staticmethod
     def from_tokenizer(tkzr: Tokenizer):

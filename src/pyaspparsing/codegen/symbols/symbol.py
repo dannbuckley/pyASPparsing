@@ -1,7 +1,7 @@
 """Symbol base class"""
 
 from functools import partial
-import typing
+from typing import Any, Generator
 import attrs
 from ...ast.ast_types.base import FormatterMixin
 from ...ast.ast_types.declarations import VarName
@@ -32,7 +32,7 @@ class ValueSymbol(Symbol):
     value : Any, default=None
     """
 
-    value: typing.Any = attrs.field(default=None)
+    value: Any = attrs.field(default=None)
 
     def __repr__(self):
         base_repr = f"<ValueSymbol {repr(self.symbol_name)}"
@@ -64,11 +64,11 @@ class ArraySymbol(Symbol):
     rank_list : List[int], default=[]
     """
 
-    rank_list: typing.List[int] = attrs.field(
+    rank_list: list[int] = attrs.field(
         default=attrs.Factory(list),
         validator=attrs.validators.deep_iterable(attrs.validators.instance_of(int)),
     )
-    array_data: typing.Dict[typing.Tuple[int, ...], typing.Any] = attrs.field(
+    array_data: dict[tuple[int, ...], Any] = attrs.field(
         default=attrs.Factory(dict), init=False
     )
 
@@ -90,7 +90,7 @@ class ArraySymbol(Symbol):
         """
         return ArraySymbol(var_name.extended_id.id_code, var_name.array_rank_list)
 
-    def insert(self, idx: typing.Tuple[int, ...], value: typing.Any):
+    def insert(self, idx: tuple[int, ...], value: Any):
         """
         Parameters
         ----------
@@ -111,7 +111,7 @@ class ArraySymbol(Symbol):
 class ASPObject(Symbol):
     """An ASP object that may have methods, properties, or collections"""
 
-    def __call__(self, left_expr: LeftExpr) -> typing.Any:
+    def __call__(self, left_expr: LeftExpr) -> Any:
         """
         Parameters
         ----------
@@ -160,19 +160,13 @@ class SymbolTable(FormatterMixin):
     sym_table : Dict[str, Symbol]
     """
 
-    sym_table: typing.Dict[str, Symbol] = attrs.field(
-        default=attrs.Factory(dict), init=False
-    )
+    sym_table: dict[str, Symbol] = attrs.field(default=attrs.Factory(dict), init=False)
     option_explicit: bool = attrs.field(default=False, init=False)
 
     # how many times has the symbol been retrieved?
-    _sym_get: typing.Dict[str, int] = attrs.field(
-        default=attrs.Factory(dict), init=False
-    )
+    _sym_get: dict[str, int] = attrs.field(default=attrs.Factory(dict), init=False)
     # how many times has the symbol been assigned to?
-    _sym_set: typing.Dict[str, int] = attrs.field(
-        default=attrs.Factory(dict), init=False
-    )
+    _sym_set: dict[str, int] = attrs.field(default=attrs.Factory(dict), init=False)
 
     def __getitem__(self, key: str) -> Symbol:
         if not isinstance(key, str):
@@ -270,7 +264,7 @@ class SymbolTable(FormatterMixin):
                     raise RuntimeError
             elif isinstance(self.sym_table[left_expr.sym_name], ArraySymbol):
                 # array item assignment
-                def _get_array_idx() -> typing.Generator[int, None, None]:
+                def _get_array_idx() -> Generator[int, None, None]:
                     """Extract array indices from target expression
 
                     Yields
