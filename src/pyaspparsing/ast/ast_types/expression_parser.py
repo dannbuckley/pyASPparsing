@@ -30,6 +30,7 @@ from .expressions import (
     LeftExpr,
 )
 from .optimize import EvalExpr, FoldableExpr, AddNegated, MultReciprocal
+from .builtin_leftexpr import ResponseExpr
 from .expression_evaluator import evaluate_expr
 
 
@@ -439,7 +440,17 @@ class ExpressionParser:
         return LeftExprTail(qual_id_tail, index_or_params_tail)
 
     @staticmethod
-    def parse_left_expr(tkzr: Tokenizer) -> LeftExpr:
+    def check_builtin_left_expr(
+        left_expr: LeftExpr, *, is_subcall: bool = False
+    ) -> LeftExpr:
+        match left_expr.sym_name:
+            case "response":
+                return ResponseExpr.from_left_expr(left_expr, is_subcall=is_subcall)
+            case _:
+                return left_expr
+
+    @staticmethod
+    def parse_left_expr(tkzr: Tokenizer, *, check_for_builtin: bool = True) -> LeftExpr:
         """NOT CALLED DIRECTLY
 
         Parse a left expression
@@ -500,7 +511,11 @@ class ExpressionParser:
 
         if index_or_params == 0 or not dot:
             # left expression does not have a tail
-            return ret_expr
+            return (
+                ExpressionParser.check_builtin_left_expr(ret_expr, is_subcall=False)
+                if check_for_builtin
+                else ret_expr
+            )
 
         parse_tail: bool = True
         while parse_tail:
@@ -516,7 +531,11 @@ class ExpressionParser:
                 ret_expr(*tail_idx_par.expr_list)
             # increment counter (for subcall statements)
             ret_expr.track_tail()
-        return ret_expr
+        return (
+            ExpressionParser.check_builtin_left_expr(ret_expr, is_subcall=False)
+            if check_for_builtin
+            else ret_expr
+        )
 
     @staticmethod
     def parse_imp_expr(tkzr: Tokenizer, sub_safe: bool = False) -> Expr:

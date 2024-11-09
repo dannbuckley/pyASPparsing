@@ -188,7 +188,9 @@ def test_parse_call_stmt(codeblock: str, exp_left_expr: LeftExpr):
         (
             # left_expr = <QualifiedID> <SubSafeExpr>
             'Response.Write "Hello, world!"',
-            LeftExpr("response").get_subname("write")(EvalExpr("Hello, world!")),
+            ResponseExpr.from_left_expr(
+                LeftExpr("response").get_subname("write")(EvalExpr("Hello, world!"))
+            ),
         ),
         (
             # left_expr = <QualifiedID> <SubSafeExpr> <CommaExprList>
@@ -204,13 +206,15 @@ def test_parse_call_stmt(codeblock: str, exp_left_expr: LeftExpr):
         ),
         (
             # left_expr = <QualifiedID> '(' ')'
-            "Response.Write()",
-            LeftExpr("response").get_subname("write")(),
+            "Response.End()",
+            ResponseExpr.from_left_expr(LeftExpr("response").get_subname("end")()),
         ),
         (
             # left_expr = <QualifiedID> '(' <Expr> ')'
             'Response.Write("Hello, world!")',
-            LeftExpr("response").get_subname("write")(EvalExpr("Hello, world!")),
+            ResponseExpr.from_left_expr(
+                LeftExpr("response").get_subname("write")(EvalExpr("Hello, world!"))
+            ),
         ),
         (
             # left_expr = <QualifiedID> '(' <Expr> ')' <CommaExprList>

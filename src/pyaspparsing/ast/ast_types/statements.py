@@ -574,13 +574,16 @@ class SubCallStmt(FormatterMixin, InlineStmt):
         # DON'T CONSUME TERMINAL, LEAVE FOR CALLER
         del found_expr
 
-        return SubCallStmt(
+        left_expr = (
             # no additional arguments provided in subcall statement
             left_expr
             if sub_safe_expr is None and len(comma_expr_list) == 0
-            else
             # pass additional arguments to left expression
-            left_expr(sub_safe_expr, *comma_expr_list)
+            else left_expr(sub_safe_expr, *comma_expr_list)
+        )
+
+        return SubCallStmt(
+            ExpressionParser.check_builtin_left_expr(left_expr, is_subcall=True)
         )
 
 

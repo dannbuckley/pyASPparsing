@@ -55,8 +55,10 @@ from pyaspparsing.ast.ast_types.parser import Parser
                 ElseStmt(
                     [
                         SubCallStmt(
-                            LeftExpr("response").get_subname("write")(
-                                EvalExpr("Hello, world!")
+                            ResponseExpr.from_left_expr(
+                                LeftExpr("response").get_subname("write")(
+                                    EvalExpr("Hello, world!")
+                                )
                             )
                         )
                     ],
@@ -92,8 +94,10 @@ from pyaspparsing.ast.ast_types.parser import Parser
                 ElseStmt(
                     [
                         SubCallStmt(
-                            LeftExpr("response").get_subname("write")(
-                                EvalExpr("Hello, world!")
+                            ResponseExpr.from_left_expr(
+                                LeftExpr("response").get_subname("write")(
+                                    EvalExpr("Hello, world!")
+                                )
                             )
                         )
                     ],

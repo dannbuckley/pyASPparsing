@@ -390,12 +390,16 @@ class Parser:
                 return EraseStmt.from_tokenizer(tkzr)
 
         # no leading keyword, try parsing a left expression
-        left_expr = ExpressionParser.parse_left_expr(tkzr)
+        # don't check for builtin types in case this is a subcall statement
+        left_expr = ExpressionParser.parse_left_expr(tkzr, check_for_builtin=False)
 
         # assign statement?
         if tkzr.try_consume(TokenType.SYMBOL, "="):
             assign_expr = ExpressionParser.parse_expr(tkzr)
-            return AssignStmt(left_expr, assign_expr)
+            return AssignStmt(
+                ExpressionParser.check_builtin_left_expr(left_expr, is_subcall=False),
+                assign_expr,
+            )
 
         # must be a subcall statement
         return SubCallStmt.from_tokenizer(
