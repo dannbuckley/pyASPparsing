@@ -189,7 +189,7 @@ def test_parse_call_stmt(codeblock: str, exp_left_expr: LeftExpr):
             # left_expr = <QualifiedID> <SubSafeExpr>
             'Response.Write "Hello, world!"',
             ResponseExpr.from_left_expr(
-                LeftExpr("response").get_subname("write")(EvalExpr("Hello, world!"))
+                LeftExpr("response").get_subname("write")(EvalExpr("Hello, world!")),
             ),
         ),
         (
@@ -277,7 +277,7 @@ def test_parse_subcall_stmt(
 ):
     with Tokenizer(f"<%{codeblock}%>", False) as tkzr:
         tkzr.advance_pos()
-        left_expr = ExpressionParser.parse_left_expr(tkzr)
+        left_expr = ExpressionParser.parse_left_expr(tkzr, check_for_builtin=False)
         subcall_stmt = SubCallStmt.from_tokenizer(tkzr, left_expr, TokenType.DELIM_END)
         assert subcall_stmt.left_expr == exp_left_expr
         tkzr.advance_pos()

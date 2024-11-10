@@ -30,7 +30,7 @@ from .expressions import (
     LeftExpr,
 )
 from .optimize import EvalExpr, FoldableExpr, AddNegated, MultReciprocal
-from .builtin_leftexpr import ResponseExpr
+from .builtin_leftexpr import ResponseExpr, RequestExpr, ServerExpr
 from .expression_evaluator import evaluate_expr
 
 
@@ -443,9 +443,19 @@ class ExpressionParser:
     def check_builtin_left_expr(
         left_expr: LeftExpr, *, is_subcall: bool = False
     ) -> LeftExpr:
+        """
+        Parameters
+        ----------
+        left_expr : LeftExpr
+        is_subcall : bool, default=False
+        """
         match left_expr.sym_name:
             case "response":
                 return ResponseExpr.from_left_expr(left_expr, is_subcall=is_subcall)
+            case "request":
+                return RequestExpr.from_left_expr(left_expr, is_subcall=is_subcall)
+            case "server":
+                return ServerExpr.from_left_expr(left_expr, is_subcall=is_subcall)
             case _:
                 return left_expr
 

@@ -125,7 +125,7 @@ class FieldDecl(FormatterMixin, GlobalStmt, MemberDecl):
         field_id = FieldID(tkzr.get_identifier_code())
         tkzr.advance_pos()  # consume identifier
 
-        int_literals: list[Token] = []
+        int_literals: list[int] = []
         if tkzr.try_consume(TokenType.SYMBOL, "("):
             find_int_literal = tkzr.try_multiple_token_type(
                 [
@@ -178,7 +178,7 @@ class FieldDecl(FormatterMixin, GlobalStmt, MemberDecl):
                         TokenType.LITERAL_OCT,
                     ]
                 )
-                int_literals: list[Token] = []
+                int_literals: list[int] = []
                 while find_int_literal:
                     if not tkzr.try_multiple_token_type(
                         [

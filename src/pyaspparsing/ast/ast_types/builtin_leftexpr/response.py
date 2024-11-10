@@ -1,25 +1,12 @@
 """AST types for Response left expressions"""
 
-from abc import ABCMeta, abstractmethod
 import re
 import attrs
 from ..expressions import LeftExpr
+from .base import ValidateBuiltinLeftExpr
 
 
-class ValidateResponse(metaclass=ABCMeta):
-    """
-    Methods
-    -------
-    validate_response_expr()
-    """
-
-    @abstractmethod
-    def validate_response_expr(self, is_subcall: bool = False):
-        """Validate the response expression structure after
-        initialization from an existing left expression object"""
-
-
-response_expr_types: dict[str, type[LeftExpr | ValidateResponse]] = {}
+response_expr_types: dict[str, type[LeftExpr | ValidateBuiltinLeftExpr]] = {}
 
 
 @attrs.define(repr=False, slots=False)
@@ -39,8 +26,8 @@ class ResponseExpr(LeftExpr):
         """Register response expression type under casefolded subname"""
         # validate subclass bases
         assert issubclass(cls, LeftExpr) and issubclass(
-            cls, ValidateResponse
-        ), "cls must be a subclass of both LeftExpr and ValidateResponse"
+            cls, ValidateBuiltinLeftExpr
+        ), "cls must be a subclass of both LeftExpr and ValidateBuiltinLeftExpr"
         # validate subclass name against pattern
         assert (
             cls_match := re.match(
@@ -50,10 +37,10 @@ class ResponseExpr(LeftExpr):
             "Subclass name does not match response expression class name pattern"
         )
         # abstract methods must be overriden
-        for abc_method in ValidateResponse.__abstractmethods__:
-            assert getattr(ValidateResponse, abc_method) != getattr(
+        for abc_method in ValidateBuiltinLeftExpr.__abstractmethods__:
+            assert getattr(ValidateBuiltinLeftExpr, abc_method) != getattr(
                 cls, abc_method
-            ), "Subclass must override abstract method(s) from ValidateResponse"
+            ), "Subclass must override abstract method(s) from ValidateBuiltinLeftExpr"
         # register response expression type
         response_expr_types[cls_match.groupdict()["subname"].casefold()] = cls
 
@@ -63,6 +50,7 @@ class ResponseExpr(LeftExpr):
         Parameters
         ----------
         left_expr : LeftExpr
+        is_subcall : bool, default=False
 
         Returns
         -------
@@ -84,7 +72,7 @@ class ResponseExpr(LeftExpr):
         for left_attr in LeftExpr.__attrs_attrs__:
             setattr(new_resp, left_attr.name, getattr(left_expr, left_attr.name))
         # ensure left expression matches response expression structure
-        new_resp.validate_response_expr(is_subcall)
+        new_resp.validate_builtin_expr(is_subcall)
         return new_resp
 
 
@@ -92,10 +80,10 @@ class ResponseExpr(LeftExpr):
 
 
 @attrs.define(repr=False, slots=False)
-class ResponseCookiesExpr(ResponseExpr, ValidateResponse):
+class ResponseCookiesExpr(ResponseExpr, ValidateBuiltinLeftExpr):
     """"""
 
-    def validate_response_expr(self, is_subcall: bool = False):
+    def validate_builtin_expr(self, is_subcall: bool = False):
         assert not is_subcall, "Response.Cookies cannot appear in a sub-call statement"
         # name
         assert (name := self.call_args.get(1, None)) is not None and len(name) == 1
@@ -113,12 +101,14 @@ class ResponseCookiesExpr(ResponseExpr, ValidateResponse):
     @property
     def cookie_name(self):
         """"""
-        return self.call_args[1]
+        return self.call_args[1][0]
 
     @property
     def cookie_key(self):
         """"""
-        return self.call_args.get(2, None)
+        if (key_args := self.call_args.get(2, None)) is not None:
+            return key_args[0]
+        return None
 
     @property
     def cookie_attribute(self):
@@ -130,169 +120,187 @@ class ResponseCookiesExpr(ResponseExpr, ValidateResponse):
 
 
 @attrs.define(repr=False, slots=False)
-class ResponseBufferExpr(ResponseExpr, ValidateResponse):
+class ResponseBufferExpr(ResponseExpr, ValidateBuiltinLeftExpr):
     """"""
 
-    def validate_response_expr(self, is_subcall: bool = False):
-        return
+    def validate_builtin_expr(self, is_subcall: bool = False):
+        assert self.end_idx == 1
 
 
 @attrs.define(repr=False, slots=False)
-class ResponseCacheControlExpr(ResponseExpr, ValidateResponse):
+class ResponseCacheControlExpr(ResponseExpr, ValidateBuiltinLeftExpr):
     """"""
 
-    def validate_response_expr(self, is_subcall: bool = False):
-        return
+    def validate_builtin_expr(self, is_subcall: bool = False):
+        assert self.end_idx == 1
 
 
 @attrs.define(repr=False, slots=False)
-class ResponseCharsetExpr(ResponseExpr, ValidateResponse):
+class ResponseCharsetExpr(ResponseExpr, ValidateBuiltinLeftExpr):
     """"""
 
-    def validate_response_expr(self, is_subcall: bool = False):
-        return
+    def validate_builtin_expr(self, is_subcall: bool = False):
+        assert self.end_idx == 1
 
 
 @attrs.define(repr=False, slots=False)
-class ResponseContentTypeExpr(ResponseExpr, ValidateResponse):
+class ResponseContentTypeExpr(ResponseExpr, ValidateBuiltinLeftExpr):
     """"""
 
-    def validate_response_expr(self, is_subcall: bool = False):
-        return
+    def validate_builtin_expr(self, is_subcall: bool = False):
+        assert self.end_idx == 1
 
 
 @attrs.define(repr=False, slots=False)
-class ResponseExpiresExpr(ResponseExpr, ValidateResponse):
+class ResponseExpiresExpr(ResponseExpr, ValidateBuiltinLeftExpr):
     """"""
 
-    def validate_response_expr(self, is_subcall: bool = False):
-        return
+    def validate_builtin_expr(self, is_subcall: bool = False):
+        assert self.end_idx == 1
 
 
 @attrs.define(repr=False, slots=False)
-class ResponseExpiresAbsoluteExpr(ResponseExpr, ValidateResponse):
+class ResponseExpiresAbsoluteExpr(ResponseExpr, ValidateBuiltinLeftExpr):
     """"""
 
-    def validate_response_expr(self, is_subcall: bool = False):
-        return
+    def validate_builtin_expr(self, is_subcall: bool = False):
+        assert self.end_idx == 1
 
 
 @attrs.define(repr=False, slots=False)
-class ResponseIsClientConnectedExpr(ResponseExpr, ValidateResponse):
+class ResponseIsClientConnectedExpr(ResponseExpr, ValidateBuiltinLeftExpr):
     """"""
 
-    def validate_response_expr(self, is_subcall: bool = False):
-        return
+    def validate_builtin_expr(self, is_subcall: bool = False):
+        assert self.end_idx == 1
 
 
 @attrs.define(repr=False, slots=False)
-class ResponsePicsExpr(ResponseExpr, ValidateResponse):
+class ResponsePICSExpr(ResponseExpr, ValidateBuiltinLeftExpr):
     """"""
 
-    def validate_response_expr(self, is_subcall: bool = False):
-        return
+    def validate_builtin_expr(self, is_subcall: bool = False):
+        assert self.call_args.get(1, None) is not None
+        assert self.end_idx == 2
 
 
 @attrs.define(repr=False, slots=False)
-class ResponseStatusExpr(ResponseExpr, ValidateResponse):
+class ResponseStatusExpr(ResponseExpr, ValidateBuiltinLeftExpr):
     """"""
 
-    def validate_response_expr(self, is_subcall: bool = False):
-        return
+    def validate_builtin_expr(self, is_subcall: bool = False):
+        assert not is_subcall and self.end_idx == 1
 
 
 # ===== METHODS =====
 
 
 @attrs.define(repr=False, slots=False)
-class ResponseAddHeaderExpr(ResponseExpr, ValidateResponse):
+class ResponseAddHeaderExpr(ResponseExpr, ValidateBuiltinLeftExpr):
     """"""
 
-    def validate_response_expr(self, is_subcall: bool = False):
-        return
+    def validate_builtin_expr(self, is_subcall: bool = False):
+        assert (cargs := self.call_args.get(1, None)) is not None and len(cargs) == 2
+        assert self.end_idx == 2
 
     @property
     def param_name(self):
         """"""
-        return
+        return self.call_args[1][0]
 
     @property
     def param_value(self):
         """"""
-        return
+        return self.call_args[1][1]
 
 
 @attrs.define(repr=False, slots=False)
-class ResponseAppendToLogExpr(ResponseExpr, ValidateResponse):
+class ResponseAppendToLogExpr(ResponseExpr, ValidateBuiltinLeftExpr):
     """"""
 
-    def validate_response_expr(self, is_subcall: bool = False):
-        return
+    def validate_builtin_expr(self, is_subcall: bool = False):
+        assert (cargs := self.call_args.get(1, None)) is not None and len(cargs) == 1
+        assert self.end_idx == 2
 
     @property
     def param_string(self):
         """"""
-        return
+        return self.call_args[1][0]
 
 
 @attrs.define(repr=False, slots=False)
-class ResponseBinaryWriteExpr(ResponseExpr, ValidateResponse):
+class ResponseBinaryWriteExpr(ResponseExpr, ValidateBuiltinLeftExpr):
     """"""
 
-    def validate_response_expr(self, is_subcall: bool = False):
-        return
+    def validate_builtin_expr(self, is_subcall: bool = False):
+        assert (cargs := self.call_args.get(1, None)) is not None and len(cargs) == 1
+        assert self.end_idx == 2
 
     @property
     def param_data(self):
         """"""
-        return
+        return self.call_args[1][0]
 
 
 @attrs.define(repr=False, slots=False)
-class ResponseClearExpr(ResponseExpr, ValidateResponse):
+class ResponseClearExpr(ResponseExpr, ValidateBuiltinLeftExpr):
     """"""
 
-    def validate_response_expr(self, is_subcall: bool = False):
-        return
+    def validate_builtin_expr(self, is_subcall: bool = False):
+        if (cargs := self.call_args.get(1, None)) is not None:
+            assert len(cargs) == 0
+            assert self.end_idx == 2
+        else:
+            assert self.end_idx == 1
 
 
 @attrs.define(repr=False, slots=False)
-class ResponseEndExpr(ResponseExpr, ValidateResponse):
+class ResponseEndExpr(ResponseExpr, ValidateBuiltinLeftExpr):
     """"""
 
-    def validate_response_expr(self, is_subcall: bool = False):
-        return
+    def validate_builtin_expr(self, is_subcall: bool = False):
+        if (cargs := self.call_args.get(1, None)) is not None:
+            assert len(cargs) == 0
+            assert self.end_idx == 2
+        else:
+            assert self.end_idx == 1
 
 
 @attrs.define(repr=False, slots=False)
-class ResponseFlushExpr(ResponseExpr, ValidateResponse):
+class ResponseFlushExpr(ResponseExpr, ValidateBuiltinLeftExpr):
     """"""
 
-    def validate_response_expr(self, is_subcall: bool = False):
-        return
+    def validate_builtin_expr(self, is_subcall: bool = False):
+        if (cargs := self.call_args.get(1, None)) is not None:
+            assert len(cargs) == 0
+            assert self.end_idx == 2
+        else:
+            assert self.end_idx == 1
 
 
 @attrs.define(repr=False, slots=False)
-class ResponseRedirectExpr(ResponseExpr, ValidateResponse):
+class ResponseRedirectExpr(ResponseExpr, ValidateBuiltinLeftExpr):
     """"""
 
-    def validate_response_expr(self, is_subcall: bool = False):
-        return
+    def validate_builtin_expr(self, is_subcall: bool = False):
+        assert (cargs := self.call_args.get(1, None)) is not None and len(cargs) == 1
+        assert self.end_idx == 2
 
     @property
     def param_url(self):
         """"""
-        return
+        return self.call_args[1][0]
 
 
 @attrs.define(repr=False, slots=False)
-class ResponseWriteExpr(ResponseExpr, ValidateResponse):
+class ResponseWriteExpr(ResponseExpr, ValidateBuiltinLeftExpr):
     """"""
 
-    def validate_response_expr(self, is_subcall: bool = False):
-        return
+    def validate_builtin_expr(self, is_subcall: bool = False):
+        assert (cargs := self.call_args.get(1, None)) is not None and len(cargs) == 1
+        assert self.end_idx == 2
 
     @property
     def param_variant(self):
         """"""
-        return
+        return self.call_args[1][0]

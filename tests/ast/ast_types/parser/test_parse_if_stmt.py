@@ -156,8 +156,8 @@ from pyaspparsing.ast.ast_types.parser import Parser
 def test_parse_if_stmt(
     codeblock: str,
     exp_if_expr: Expr,
-    exp_block_stmt_list: typing.List[BlockStmt],
-    exp_else_stmt_list: typing.List[ElseStmt],
+    exp_block_stmt_list: list[BlockStmt],
+    exp_else_stmt_list: list[ElseStmt],
 ):
     with Tokenizer(f"<%{codeblock}%>", False) as tkzr:
         tkzr.advance_pos()
