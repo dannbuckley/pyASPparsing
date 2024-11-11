@@ -239,10 +239,16 @@ class Tokenizer:
             )
         if tok is not None:
             tok_code = self.codeblock[tok.token_src]
+            if tok.token_type == TokenType.LITERAL_STRING:
+                # adjust escaped double quotes
+                tok_code = tok_code.replace('""', '"')
             return tok_code.casefold() if casefold else tok_code
         if self._pos_tok is None:
             raise RuntimeError("Tried to load code string for None token")
         tok_code = self.codeblock[self._pos_tok.token_src]
+        if self._pos_tok.token_type == TokenType.LITERAL_STRING:
+            # adjust escaped double quotes
+            tok_code = tok_code.replace('""', '"')
         return tok_code.casefold() if casefold else tok_code
 
     def get_identifier_code(

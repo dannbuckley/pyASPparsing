@@ -1,6 +1,6 @@
 """pyASPparsing"""
 
-__version__ = "2024.10"
+__version__ = "2024.11"
 
 
 class CodetoolError(Exception):

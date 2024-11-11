@@ -24,6 +24,8 @@ from .declarations import (
     PropertyDecl,
     ClassDecl,
 )
+from .expressions import LeftExpr, ConcatExpr
+from .optimize import EvalExpr
 from .statements import (
     ExtendedID,
     OptionExplicit,
@@ -51,7 +53,9 @@ from .special import (
     OutputType,
     OutputText,
 )
+from .builtin_leftexpr.response import ResponseExpr
 from .expression_parser import ExpressionParser
+from .expression_evaluator import evaluate_expr
 
 
 class Parser:
@@ -103,7 +107,7 @@ class Parser:
         -------
         OutputText
         """
-        chunks: list[Token] = []
+        chunks: list[str] = []
         directives: list[OutputDirective] = []
         stitch_order: list[tuple[OutputType, int]] = []
 
@@ -113,7 +117,7 @@ class Parser:
             if tkzr.try_token_type(TokenType.FILE_TEXT):
                 # reconstruction info for OutputText.stitch()
                 stitch_order.append((OutputType.OUTPUT_RAW, len(chunks)))
-                chunks.append(tkzr.current_token)
+                chunks.append(tkzr.get_token_code(False, tok=tkzr.current_token))
                 tkzr.advance_pos()  # consume raw text block
             else:
                 # <%= Expr %>
@@ -131,6 +135,69 @@ class Parser:
                     OutputDirective(slice(start_direc, end_direc), output_expr)
                 )
         return OutputText(chunks, directives, stitch_order=stitch_order)
+
+    @staticmethod
+    def reinterpret_output_block(output_text: OutputText) -> SubCallStmt:
+        """If an output text chunk occurs within a block,
+        reinterpret the `OutputText` object as a `Response.Write(...)` call
+
+        Parameters
+        ----------
+        output_text : OutputText
+
+        Returns
+        -------
+        SubCallStmt
+
+        Raises
+        ------
+        AssertionError
+        """
+        stitch_gen = output_text.stitch()
+        assert (first_out := next(stitch_gen, None)) is not None
+        # stitch the output block together into an EvalExpr or ConcatExpr
+        write_expr: Expr
+        match first_out[0]:
+            case OutputType.OUTPUT_RAW:
+                write_expr = EvalExpr(first_out[1])
+            case OutputType.OUTPUT_DIRECTIVE:
+                # assert for type inference
+                assert isinstance(first_out[1], OutputDirective)
+                write_expr = first_out[1].output_expr
+
+        def _concat_to_write(_next_write: Expr):
+            nonlocal write_expr
+            if isinstance(_next_write, EvalExpr):
+                # fold adjacant strings
+                if isinstance(write_expr, EvalExpr):
+                    write_expr = evaluate_expr(ConcatExpr(write_expr, _next_write))
+                    return
+                elif isinstance(write_expr, ConcatExpr) and isinstance(
+                    write_expr.right, EvalExpr
+                ):
+                    write_expr = ConcatExpr(
+                        write_expr.left,
+                        evaluate_expr(ConcatExpr(write_expr.left, _next_write)),
+                    )
+                    return
+            # cannot fold string expressions
+            write_expr = ConcatExpr(write_expr, _next_write)
+
+        while (next_out := next(stitch_gen, None)) is not None:
+            match next_out[0]:
+                case OutputType.OUTPUT_RAW:
+                    _concat_to_write(EvalExpr(next_out[1]))
+                case OutputType.OUTPUT_DIRECTIVE:
+                    # assert for type inference
+                    assert isinstance(next_out[1], OutputDirective)
+                    _concat_to_write(next_out[1].output_expr)
+        return SubCallStmt(
+            ResponseExpr.from_left_expr(
+                LeftExpr("response")
+                .get_subname("write")(write_expr)
+                .track_index_or_param()
+            )
+        )
 
     @staticmethod
     def parse_html_comment(tkzr: Tokenizer) -> Union[IncludeFile, OutputText]:
@@ -223,7 +290,16 @@ class Parser:
         tkzr.assert_consume(TokenType.DELIM_START_SCRIPT)
         if tkzr.try_token_type(TokenType.NEWLINE):
             tkzr.advance_pos()
-        return nonscript_stmts
+        return [
+            (
+                # reinterpet block OutputText occurrences as Response.Write(...) calls
+                Parser.reinterpret_output_block(stmt)
+                if isinstance(stmt, OutputText)
+                # return IncludeFile objects as-is
+                else stmt
+            )
+            for stmt in nonscript_stmts
+        ]
 
     @staticmethod
     def parse_global_stmt(tkzr: Tokenizer) -> GlobalStmt:

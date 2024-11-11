@@ -61,8 +61,8 @@ class RequestExpr(LeftExpr):
         ), "Symbol name of left expression must match 'request'"
         assert (
             left_expr.end_idx >= 1
-            and (subname := left_expr.subnames.get(0, None)) is not None
-        ), "First element of left expression must be a subname"
+        ), "Left expression must have more elements than just the symbol name"
+        subname = left_expr.subnames.get(0, "anonymous")
         assert (
             request_type := request_expr_types.get(subname, None)
         ) is not None, "No request expression types match subname"
@@ -74,6 +74,23 @@ class RequestExpr(LeftExpr):
         # ensure left expression matches request expression structure
         new_req.validate_builtin_expr(is_subcall)
         return new_req
+
+
+@attrs.define(repr=False, slots=False)
+class RequestAnonymousExpr(RequestExpr, ValidateBuiltinLeftExpr):
+    """Request expression that accesses a collection
+    without specifying the collection name: `Request(variable)`
+
+    The collections are searched in the following order:
+    1. QueryString
+    2. Form
+    3. Cookies
+    4. ClientCertificate
+    5. ServerVariables
+    """
+
+    def validate_builtin_expr(self, is_subcall=False):
+        assert not is_subcall
 
 
 # ===== COLLECTIONS =====

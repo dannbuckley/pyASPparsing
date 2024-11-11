@@ -3,8 +3,9 @@
 import enum
 from typing import Self, Generator, Union
 import attrs
+from attrs.validators import deep_iterable, instance_of
 from .base import FormatterMixin, Expr, GlobalStmt, BlockStmt
-from ..tokenizer.token_types import Token, TokenType
+from ..tokenizer.token_types import Token
 
 
 @attrs.define(repr=False, slots=False)
@@ -85,7 +86,7 @@ class OutputText(FormatterMixin, BlockStmt):
 
     Attributes
     ----------
-    chunks : List[slice], default=[]
+    chunks : List[str], default=[]
     directives : List[OutputDirective], default=[]
     stitch_order : List[Tuple[OutputType, int]], default=[]
 
@@ -97,23 +98,15 @@ class OutputText(FormatterMixin, BlockStmt):
         Reconstruct the correct output
     """
 
-    chunks: list[Token] = attrs.field(default=attrs.Factory(list))
+    chunks: list[str] = attrs.field(
+        default=attrs.Factory(list), validator=deep_iterable(instance_of(str))
+    )
     directives: list[OutputDirective] = attrs.field(default=attrs.Factory(list))
     # stitch_order defines how the output is to be reconstructed when evaluating code
     # this will match the order in which output elements are encountered
     stitch_order: list[tuple[OutputType, int]] = attrs.field(
         default=attrs.Factory(list), kw_only=True
     )
-
-    @chunks.validator
-    def _check_chunks(self, _, value: list[Token]):
-        try:
-            for chunk in value:
-                assert chunk.token_type == TokenType.FILE_TEXT
-        except AssertionError as ex:
-            raise ValueError(
-                "OutputText.chunks must be a list of FILE_TEXT Token objects"
-            ) from ex
 
     def __attrs_post_init__(self):
         chunks_len = len(self.chunks)
@@ -174,9 +167,7 @@ class OutputText(FormatterMixin, BlockStmt):
 
     def stitch(
         self,
-    ) -> Generator[
-        tuple[OutputType, Union[Token, OutputDirective]], None, None
-    ]:
+    ) -> Generator[tuple[OutputType, Union[str, OutputDirective]], None, None]:
         """Stitch the output text block together in the order it was originally specified
 
         Yields

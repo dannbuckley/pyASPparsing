@@ -5,6 +5,19 @@ from pyaspparsing.ast.ast_types.expression_parser import ExpressionParser
 from pyaspparsing.ast.tokenizer.state_machine import Tokenizer
 
 
+def test_request_anonymous():
+    with Tokenizer('<%=Request("whereami")%>', False) as tkzr:
+        tkzr.advance_pos()
+        req_expr = ExpressionParser.parse_left_expr(tkzr)
+        tkzr.advance_pos()
+        assert isinstance(req_expr, RequestAnonymousExpr)
+        assert (
+            len(req_expr.call_args) == 1
+            and len(req_expr.call_args[0]) == 1
+            and req_expr.call_args[0][0] == EvalExpr("whereami")
+        )
+
+
 @pytest.mark.parametrize(
     "exp_code,cert_key",
     [

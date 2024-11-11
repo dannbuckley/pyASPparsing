@@ -6,13 +6,13 @@ from pyaspparsing.ast.ast_types.program import Program
 
 
 def test_parse_output_text():
-    with Tokenizer("Written directly <%= variable %> to Response") as tkzr:
+    with Tokenizer("Written directly <%= variable %> to Response", False) as tkzr:
         prog = Program.from_tokenizer(tkzr)
         output_text = prog.global_stmt_list[0]
         assert isinstance(output_text, OutputText)
         assert len(output_text.chunks) == 2
-        assert output_text.chunks[0] == Token.file_text(0, 17)
-        assert output_text.chunks[1] == Token.file_text(32, 44)
+        assert output_text.chunks[0] == "Written directly "
+        assert output_text.chunks[1] == " to Response"
         assert len(output_text.directives) == 1
         assert output_text.directives[0] == OutputDirective(
             slice(17, 32), LeftExpr("variable")
