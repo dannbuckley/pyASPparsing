@@ -177,7 +177,7 @@ class Parser:
                 ):
                     write_expr = ConcatExpr(
                         write_expr.left,
-                        evaluate_expr(ConcatExpr(write_expr.left, _next_write)),
+                        evaluate_expr(ConcatExpr(write_expr.right, _next_write)),
                     )
                     return
             # cannot fold string expressions
@@ -242,7 +242,14 @@ class Parser:
         cmnt_end = tkzr.current_token
         tkzr.advance_pos()
         return OutputText(
-            [Token.file_text(cmnt_start.token_src.start, cmnt_end.token_src.stop)],
+            [
+                tkzr.get_token_code(
+                    False,
+                    tok=Token.file_text(
+                        cmnt_start.token_src.start, cmnt_end.token_src.stop
+                    ),
+                )
+            ],
             stitch_order=[(OutputType.OUTPUT_RAW, 0)],
         )
 

@@ -3,7 +3,7 @@
 from collections.abc import Callable
 from functools import partial
 import re
-from ..function import Function
+from ..function import ASPFunction
 
 
 def make_builtin_function(func: Callable):
@@ -27,5 +27,5 @@ def make_builtin_function(func: Callable):
         match_name is not None
     ), "Builtin function must match r'builtin_([a-z]+)' pattern"
     return partial(
-        Function, symbol_name=match_name.groupdict()["vbscript_name"], func=func
+        ASPFunction, symbol_name=match_name.groupdict()["vbscript_name"], func=func
     )

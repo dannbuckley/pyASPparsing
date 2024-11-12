@@ -9,7 +9,10 @@ import networkx as nx
 class ScopeType(enum.Enum):
     """Enumeration of valid scope types"""
 
-    SCOPE_SCRIPT = enum.auto()
+    # built-in ASP objects and functions
+    SCOPE_SCRIPT_BUILTIN = enum.auto()
+    # user-defined objects and functions
+    SCOPE_SCRIPT_USER = enum.auto()
     SCOPE_CLASS = enum.auto()
     SCOPE_SUB = enum.auto()
     SCOPE_FUNCTION = enum.auto()
@@ -34,8 +37,8 @@ class ScopeManager:
     _curr_scope_id: int = attrs.field(default=-1, repr=False, init=False)
 
     def __attrs_post_init__(self):
-        # script scope will always be at ID 0 (zero)
-        self.enter_scope(ScopeType.SCOPE_SCRIPT)
+        # top-level script scope will always be at ID 0 (zero)
+        self.enter_scope(ScopeType.SCOPE_SCRIPT_BUILTIN)
 
     @property
     def current_scope(self) -> int:
@@ -53,7 +56,13 @@ class ScopeManager:
 
     @property
     def current_environment(self) -> list[int]:
-        """"""
+        """Get all scopes visible to the current scope
+        (including the current scope)
+
+        Returns
+        -------
+        list[int]
+        """
         return self.get_scope_environment(self.current_scope)
 
     def enter_scope(self, scope_type: ScopeType):

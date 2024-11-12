@@ -8,6 +8,7 @@ from ...ast.ast_types.declarations import VarName
 from ...ast.ast_types.expressions import LeftExpr
 from ...ast.ast_types.optimize import EvalExpr
 from ...ast.ast_types.statements import AssignStmt
+from ...ast.ast_types.builtin_leftexpr import ResponseExpr, RequestExpr, ServerExpr
 
 
 @attrs.define(repr=False, slots=False)
@@ -22,6 +23,14 @@ class Symbol:
 
     def __repr__(self):
         return f"<{self.__class__.__name__} {repr(self.symbol_name)}>"
+
+
+@attrs.define(repr=False, slots=False)
+class UnresolvedExternalSymbol(Symbol):
+    """Symbol type for names used in function or sub declarations
+
+    If the name is not yet defined, use this as a placeholder
+    """
 
 
 @attrs.define(repr=False, slots=False)
@@ -127,6 +136,8 @@ class ASPObject(Symbol):
                 left_expr, LeftExpr
             ), f"left_expr must be a valid left expression, got {repr(type(left_expr))}"
             assert left_expr.end_idx >= 1, "left_expr cannot contain only symbol name"
+            if isinstance(left_expr, (ResponseExpr, RequestExpr, ServerExpr)):
+                return self.__getattribute__("handle_builtin_left_expr")(left_expr)
             idx = 0
             ret_obj = self
             while idx < left_expr.end_idx:

@@ -82,6 +82,8 @@ class CodegenState:
         self.add_symbol(Server())
         for blt in filter(lambda x: x.find("builtin_", 0, 8) == 0, dir(vb_blt)):
             self.add_symbol(getattr(vb_blt, blt)())
+        # all script data should be handled in a separate "user" scope
+        self.scope_mgr.enter_scope(ScopeType.SCOPE_SCRIPT_USER)
 
     @property
     def in_script_block(self) -> bool:
@@ -332,6 +334,19 @@ def cg_for_stmt(stmt: ForStmt, cg_state: CodegenState) -> Any:
 def cg_assign_stmt(stmt: AssignStmt, cg_state: CodegenState) -> Any:
     """"""
     print("Assign statement", file=cg_state.script_file)
+    curr_env = cg_state.scope_mgr.current_environment
+    scp_types = set(
+        map(
+            lambda x: cg_state.scope_mgr.scope_registry.nodes[x]["scope_type"], curr_env
+        )
+    )
+    cg_state.sym_table.assign(
+        stmt,
+        curr_env,
+        function_sub_body=(
+            ScopeType.SCOPE_FUNCTION in scp_types or ScopeType.SCOPE_SUB in scp_types
+        ),
+    )
 
 
 @create_global_cg_func(CallStmt)
@@ -344,6 +359,19 @@ def cg_call_stmt(stmt: CallStmt, cg_state: CodegenState) -> Any:
 def cg_sub_call_stmt(stmt: SubCallStmt, cg_state: CodegenState) -> Any:
     """"""
     print("Sub-call statement", file=cg_state.script_file)
+    curr_env = cg_state.scope_mgr.current_environment
+    scp_types = set(
+        map(
+            lambda x: cg_state.scope_mgr.scope_registry.nodes[x]["scope_type"], curr_env
+        )
+    )
+    cg_state.sym_table.call(
+        stmt.left_expr,
+        curr_env,
+        function_sub_body=(
+            ScopeType.SCOPE_FUNCTION in scp_types or ScopeType.SCOPE_SUB in scp_types
+        ),
+    )
 
 
 @create_global_cg_func(ErrorStmt)

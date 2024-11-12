@@ -7,7 +7,7 @@ from ..symbol import Symbol
 
 
 @attrs.define(repr=False, slots=False)
-class Function(Symbol):
+class ASPFunction(Symbol):
     """
     Attributes
     ----------
