@@ -52,8 +52,8 @@ class IncludeFile(FormatterMixin, BlockStmt):
     include_path : Token
     """
 
-    include_type: IncludeType
-    include_path: Token
+    include_type: IncludeType = attrs.field(validator=instance_of(IncludeType))
+    include_path: str = attrs.field(validator=instance_of(str))
 
 
 @attrs.define(repr=False, slots=False)

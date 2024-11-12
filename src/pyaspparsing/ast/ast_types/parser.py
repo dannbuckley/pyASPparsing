@@ -231,7 +231,7 @@ class Parser:
             tkzr.assert_consume(TokenType.SYMBOL, "=")  # consume '='
             # get include path
             assert tkzr.try_token_type(TokenType.INCLUDE_PATH)
-            inc_path = tkzr.current_token
+            inc_path = tkzr.get_token_code(False, tok=tkzr.current_token)
             tkzr.advance_pos()
             # should be at the end of the HTML comment
             tkzr.assert_consume(TokenType.HTML_END_COMMENT)

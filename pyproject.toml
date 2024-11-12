@@ -5,7 +5,7 @@ build-backend = "setuptools.build_meta"
 [project]
 name = "pyaspparsing"
 dynamic = ["version"]
-dependencies = ["attrs", "Jinja2"]
+dependencies = ["attrs", "Jinja2", "networkx"]
 authors = [{ name = "Daniel N. Buckley", email = "dbuckley@mtech.edu" }]
 requires-python = ">=3.12"
 

@@ -101,7 +101,7 @@ def generate_linked_program(
             and stmt.include_type == IncludeType.INCLUDE_VIRTUAL
         ):
             # make path from token source (ignore quotes on ends)
-            inc_path = Path(tkzr.get_token_code(False, tok=stmt.include_path)[1:-1])
+            inc_path = Path(stmt.include_path[1:-1])
             if (inc_prog := lnk.request(inc_path)) is not None:
                 # replace IncludeFile with parsed include program
                 yield from inc_prog.global_stmt_list

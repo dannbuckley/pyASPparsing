@@ -1,11 +1,14 @@
 """Code generator state functions"""
 
 from collections.abc import Callable
+import enum
 from functools import wraps
 import sys
 from typing import Optional, Any, IO
 import attrs
+from attrs.validators import deep_iterable, instance_of
 from jinja2 import Environment
+import networkx as nx
 from ..ast.ast_types import (
     GlobalStmt,
     # special constructs
@@ -35,16 +38,36 @@ from ..ast.ast_types import (
     ExitStmt,
     EraseStmt,
 )
+from .scope import ScopeType, ScopeManager
 
 
 @attrs.define
 class CodegenState:
-    """"""
+    """
+    Attributes
+    ----------
+    jinja_env : jinja2.Environment
+    script_file : IO
+    template_file : IO
+    error_file : IO
+    in_script_block : bool
+    current_script_block : str | None
+
+    Methods
+    -------
+    start_script_block()
+        Create a new script output block
+    end_script_block()
+        End the current script output block
+    """
 
     jinja_env: Environment
     script_file: IO
     template_file: IO
     error_file: IO = attrs.field(default=sys.stderr)
+    scope_mgr: ScopeManager = attrs.field(
+        default=attrs.Factory(ScopeManager), init=False
+    )
     _in_script_block: bool = attrs.field(default=False, repr=False, init=False)
     _script_blocks: list[str] = attrs.field(
         default=attrs.Factory(list), repr=False, init=False
@@ -75,7 +98,7 @@ class CodegenState:
         return self._script_blocks[-1]
 
     def start_script_block(self):
-        """"""
+        """Create a new script output block"""
         assert not self._in_script_block
         self._in_script_block = True
         self._script_blocks.append(f"__script_block_{len(self._script_blocks)}")
@@ -88,7 +111,7 @@ class CodegenState:
         print(f"\nSTART {self.current_script_block}", file=self.script_file)
 
     def end_script_block(self):
-        """"""
+        """End the current script output block"""
         assert self._in_script_block and self.current_script_block is not None
         self._in_script_block = False
         print(f"END {self.current_script_block}", file=self.script_file)
@@ -123,7 +146,9 @@ def codegen_global_stmt(
     return reg_stmt_cg[type(stmt)](stmt, cg_state)
 
 
-def create_global_cg_func(stmt_type: type[GlobalStmt]):
+def create_global_cg_func(
+    stmt_type: type[GlobalStmt], *, enters_scope: Optional[ScopeType] = None
+):
     """
     Parameters
     ----------
@@ -136,7 +161,12 @@ def create_global_cg_func(stmt_type: type[GlobalStmt]):
     def wrap_func(func: Callable[[GlobalStmt], Any]):
         @wraps(func)
         def perform_cg(stmt: GlobalStmt, cg_state: CodegenState):
-            return func(stmt, cg_state)
+            if enters_scope is None:
+                return func(stmt, cg_state)
+            cg_state.scope_mgr.enter_scope(enters_scope)
+            ret = func(stmt, cg_state)
+            cg_state.scope_mgr.exit_scope()
+            return ret
 
         reg_stmt_cg[stmt_type] = perform_cg
         return perform_cg
@@ -153,7 +183,7 @@ def cg_processing_directive(stmt: ProcessingDirective, cg_state: CodegenState) -
 @create_global_cg_func(IncludeFile)
 def cg_include_file(stmt: IncludeFile, cg_state: CodegenState) -> Any:
     """"""
-    print("Unresolved include", file=cg_state.error_file)
+    print(f"Unresolved include: {stmt.include_path}", file=cg_state.error_file)
 
 
 @create_global_cg_func(OutputText)
@@ -169,7 +199,7 @@ def cg_option_explicit(stmt: OptionExplicit, cg_state: CodegenState) -> Any:
     print("Option Explicit", file=cg_state.script_file)
 
 
-@create_global_cg_func(ClassDecl)
+@create_global_cg_func(ClassDecl, enters_scope=ScopeType.SCOPE_CLASS)
 def cg_class_decl(stmt: ClassDecl, cg_state: CodegenState) -> Any:
     """"""
     print("Class declaration", file=cg_state.script_file)
@@ -187,18 +217,22 @@ def cg_const_decl(stmt: ConstDecl, cg_state: CodegenState) -> Any:
     print("Constant declaration", file=cg_state.script_file)
 
 
-@create_global_cg_func(SubDecl)
+@create_global_cg_func(SubDecl, enters_scope=ScopeType.SCOPE_SUB)
 def cg_sub_decl(stmt: SubDecl, cg_state: CodegenState) -> Any:
     """"""
     # map(codegen_global_stmt, stmt.method_stmt_list)
     print("Sub declaration", file=cg_state.script_file)
+    for method_stmt in stmt.method_stmt_list:
+        codegen_global_stmt(method_stmt, cg_state)
 
 
-@create_global_cg_func(FunctionDecl)
+@create_global_cg_func(FunctionDecl, enters_scope=ScopeType.SCOPE_FUNCTION)
 def cg_function_decl(stmt: FunctionDecl, cg_state: CodegenState) -> Any:
     """"""
     # map(codegen_global_stmt, stmt.method_stmt_list)
     print("Function declaration", file=cg_state.script_file)
+    for method_stmt in stmt.method_stmt_list:
+        codegen_global_stmt(method_stmt, cg_state)
 
 
 @create_global_cg_func(VarDecl)
@@ -213,7 +247,7 @@ def cg_redim_stmt(stmt: RedimStmt, cg_state: CodegenState) -> Any:
     print("Redim statement", file=cg_state.script_file)
 
 
-@create_global_cg_func(IfStmt)
+@create_global_cg_func(IfStmt, enters_scope=ScopeType.SCOPE_IF)
 def cg_if_stmt(stmt: IfStmt, cg_state: CodegenState) -> Any:
     """"""
     # map(codegen_global_stmt, stmt.block_stmt_list)
@@ -221,16 +255,23 @@ def cg_if_stmt(stmt: IfStmt, cg_state: CodegenState) -> Any:
     #     map(codegen_global_stmt, else_ast.stmt_list) for else_ast in stmt.else_stmt_list
     # ]
     print("If statement", file=cg_state.script_file)
+    for block_stmt in stmt.block_stmt_list:
+        codegen_global_stmt(block_stmt, cg_state)
+    for else_stmt in stmt.else_stmt_list:
+        for else_block_stmt in else_stmt.stmt_list:
+            codegen_global_stmt(else_block_stmt, cg_state)
 
 
-@create_global_cg_func(WithStmt)
+@create_global_cg_func(WithStmt, enters_scope=ScopeType.SCOPE_WITH)
 def cg_with_stmt(stmt: WithStmt, cg_state: CodegenState) -> Any:
     """"""
     # map(codegen_global_stmt, stmt.block_stmt_list)
     print("With statement", file=cg_state.script_file)
+    for block_stmt in stmt.block_stmt_list:
+        codegen_global_stmt(block_stmt, cg_state)
 
 
-@create_global_cg_func(SelectStmt)
+@create_global_cg_func(SelectStmt, enters_scope=ScopeType.SCOPE_SELECT)
 def cg_select_stmt(stmt: SelectStmt, cg_state: CodegenState) -> Any:
     """"""
     # case_cg = [
@@ -238,20 +279,27 @@ def cg_select_stmt(stmt: SelectStmt, cg_state: CodegenState) -> Any:
     #     for case_stmt in stmt.case_stmt_list
     # ]
     print("Select statement", file=cg_state.script_file)
+    for case_stmt in stmt.case_stmt_list:
+        for case_block_stmt in case_stmt.block_stmt_list:
+            codegen_global_stmt(case_block_stmt, cg_state)
 
 
-@create_global_cg_func(LoopStmt)
+@create_global_cg_func(LoopStmt, enters_scope=ScopeType.SCOPE_LOOP)
 def cg_loop_stmt(stmt: LoopStmt, cg_state: CodegenState) -> Any:
     """"""
     # map(codegen_global_stmt, stmt.block_stmt_list)
     print("Loop statement", file=cg_state.script_file)
+    for block_stmt in stmt.block_stmt_list:
+        codegen_global_stmt(block_stmt, cg_state)
 
 
-@create_global_cg_func(ForStmt)
+@create_global_cg_func(ForStmt, enters_scope=ScopeType.SCOPE_FOR)
 def cg_for_stmt(stmt: ForStmt, cg_state: CodegenState) -> Any:
     """"""
     # map(codegen_global_stmt, stmt.block_stmt_list)
     print("For statement", file=cg_state.script_file)
+    for block_stmt in stmt.block_stmt_list:
+        codegen_global_stmt(block_stmt, cg_state)
 
 
 @create_global_cg_func(AssignStmt)
