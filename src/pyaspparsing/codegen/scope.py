@@ -51,6 +51,11 @@ class ScopeManager:
         assert len(self.scope_stack) > 0
         return self.scope_stack[-1]
 
+    @property
+    def current_environment(self) -> list[int]:
+        """"""
+        return self.get_scope_environment(self.current_scope)
+
     def enter_scope(self, scope_type: ScopeType):
         """Enter into a narrower scope and push it onto the stack
 

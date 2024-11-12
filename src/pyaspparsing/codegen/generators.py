@@ -1,14 +1,11 @@
 """Code generator state functions"""
 
 from collections.abc import Callable
-import enum
 from functools import wraps
 import sys
 from typing import Optional, Any, IO
 import attrs
-from attrs.validators import deep_iterable, instance_of
 from jinja2 import Environment
-import networkx as nx
 from ..ast.ast_types import (
     GlobalStmt,
     # special constructs
@@ -39,6 +36,10 @@ from ..ast.ast_types import (
     EraseStmt,
 )
 from .scope import ScopeType, ScopeManager
+from .symbols import ValueSymbol, ArraySymbol, Response, Request, Server
+from .symbols.symbol import Symbol
+from .symbols.symbol_table import SymbolTable
+from .symbols.functions import vbscript_builtin as vb_blt
 
 
 @attrs.define
@@ -68,10 +69,19 @@ class CodegenState:
     scope_mgr: ScopeManager = attrs.field(
         default=attrs.Factory(ScopeManager), init=False
     )
+    sym_table: SymbolTable = attrs.field(default=attrs.Factory(SymbolTable), init=False)
     _in_script_block: bool = attrs.field(default=False, repr=False, init=False)
     _script_blocks: list[str] = attrs.field(
         default=attrs.Factory(list), repr=False, init=False
     )
+
+    def __attrs_post_init__(self):
+        # initialize script scope with built-in symbols
+        self.add_symbol(Response())
+        self.add_symbol(Request())
+        self.add_symbol(Server())
+        for blt in filter(lambda x: x.find("builtin_", 0, 8) == 0, dir(vb_blt)):
+            self.add_symbol(getattr(vb_blt, blt)())
 
     @property
     def in_script_block(self) -> bool:
@@ -96,6 +106,15 @@ class CodegenState:
         if len(self._script_blocks) == 0:
             return None
         return self._script_blocks[-1]
+
+    def add_symbol(self, symbol: Symbol) -> bool:
+        """Add a new symbol to the symbol table under the current scope
+
+        Returns
+        -------
+        bool
+        """
+        return self.sym_table.add_symbol(symbol, self.scope_mgr.current_scope)
 
     def start_script_block(self):
         """Create a new script output block"""
@@ -197,6 +216,7 @@ def cg_output_text(stmt: OutputText, cg_state: CodegenState) -> Any:
 def cg_option_explicit(stmt: OptionExplicit, cg_state: CodegenState) -> Any:
     """"""
     print("Option Explicit", file=cg_state.script_file)
+    cg_state.sym_table.set_explicit()
 
 
 @create_global_cg_func(ClassDecl, enters_scope=ScopeType.SCOPE_CLASS)
@@ -239,6 +259,12 @@ def cg_function_decl(stmt: FunctionDecl, cg_state: CodegenState) -> Any:
 def cg_var_decl(stmt: VarDecl, cg_state: CodegenState) -> Any:
     """"""
     print("Variable declaration", file=cg_state.script_file)
+    for var_name in stmt.var_name:
+        cg_state.add_symbol(
+            ValueSymbol.from_var_name(var_name)
+            if len(var_name.array_rank_list) == 0
+            else ArraySymbol.from_var_name(var_name)
+        )
 
 
 @create_global_cg_func(RedimStmt)
