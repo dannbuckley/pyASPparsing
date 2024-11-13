@@ -225,10 +225,13 @@ class SymbolTable:
                     if isinstance(right_sym, ValueSymbol) and isinstance(
                         right_sym.value, ASPObject
                     ):
+                        # object created in script
                         right_expr = scp_sym[right_expr.sym_name].value(right_expr)
                     elif isinstance(right_sym, ASPObject):
+                        # builtin object
                         right_expr = scp_sym[right_expr.sym_name](right_expr)
                     elif isinstance(right_sym, ASPFunction):
+                        # builtin function
                         assert (
                             right_args := right_expr.call_args.get(0, None)
                         ) is not None, (
@@ -287,10 +290,12 @@ class SymbolTable:
                 call_sym := scp_sym.sym_table.get(left_expr.sym_name, None)
             ) is not None:
                 if isinstance(call_sym, ASPObject):
+                    # builtin object
                     call_sym(left_expr)
                 elif isinstance(call_sym, ValueSymbol) and isinstance(
                     call_sym.value, ASPObject
                 ):
+                    # object created in script
                     call_sym.value(left_expr)
                 elif isinstance(call_sym, ASPFunction):
                     # TODO: symbol is a function?

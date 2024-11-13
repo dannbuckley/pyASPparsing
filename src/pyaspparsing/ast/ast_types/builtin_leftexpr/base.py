@@ -13,4 +13,10 @@ class ValidateBuiltinLeftExpr(metaclass=ABCMeta):
     @abstractmethod
     def validate_builtin_expr(self, is_subcall: bool = False):
         """Validate the response expression structure after
-        initialization from an existing left expression object"""
+        initialization from an existing left expression object
+
+        Parameters
+        ----------
+        is_subcall : bool, default=False
+            True if this expression occurs in a SubCallStmt
+        """

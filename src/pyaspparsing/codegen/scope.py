@@ -75,6 +75,7 @@ class ScopeManager:
         self._curr_scope_id += 1
         self.scope_registry.add_node(self._curr_scope_id, scope_type=scope_type)
         if len(self.scope_stack) > 0:
+            # link to enclosing scope
             self.scope_registry.add_edge(self.scope_stack[-1], self._curr_scope_id)
         self.scope_stack.append(self._curr_scope_id)
 

@@ -98,7 +98,7 @@ class RequestAnonymousExpr(RequestExpr, ValidateBuiltinLeftExpr):
 
 @attrs.define(repr=False, slots=False)
 class RequestClientCertificateExpr(RequestExpr, ValidateBuiltinLeftExpr):
-    """"""
+    """Request.ClientCertificate collection"""
 
     def validate_builtin_expr(self, is_subcall=False):
         assert not is_subcall
@@ -111,7 +111,11 @@ class RequestClientCertificateExpr(RequestExpr, ValidateBuiltinLeftExpr):
 
     @property
     def cert_key(self):
-        """"""
+        """
+        Returns
+        -------
+        First call argument
+        """
         if (key_args := self.call_args.get(1, None)) is not None:
             return key_args[0]
         return None
@@ -119,7 +123,7 @@ class RequestClientCertificateExpr(RequestExpr, ValidateBuiltinLeftExpr):
 
 @attrs.define(repr=False, slots=False)
 class RequestCookiesExpr(RequestExpr, ValidateBuiltinLeftExpr):
-    """"""
+    """Request.Cookies collection"""
 
     def validate_builtin_expr(self, is_subcall=False):
         assert not is_subcall
@@ -135,25 +139,37 @@ class RequestCookiesExpr(RequestExpr, ValidateBuiltinLeftExpr):
 
     @property
     def cookie_name(self):
-        """"""
+        """
+        Returns
+        -------
+        First call argument
+        """
         return self.call_args[1][0]
 
     @property
     def cookie_key(self):
-        """"""
+        """
+        Returns
+        -------
+        Second call argument (if available)
+        """
         if (key_args := self.call_args.get(2, None)) is not None:
             return key_args[0]
         return None
 
     @property
     def cookie_attribute(self):
-        """"""
+        """
+        Returns
+        -------
+        Cookie attribute if available (last subname after call argument)
+        """
         return self.subnames.get(2, None)
 
 
 @attrs.define(repr=False, slots=False)
 class RequestFormExpr(RequestExpr, ValidateBuiltinLeftExpr):
-    """"""
+    """Request.Form collection"""
 
     def validate_builtin_expr(self, is_subcall=False):
         assert not is_subcall
@@ -171,25 +187,37 @@ class RequestFormExpr(RequestExpr, ValidateBuiltinLeftExpr):
 
     @property
     def element(self):
-        """"""
+        """
+        Returns
+        -------
+        First call argument
+        """
         return self.call_args[1][0]
 
     @property
     def index(self):
-        """"""
+        """
+        Returns
+        -------
+        Second call argument (if available)
+        """
         if (index_args := self.call_args.get(2, None)) is not None:
             return index_args[0]
         return None
 
     @property
     def has_count(self) -> bool:
-        """"""
+        """
+        Returns
+        -------
+        True if expression has `Count` subname
+        """
         return self.subnames.get(2, None) == "count"
 
 
 @attrs.define(repr=False, slots=False)
 class RequestQueryStringExpr(RequestExpr, ValidateBuiltinLeftExpr):
-    """"""
+    """Request.QueryString collection"""
 
     def validate_builtin_expr(self, is_subcall=False):
         assert not is_subcall
@@ -207,25 +235,37 @@ class RequestQueryStringExpr(RequestExpr, ValidateBuiltinLeftExpr):
 
     @property
     def variable(self):
-        """"""
+        """
+        Returns
+        -------
+        First call argument
+        """
         return self.call_args[1][0]
 
     @property
     def index(self):
-        """"""
+        """
+        Returns
+        -------
+        Second call argument (if available)
+        """
         if (index_args := self.call_args.get(2, None)) is not None:
             return index_args[0]
         return None
 
     @property
     def has_count(self) -> bool:
-        """"""
+        """
+        Returns
+        -------
+        True if expression has `Count` subname
+        """
         return self.subnames.get(2, None) == "count"
 
 
 @attrs.define(repr=False, slots=False)
 class RequestServerVariablesExpr(RequestExpr, ValidateBuiltinLeftExpr):
-    """"""
+    """Request.ServerVariables collection"""
 
     def validate_builtin_expr(self, is_subcall=False):
         assert not is_subcall
@@ -238,7 +278,11 @@ class RequestServerVariablesExpr(RequestExpr, ValidateBuiltinLeftExpr):
 
     @property
     def server_variable(self):
-        """"""
+        """
+        Returns
+        -------
+        First call argument (if available)
+        """
         if (variable := self.call_args.get(1, None)) is not None:
             return variable[0]
         return None
@@ -249,7 +293,7 @@ class RequestServerVariablesExpr(RequestExpr, ValidateBuiltinLeftExpr):
 
 @attrs.define(repr=False, slots=False)
 class RequestTotalBytesExpr(RequestExpr, ValidateBuiltinLeftExpr):
-    """"""
+    """Request.TotalBytes property"""
 
     def validate_builtin_expr(self, is_subcall=False):
         assert self.end_idx == 1
@@ -260,7 +304,7 @@ class RequestTotalBytesExpr(RequestExpr, ValidateBuiltinLeftExpr):
 
 @attrs.define(repr=False, slots=False)
 class RequestBinaryReadExpr(RequestExpr, ValidateBuiltinLeftExpr):
-    """"""
+    """Request.BinaryRead method"""
 
     def validate_builtin_expr(self, is_subcall=False):
         assert (count := self.call_args.get(1, None)) is not None and len(count) == 1
@@ -268,5 +312,9 @@ class RequestBinaryReadExpr(RequestExpr, ValidateBuiltinLeftExpr):
 
     @property
     def param_count(self):
-        """"""
+        """
+        Returns
+        -------
+        First call argument
+        """
         return self.call_args[1][0]

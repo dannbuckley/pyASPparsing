@@ -197,51 +197,99 @@ def create_global_cg_func(
 
 @create_global_cg_func(ProcessingDirective)
 def cg_processing_directive(stmt: ProcessingDirective, cg_state: CodegenState) -> Any:
-    """"""
+    """Code generator for processing directive
+
+    Parameters
+    ----------
+    stmt : ProcessingDirective
+    cg_state : CodegenState
+    """
     print("Processing directive", file=cg_state.script_file)
 
 
 @create_global_cg_func(IncludeFile)
 def cg_include_file(stmt: IncludeFile, cg_state: CodegenState) -> Any:
-    """"""
+    """Handler for (unresolved) includes
+
+    Parameters
+    ----------
+    stmt : IncludeFile
+    cg_state : CodegenState
+    """
     print(f"Unresolved include: {stmt.include_path}", file=cg_state.error_file)
 
 
 @create_global_cg_func(OutputText)
 def cg_output_text(stmt: OutputText, cg_state: CodegenState) -> Any:
-    """"""
+    """Code generator for output text
+
+    Parameters
+    ----------
+    stmt : OutputText
+    cg_state : CodegenState
+    """
     if not (all(map(lambda x: x.isspace(), stmt.chunks)) and len(stmt.directives) == 0):
         print("Output text", file=cg_state.template_file)
 
 
 @create_global_cg_func(OptionExplicit)
 def cg_option_explicit(stmt: OptionExplicit, cg_state: CodegenState) -> Any:
-    """"""
+    """Handler for Option Explicit statement
+
+    Parameters
+    ----------
+    stmt : OptionExplicit
+    cg_state : CodegenState
+    """
     print("Option Explicit", file=cg_state.script_file)
     cg_state.sym_table.set_explicit()
 
 
 @create_global_cg_func(ClassDecl, enters_scope=ScopeType.SCOPE_CLASS)
 def cg_class_decl(stmt: ClassDecl, cg_state: CodegenState) -> Any:
-    """"""
+    """Code generator for class declaration
+
+    Parameters
+    ----------
+    stmt : ClassDecl
+    cg_state : CodegenState
+    """
     print("Class declaration", file=cg_state.script_file)
 
 
 @create_global_cg_func(FieldDecl)
 def cg_field_decl(stmt: FieldDecl, cg_state: CodegenState) -> Any:
-    """"""
+    """Code generator for field declaration
+
+    Parameters
+    ----------
+    stmt : FieldDecl
+    cg_state : CodegenState
+    """
     print("Field declaration", file=cg_state.script_file)
 
 
 @create_global_cg_func(ConstDecl)
 def cg_const_decl(stmt: ConstDecl, cg_state: CodegenState) -> Any:
-    """"""
+    """Code generator for constant declaration
+
+    Parameters
+    ----------
+    stmt : ConstDecl
+    cg_state : CodegenState
+    """
     print("Constant declaration", file=cg_state.script_file)
 
 
 @create_global_cg_func(SubDecl, enters_scope=ScopeType.SCOPE_SUB)
 def cg_sub_decl(stmt: SubDecl, cg_state: CodegenState) -> Any:
-    """"""
+    """Code generator for sub declaration
+
+    Parameters
+    ----------
+    stmt : SubDecl
+    cg_state : CodegenState
+    """
     # map(codegen_global_stmt, stmt.method_stmt_list)
     print("Sub declaration", file=cg_state.script_file)
     for method_stmt in stmt.method_stmt_list:
@@ -250,7 +298,13 @@ def cg_sub_decl(stmt: SubDecl, cg_state: CodegenState) -> Any:
 
 @create_global_cg_func(FunctionDecl, enters_scope=ScopeType.SCOPE_FUNCTION)
 def cg_function_decl(stmt: FunctionDecl, cg_state: CodegenState) -> Any:
-    """"""
+    """Code generator for function declaration
+
+    Parameters
+    ----------
+    stmt : FunctionDecl
+    cg_state : CodegenState
+    """
     # map(codegen_global_stmt, stmt.method_stmt_list)
     print("Function declaration", file=cg_state.script_file)
     for method_stmt in stmt.method_stmt_list:
@@ -259,7 +313,13 @@ def cg_function_decl(stmt: FunctionDecl, cg_state: CodegenState) -> Any:
 
 @create_global_cg_func(VarDecl)
 def cg_var_decl(stmt: VarDecl, cg_state: CodegenState) -> Any:
-    """"""
+    """Code generator for variable declaration
+
+    Parameters
+    ----------
+    stmt : VarDecl
+    cg_state : CodegenState
+    """
     print("Variable declaration", file=cg_state.script_file)
     for var_name in stmt.var_name:
         cg_state.add_symbol(
@@ -271,13 +331,25 @@ def cg_var_decl(stmt: VarDecl, cg_state: CodegenState) -> Any:
 
 @create_global_cg_func(RedimStmt)
 def cg_redim_stmt(stmt: RedimStmt, cg_state: CodegenState) -> Any:
-    """"""
+    """Code generator for redim statement
+
+    Parameters
+    ----------
+    stmt : RedimStmt
+    cg_state : CodegenState
+    """
     print("Redim statement", file=cg_state.script_file)
 
 
 @create_global_cg_func(IfStmt, enters_scope=ScopeType.SCOPE_IF)
 def cg_if_stmt(stmt: IfStmt, cg_state: CodegenState) -> Any:
-    """"""
+    """Code generator for if statement
+
+    Parameters
+    ----------
+    stmt : IfStatement
+    cg_state : CodegenState
+    """
     # map(codegen_global_stmt, stmt.block_stmt_list)
     # else_cg = [
     #     map(codegen_global_stmt, else_ast.stmt_list) for else_ast in stmt.else_stmt_list
@@ -292,7 +364,13 @@ def cg_if_stmt(stmt: IfStmt, cg_state: CodegenState) -> Any:
 
 @create_global_cg_func(WithStmt, enters_scope=ScopeType.SCOPE_WITH)
 def cg_with_stmt(stmt: WithStmt, cg_state: CodegenState) -> Any:
-    """"""
+    """Code generator for with statement
+
+    Parameters
+    ----------
+    stmt : WithStmt
+    cg_state : CodegenState
+    """
     # map(codegen_global_stmt, stmt.block_stmt_list)
     print("With statement", file=cg_state.script_file)
     for block_stmt in stmt.block_stmt_list:
@@ -301,7 +379,13 @@ def cg_with_stmt(stmt: WithStmt, cg_state: CodegenState) -> Any:
 
 @create_global_cg_func(SelectStmt, enters_scope=ScopeType.SCOPE_SELECT)
 def cg_select_stmt(stmt: SelectStmt, cg_state: CodegenState) -> Any:
-    """"""
+    """Code generator for select statement
+
+    Parameters
+    ----------
+    stmt : SelectStmt
+    cg_state : CodegenState
+    """
     # case_cg = [
     #     map(codegen_global_stmt, case_stmt.block_stmt_list)
     #     for case_stmt in stmt.case_stmt_list
@@ -314,7 +398,13 @@ def cg_select_stmt(stmt: SelectStmt, cg_state: CodegenState) -> Any:
 
 @create_global_cg_func(LoopStmt, enters_scope=ScopeType.SCOPE_LOOP)
 def cg_loop_stmt(stmt: LoopStmt, cg_state: CodegenState) -> Any:
-    """"""
+    """Code generator for loop statement
+
+    Parameters
+    ----------
+    stmt : LoopStmt
+    cg_state : CodegenState
+    """
     # map(codegen_global_stmt, stmt.block_stmt_list)
     print("Loop statement", file=cg_state.script_file)
     for block_stmt in stmt.block_stmt_list:
@@ -323,7 +413,13 @@ def cg_loop_stmt(stmt: LoopStmt, cg_state: CodegenState) -> Any:
 
 @create_global_cg_func(ForStmt, enters_scope=ScopeType.SCOPE_FOR)
 def cg_for_stmt(stmt: ForStmt, cg_state: CodegenState) -> Any:
-    """"""
+    """Code generator for for statement
+
+    Parameters
+    ----------
+    stmt : ForStmt
+    cg_state : CodegenState
+    """
     # map(codegen_global_stmt, stmt.block_stmt_list)
     print("For statement", file=cg_state.script_file)
     for block_stmt in stmt.block_stmt_list:
@@ -332,7 +428,13 @@ def cg_for_stmt(stmt: ForStmt, cg_state: CodegenState) -> Any:
 
 @create_global_cg_func(AssignStmt)
 def cg_assign_stmt(stmt: AssignStmt, cg_state: CodegenState) -> Any:
-    """"""
+    """Code generator for assignment statement
+
+    Parameters
+    ----------
+    stmt : AssignStmt
+    cg_state : CodegenState
+    """
     print("Assign statement", file=cg_state.script_file)
     curr_env = cg_state.scope_mgr.current_environment
     scp_types = set(
@@ -351,13 +453,25 @@ def cg_assign_stmt(stmt: AssignStmt, cg_state: CodegenState) -> Any:
 
 @create_global_cg_func(CallStmt)
 def cg_call_stmt(stmt: CallStmt, cg_state: CodegenState) -> Any:
-    """"""
+    """Code generator for function call statement
+
+    Parameters
+    ----------
+    stmt : CallStmt
+    cg_state : CodegenState
+    """
     print("Call statement", file=cg_state.script_file)
 
 
 @create_global_cg_func(SubCallStmt)
 def cg_sub_call_stmt(stmt: SubCallStmt, cg_state: CodegenState) -> Any:
-    """"""
+    """Code generator for sub call statement
+
+    Parameters
+    ----------
+    stmt : SubCallStmt
+    cg_state : CodegenState
+    """
     print("Sub-call statement", file=cg_state.script_file)
     curr_env = cg_state.scope_mgr.current_environment
     scp_types = set(
@@ -376,17 +490,35 @@ def cg_sub_call_stmt(stmt: SubCallStmt, cg_state: CodegenState) -> Any:
 
 @create_global_cg_func(ErrorStmt)
 def cg_error_stmt(stmt: ErrorStmt, cg_state: CodegenState) -> Any:
-    """"""
+    """Handler for error statement
+
+    Parameters
+    ----------
+    stmt : ErrorStmt
+    cg_state: CodegenState
+    """
     print("Error statement", file=cg_state.script_file)
 
 
 @create_global_cg_func(ExitStmt)
 def cg_exit_stmt(stmt: ExitStmt, cg_state: CodegenState) -> Any:
-    """"""
+    """Code generator for exit statement
+
+    Parameters
+    ----------
+    stmt : ExitStmt
+    cg_state : CodegenState
+    """
     print("Exit statement", file=cg_state.script_file)
 
 
 @create_global_cg_func(EraseStmt)
 def cg_erase_stmt(stmt: EraseStmt, cg_state: CodegenState) -> Any:
-    """"""
+    """Code generator for erase statement
+
+    Parameters
+    ----------
+    stmt : EraseStmt
+    cg_state : CodegenState
+    """
     print("Erase statement", file=cg_state.script_file)

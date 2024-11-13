@@ -80,7 +80,7 @@ class ServerExpr(LeftExpr):
 
 @attrs.define(repr=False, slots=False)
 class ServerScriptTimeoutExpr(ServerExpr, ValidateBuiltinLeftExpr):
-    """"""
+    """Server.ScriptTimeout property"""
 
     def validate_builtin_expr(self, is_subcall=False):
         assert not is_subcall
@@ -92,7 +92,7 @@ class ServerScriptTimeoutExpr(ServerExpr, ValidateBuiltinLeftExpr):
 
 @attrs.define(repr=False, slots=False)
 class ServerCreateObjectExpr(ServerExpr, ValidateBuiltinLeftExpr):
-    """"""
+    """Server.CreateObject method"""
 
     def validate_builtin_expr(self, is_subcall=False):
         assert (progid := self.call_args.get(1, None)) is not None and len(progid) == 1
@@ -100,13 +100,17 @@ class ServerCreateObjectExpr(ServerExpr, ValidateBuiltinLeftExpr):
 
     @property
     def param_progid(self):
-        """"""
+        """
+        Returns
+        -------
+        First call argument
+        """
         return self.call_args[1][0]
 
 
 @attrs.define(repr=False, slots=False)
 class ServerExecuteExpr(ServerExpr, ValidateBuiltinLeftExpr):
-    """"""
+    """Server.Execute method"""
 
     def validate_builtin_expr(self, is_subcall=False):
         assert (path := self.call_args.get(1, None)) is not None and len(path) == 1
@@ -114,13 +118,17 @@ class ServerExecuteExpr(ServerExpr, ValidateBuiltinLeftExpr):
 
     @property
     def param_path(self):
-        """"""
+        """
+        Returns
+        -------
+        First call argument
+        """
         return self.call_args[1][0]
 
 
 @attrs.define(repr=False, slots=False)
 class ServerGetLastErrorExpr(ServerExpr, ValidateBuiltinLeftExpr):
-    """"""
+    """Server.GetLastError method"""
 
     def validate_builtin_expr(self, is_subcall=False):
         if self.end_idx == 2:
@@ -133,7 +141,7 @@ class ServerGetLastErrorExpr(ServerExpr, ValidateBuiltinLeftExpr):
 
 @attrs.define(repr=False, slots=False)
 class ServerHTMLEncodeExpr(ServerExpr, ValidateBuiltinLeftExpr):
-    """"""
+    """Server.HTMLEncode method"""
 
     def validate_builtin_expr(self, is_subcall=False):
         assert (cargs := self.call_args.get(1, None)) is not None and len(cargs) == 1
@@ -141,13 +149,17 @@ class ServerHTMLEncodeExpr(ServerExpr, ValidateBuiltinLeftExpr):
 
     @property
     def param_string(self):
-        """"""
+        """
+        Returns
+        -------
+        First call argument
+        """
         return self.call_args[1][0]
 
 
 @attrs.define(repr=False, slots=False)
 class ServerMapPathExpr(ServerExpr, ValidateBuiltinLeftExpr):
-    """"""
+    """Server.MapPath method"""
 
     def validate_builtin_expr(self, is_subcall=False):
         assert (path := self.call_args.get(1, None)) is not None and len(path) == 1
@@ -155,13 +167,17 @@ class ServerMapPathExpr(ServerExpr, ValidateBuiltinLeftExpr):
 
     @property
     def param_path(self):
-        """"""
+        """
+        Returns
+        -------
+        First call argument
+        """
         return self.call_args[1][0]
 
 
 @attrs.define(repr=False, slots=False)
 class ServerTransferExpr(ServerExpr, ValidateBuiltinLeftExpr):
-    """"""
+    """Server.Transfer method"""
 
     def validate_builtin_expr(self, is_subcall=False):
         assert (path := self.call_args.get(1, None)) is not None and len(path) == 1
@@ -169,13 +185,17 @@ class ServerTransferExpr(ServerExpr, ValidateBuiltinLeftExpr):
 
     @property
     def param_path(self):
-        """"""
+        """
+        Returns
+        -------
+        First call argument
+        """
         return self.call_args[1][0]
 
 
 @attrs.define(repr=False, slots=False)
 class ServerURLEncodeExpr(ServerExpr, ValidateBuiltinLeftExpr):
-    """"""
+    """Server.URLEncode method"""
 
     def validate_builtin_expr(self, is_subcall=False):
         assert (cargs := self.call_args.get(1, None)) is not None and len(cargs) == 1
@@ -183,5 +203,9 @@ class ServerURLEncodeExpr(ServerExpr, ValidateBuiltinLeftExpr):
 
     @property
     def param_string(self):
-        """"""
+        """
+        Returns
+        -------
+        First call argument
+        """
         return self.call_args[1][0]

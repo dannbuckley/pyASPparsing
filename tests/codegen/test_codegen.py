@@ -1,4 +1,4 @@
-from pyaspparsing.codegen.codegen import Codegen
+from pyaspparsing.codegen.codegen import generate_code
 
 
 def test_codegen():

@@ -81,7 +81,7 @@ class ResponseExpr(LeftExpr):
 
 @attrs.define(repr=False, slots=False)
 class ResponseCookiesExpr(ResponseExpr, ValidateBuiltinLeftExpr):
-    """"""
+    """Response.Cookies collection"""
 
     def validate_builtin_expr(self, is_subcall: bool = False):
         assert not is_subcall, "Response.Cookies cannot appear in a sub-call statement"
@@ -100,19 +100,31 @@ class ResponseCookiesExpr(ResponseExpr, ValidateBuiltinLeftExpr):
 
     @property
     def cookie_name(self):
-        """"""
+        """
+        Returns
+        -------
+        First call argument
+        """
         return self.call_args[1][0]
 
     @property
     def cookie_key(self):
-        """"""
+        """
+        Returns
+        -------
+        Second call argument (if available)
+        """
         if (key_args := self.call_args.get(2, None)) is not None:
             return key_args[0]
         return None
 
     @property
     def cookie_attribute(self):
-        """"""
+        """
+        Returns
+        -------
+        Cookie attribute if available (last subname after call argument)
+        """
         return self.subnames.get(2, None)
 
 
@@ -121,7 +133,7 @@ class ResponseCookiesExpr(ResponseExpr, ValidateBuiltinLeftExpr):
 
 @attrs.define(repr=False, slots=False)
 class ResponseBufferExpr(ResponseExpr, ValidateBuiltinLeftExpr):
-    """"""
+    """Response.Buffer property"""
 
     def validate_builtin_expr(self, is_subcall: bool = False):
         assert self.end_idx == 1
@@ -129,7 +141,7 @@ class ResponseBufferExpr(ResponseExpr, ValidateBuiltinLeftExpr):
 
 @attrs.define(repr=False, slots=False)
 class ResponseCacheControlExpr(ResponseExpr, ValidateBuiltinLeftExpr):
-    """"""
+    """Response.CacheControl property"""
 
     def validate_builtin_expr(self, is_subcall: bool = False):
         assert self.end_idx == 1
@@ -137,7 +149,7 @@ class ResponseCacheControlExpr(ResponseExpr, ValidateBuiltinLeftExpr):
 
 @attrs.define(repr=False, slots=False)
 class ResponseCharsetExpr(ResponseExpr, ValidateBuiltinLeftExpr):
-    """"""
+    """Response.Charset property"""
 
     def validate_builtin_expr(self, is_subcall: bool = False):
         assert self.end_idx == 1
@@ -145,7 +157,7 @@ class ResponseCharsetExpr(ResponseExpr, ValidateBuiltinLeftExpr):
 
 @attrs.define(repr=False, slots=False)
 class ResponseContentTypeExpr(ResponseExpr, ValidateBuiltinLeftExpr):
-    """"""
+    """Response.ContentType property"""
 
     def validate_builtin_expr(self, is_subcall: bool = False):
         assert self.end_idx == 1
@@ -153,7 +165,7 @@ class ResponseContentTypeExpr(ResponseExpr, ValidateBuiltinLeftExpr):
 
 @attrs.define(repr=False, slots=False)
 class ResponseExpiresExpr(ResponseExpr, ValidateBuiltinLeftExpr):
-    """"""
+    """Response.Expires property"""
 
     def validate_builtin_expr(self, is_subcall: bool = False):
         assert self.end_idx == 1
@@ -161,7 +173,7 @@ class ResponseExpiresExpr(ResponseExpr, ValidateBuiltinLeftExpr):
 
 @attrs.define(repr=False, slots=False)
 class ResponseExpiresAbsoluteExpr(ResponseExpr, ValidateBuiltinLeftExpr):
-    """"""
+    """Response.ExpiresAbsolute property"""
 
     def validate_builtin_expr(self, is_subcall: bool = False):
         assert self.end_idx == 1
@@ -169,7 +181,7 @@ class ResponseExpiresAbsoluteExpr(ResponseExpr, ValidateBuiltinLeftExpr):
 
 @attrs.define(repr=False, slots=False)
 class ResponseIsClientConnectedExpr(ResponseExpr, ValidateBuiltinLeftExpr):
-    """"""
+    """Response.IsClientConnected property"""
 
     def validate_builtin_expr(self, is_subcall: bool = False):
         assert self.end_idx == 1
@@ -177,7 +189,7 @@ class ResponseIsClientConnectedExpr(ResponseExpr, ValidateBuiltinLeftExpr):
 
 @attrs.define(repr=False, slots=False)
 class ResponsePICSExpr(ResponseExpr, ValidateBuiltinLeftExpr):
-    """"""
+    """Response.PICS property"""
 
     def validate_builtin_expr(self, is_subcall: bool = False):
         assert self.call_args.get(1, None) is not None
@@ -186,7 +198,7 @@ class ResponsePICSExpr(ResponseExpr, ValidateBuiltinLeftExpr):
 
 @attrs.define(repr=False, slots=False)
 class ResponseStatusExpr(ResponseExpr, ValidateBuiltinLeftExpr):
-    """"""
+    """Response.Status property"""
 
     def validate_builtin_expr(self, is_subcall: bool = False):
         assert not is_subcall and self.end_idx == 1
@@ -197,7 +209,7 @@ class ResponseStatusExpr(ResponseExpr, ValidateBuiltinLeftExpr):
 
 @attrs.define(repr=False, slots=False)
 class ResponseAddHeaderExpr(ResponseExpr, ValidateBuiltinLeftExpr):
-    """"""
+    """Response.AddHeaderm method"""
 
     def validate_builtin_expr(self, is_subcall: bool = False):
         assert (cargs := self.call_args.get(1, None)) is not None and len(cargs) == 2
@@ -205,18 +217,26 @@ class ResponseAddHeaderExpr(ResponseExpr, ValidateBuiltinLeftExpr):
 
     @property
     def param_name(self):
-        """"""
+        """
+        Returns
+        -------
+        First call argument
+        """
         return self.call_args[1][0]
 
     @property
     def param_value(self):
-        """"""
+        """
+        Returns
+        -------
+        Second call argument
+        """
         return self.call_args[1][1]
 
 
 @attrs.define(repr=False, slots=False)
 class ResponseAppendToLogExpr(ResponseExpr, ValidateBuiltinLeftExpr):
-    """"""
+    """Response.AppendToLog method"""
 
     def validate_builtin_expr(self, is_subcall: bool = False):
         assert (cargs := self.call_args.get(1, None)) is not None and len(cargs) == 1
@@ -224,13 +244,17 @@ class ResponseAppendToLogExpr(ResponseExpr, ValidateBuiltinLeftExpr):
 
     @property
     def param_string(self):
-        """"""
+        """
+        Returns
+        -------
+        First call argument
+        """
         return self.call_args[1][0]
 
 
 @attrs.define(repr=False, slots=False)
 class ResponseBinaryWriteExpr(ResponseExpr, ValidateBuiltinLeftExpr):
-    """"""
+    """Response.BinaryWrite method"""
 
     def validate_builtin_expr(self, is_subcall: bool = False):
         assert (cargs := self.call_args.get(1, None)) is not None and len(cargs) == 1
@@ -238,13 +262,17 @@ class ResponseBinaryWriteExpr(ResponseExpr, ValidateBuiltinLeftExpr):
 
     @property
     def param_data(self):
-        """"""
+        """
+        Returns
+        -------
+        First call argument
+        """
         return self.call_args[1][0]
 
 
 @attrs.define(repr=False, slots=False)
 class ResponseClearExpr(ResponseExpr, ValidateBuiltinLeftExpr):
-    """"""
+    """Response.Clear method"""
 
     def validate_builtin_expr(self, is_subcall: bool = False):
         if (cargs := self.call_args.get(1, None)) is not None:
@@ -256,7 +284,7 @@ class ResponseClearExpr(ResponseExpr, ValidateBuiltinLeftExpr):
 
 @attrs.define(repr=False, slots=False)
 class ResponseEndExpr(ResponseExpr, ValidateBuiltinLeftExpr):
-    """"""
+    """Response.End method"""
 
     def validate_builtin_expr(self, is_subcall: bool = False):
         if (cargs := self.call_args.get(1, None)) is not None:
@@ -268,7 +296,7 @@ class ResponseEndExpr(ResponseExpr, ValidateBuiltinLeftExpr):
 
 @attrs.define(repr=False, slots=False)
 class ResponseFlushExpr(ResponseExpr, ValidateBuiltinLeftExpr):
-    """"""
+    """Response.Flush method"""
 
     def validate_builtin_expr(self, is_subcall: bool = False):
         if (cargs := self.call_args.get(1, None)) is not None:
@@ -280,7 +308,7 @@ class ResponseFlushExpr(ResponseExpr, ValidateBuiltinLeftExpr):
 
 @attrs.define(repr=False, slots=False)
 class ResponseRedirectExpr(ResponseExpr, ValidateBuiltinLeftExpr):
-    """"""
+    """Response.Redirect method"""
 
     def validate_builtin_expr(self, is_subcall: bool = False):
         assert (cargs := self.call_args.get(1, None)) is not None and len(cargs) == 1
@@ -288,13 +316,17 @@ class ResponseRedirectExpr(ResponseExpr, ValidateBuiltinLeftExpr):
 
     @property
     def param_url(self):
-        """"""
+        """
+        Returns
+        -------
+        First call argument
+        """
         return self.call_args[1][0]
 
 
 @attrs.define(repr=False, slots=False)
 class ResponseWriteExpr(ResponseExpr, ValidateBuiltinLeftExpr):
-    """"""
+    """Response.Write method"""
 
     def validate_builtin_expr(self, is_subcall: bool = False):
         assert (cargs := self.call_args.get(1, None)) is not None and len(cargs) == 1
@@ -302,5 +334,9 @@ class ResponseWriteExpr(ResponseExpr, ValidateBuiltinLeftExpr):
 
     @property
     def param_variant(self):
-        """"""
+        """
+        Returns
+        -------
+        First call argument
+        """
         return self.call_args[1][0]

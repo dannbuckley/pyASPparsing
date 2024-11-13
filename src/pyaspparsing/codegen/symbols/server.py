@@ -35,66 +35,29 @@ server_expr_handlers: dict[type[ServerExpr], Callable[[ASPObject, ServerExpr], A
 @prepare_symbol_name
 @attrs.define(repr=False, slots=False)
 class Server(ASPObject):
-    """"""
+    """
+    Methods
+    -------
+    handle_builtin_left_expr(left_expr)
+    """
 
     def handle_builtin_left_expr(self, left_expr: ServerExpr):
-        """"""
+        """
+        Parameters
+        ----------
+        left_expr : ServerExpr
+        """
         assert isinstance(left_expr, ServerExpr)
         return server_expr_handlers[type(left_expr)](self, left_expr)
 
-    def createobject(self, param_progid, /) -> ASPObject:
-        """NOT CALLED DIRECTLY
-
-        Called indirectly by `__call__(..., name="createobject")`
-
-        Parameters
-        ----------
-        param_progid
-
-        Returns
-        -------
-        ASPObject
-
-        Raises
-        ------
-        ValueError
-
-        AssertionError
-        """
-        if not isinstance(param_progid, EvalExpr) or not isinstance(
-            param_progid.expr_value, str
-        ):
-            raise ValueError("Server.CreateObject expects a string for progid")
-        parts = param_progid.expr_value.split(".")
-        assert len(parts) == 2, "progid should match 'Vendor.Component'"
-        try:
-            return server_object_types[parts[0].casefold()][parts[1].casefold()]()
-        except KeyError as ex:
-            raise ValueError(
-                f"Could not determine type of component: '{param_progid.expr_value}'"
-            ) from ex
-
-    def execute(self, param_path, /):
-        """"""
-
-    def getlasterror(self):
-        """"""
-
-    def htmlencode(self, param_string, /):
-        """"""
-
-    def mappath(self, param_path, /):
-        """"""
-
-    def transfer(self, param_path, /):
-        """"""
-
-    def urlencode(self, param_string, /):
-        """"""
-
 
 def create_server_handler(server_expr_type: type[ServerExpr]):
-    """"""
+    """Decorator for ServerExpr handler functions
+
+    Parameters
+    ----------
+    server_expr_type : type[ServerExpr]
+    """
     assert issubclass(server_expr_type, ServerExpr)
 
     def wrap_func(func: Callable[[ASPObject, ServerExpr], Any]):
@@ -111,12 +74,22 @@ def create_server_handler(server_expr_type: type[ServerExpr]):
 
 @create_server_handler(ServerScriptTimeoutExpr)
 def handle_server_script_timeout_expr(serv: Server, left_expr: ServerScriptTimeoutExpr):
-    """"""
+    """
+    Parameters
+    ----------
+    serv : Server
+    left_expr : ServerScriptTimeoutExpr
+    """
 
 
 @create_server_handler(ServerCreateObjectExpr)
 def handle_server_create_object_expr(serv: Server, left_expr: ServerCreateObjectExpr):
-    """"""
+    """
+    Parameters
+    ----------
+    serv : Server
+    left_expr : ServerCreateObjectExpr
+    """
     assert isinstance(left_expr.param_progid, EvalExpr) and isinstance(
         left_expr.param_progid.expr_value, str
     ), "Server.CreateObject expects a string for progid"
@@ -132,29 +105,59 @@ def handle_server_create_object_expr(serv: Server, left_expr: ServerCreateObject
 
 @create_server_handler(ServerExecuteExpr)
 def handle_server_execute_expr(serv: Server, left_expr: ServerExecuteExpr):
-    """"""
+    """
+    Parameters
+    ----------
+    serv : Server
+    left_expr : ServerExecuteExpr
+    """
 
 
 @create_server_handler(ServerGetLastErrorExpr)
 def handle_server_get_last_error_expr(serv: Server, left_expr: ServerGetLastErrorExpr):
-    """"""
+    """
+    Parameters
+    ----------
+    serv : Server
+    left_expr : ServerGetLastErrorExpr
+    """
 
 
 @create_server_handler(ServerHTMLEncodeExpr)
 def handle_server_html_encode_expr(serv: Server, left_expr: ServerHTMLEncodeExpr):
-    """"""
+    """
+    Parameters
+    ----------
+    serv : Server
+    left_expr : ServerHTMLEncodeExpr
+    """
 
 
 @create_server_handler(ServerMapPathExpr)
 def handle_server_map_path_expr(serv: Server, left_expr: ServerMapPathExpr):
-    """"""
+    """
+    Parameters
+    ----------
+    serv : Server
+    left_expr : ServerMapPathExpr
+    """
 
 
 @create_server_handler(ServerTransferExpr)
 def handle_server_transfer_expr(serv: Server, left_expr: ServerTransferExpr):
-    """"""
+    """
+    Parameters
+    ----------
+    serv : Server
+    left_expr : ServerTransferExpr
+    """
 
 
 @create_server_handler(ServerURLEncodeExpr)
 def handle_server_url_encode_expr(serv: Server, left_expr: ServerURLEncodeExpr):
-    """"""
+    """
+    Parameters
+    ----------
+    serv : Server
+    left_expr : ServerURLEncodeExpr
+    """
