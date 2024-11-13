@@ -33,7 +33,8 @@ class UnresolvedExternalSymbol(Symbol):
 
 @attrs.define(repr=False, slots=False)
 class ValueSymbol(Symbol):
-    """
+    """Simple variable created by a VarDecl object
+
     Attributes
     ----------
     value : Any, default=None
@@ -65,7 +66,8 @@ class ValueSymbol(Symbol):
 
 @attrs.define(repr=False, slots=False)
 class ArraySymbol(Symbol):
-    """
+    """Array variable created by a VarDecl object
+
     Attributes
     ----------
     rank_list : List[int], default=[]
@@ -111,8 +113,42 @@ class ArraySymbol(Symbol):
                 "idx must be a tuple of integers that is the same length as the array's rank list"
             )
         if not all(map(lambda ival: 0 <= ival[0] <= ival[1], zip(idx, self.rank_list))):
-            raise ValueError("Each idx[i] must be in [0, rank_list[i]]")
+            raise ValueError("Each idx[i] must be in the range [0, rank_list[i]]")
         self.array_data[idx] = value
+
+
+@attrs.define(repr=False, slots=False)
+class ValueMethodArgument(Symbol):
+    """Argument in a method that is given by value
+    (i.e., a copy of the value is made and given to the method)
+
+    Used in: FunctionDecl, SubDecl, PropertyDecl
+    """
+
+
+@attrs.define(repr=False, slots=False)
+class ReferenceMethodArgument(Symbol):
+    """Argument in a method that is given by reference
+    (i.e., referring to a value defined in an enclosing scope)
+
+    Used in: FunctionDecl, SubDecl, PropertyDecl
+    """
+
+
+@attrs.define(repr=False, slots=False)
+class FunctionReturnSymbol(Symbol):
+    """When inside a function, a value assigned to the function name
+    will be returned when the function finishes
+
+    This symbol treats the function name as a special symbol inside a function scope
+
+    The following function will return "Hello, world!":
+    ```
+    Function my_function()
+        my_function = "Hello, world!"
+    End Function
+    ```
+    """
 
 
 class ASPObject(Symbol):

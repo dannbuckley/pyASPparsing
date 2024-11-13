@@ -453,12 +453,13 @@ class Arg(FormatterMixin):
     Attributes
     ----------
     extended_id : ExtendedID
-    arg_modifier : ArgModifierType | None, default=None
+    arg_modifier : ArgModifierType, default=ArgModifierType.ARG_VALUE
+        If no modifier is specified, ByVal is the default
     has_paren : bool, default=False
     """
 
     extended_id: ExtendedID
-    arg_modifier: Optional[ArgModifierType] = attrs.field(default=None, kw_only=True)
+    arg_modifier: ArgModifierType = attrs.field(default=ArgModifierType.ARG_VALUE, kw_only=True)
     has_paren: bool = attrs.field(default=False, kw_only=True)
 
     @staticmethod
@@ -482,6 +483,8 @@ class Arg(FormatterMixin):
             and (arg_modifier := mod_types.get(tkzr.get_token_code(), None)) is not None
         ):
             tkzr.advance_pos()  # consume modifier
+        else:
+            arg_modifier = ArgModifierType.ARG_VALUE
         arg_id = ExtendedID.from_tokenizer(tkzr)
         has_paren = tkzr.try_consume(TokenType.SYMBOL, "(")
         if has_paren:
