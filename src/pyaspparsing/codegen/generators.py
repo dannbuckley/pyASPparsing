@@ -53,6 +53,7 @@ from .symbols.symbol import (
     ForLoopIteratorTargetSymbol,
 )
 from .symbols.symbol_table import SymbolTable
+from .symbols.functions.function import UserFunction, UserSub
 from .symbols.functions import vbscript_builtin as vb_blt
 
 
@@ -178,6 +179,50 @@ class CodegenState:
         bool
         """
         return self.sym_table.add_symbol(symbol, self.scope_mgr.current_scope)
+
+    def add_function_symbol(self, func_name: str) -> bool:
+        """
+        Parameters
+        ----------
+        func_name : str
+
+        Returns
+        -------
+        bool
+        """
+        assert (
+            self.scope_mgr.scope_registry.nodes[self.scope_mgr.current_scope][
+                "scope_type"
+            ]
+            == ScopeType.SCOPE_FUNCTION
+        )
+        assert len(curr_env := self.scope_mgr.current_environment) >= 2
+        assert isinstance(func_name, str)
+        return self.sym_table.add_symbol(
+            UserFunction(func_name, self.scope_mgr.current_scope), curr_env[-2]
+        )
+
+    def add_sub_symbol(self, sub_name: str) -> bool:
+        """
+        Parameters
+        ----------
+        sub_name : str
+
+        Returns
+        -------
+        bool
+        """
+        assert (
+            self.scope_mgr.scope_registry.nodes[self.scope_mgr.current_scope][
+                "scope_type"
+            ]
+            == ScopeType.SCOPE_SUB
+        )
+        assert len(curr_env := self.scope_mgr.current_environment) >= 2
+        assert isinstance(sub_name, str)
+        return self.sym_table.add_symbol(
+            UserSub(sub_name, self.scope_mgr.current_scope), curr_env[-2]
+        )
 
     def add_output_expr(self, output_expr: Expr) -> str:
         """Add a new direct-output expression
@@ -495,6 +540,8 @@ def cg_sub_decl(
     for method_stmt in stmt.method_stmt_list:
         cg_ret.combine(codegen_global_stmt(method_stmt, cg_state))
     cg_ret.append("}\n")
+    # define sub symbol in enclosing scope
+    cg_state.add_sub_symbol(stmt.extended_id.id_code)
     return cg_ret
 
 
@@ -529,6 +576,8 @@ def cg_function_decl(
     for method_stmt in stmt.method_stmt_list:
         cg_ret.combine(codegen_global_stmt(method_stmt, cg_state))
     cg_ret.append("}\n")
+    # define function symbol in enclosing scope
+    cg_state.add_function_symbol(stmt.extended_id.id_code)
     return cg_ret
 
 

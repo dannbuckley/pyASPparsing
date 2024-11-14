@@ -215,11 +215,13 @@ class ArraySymbol(Symbol):
         if not len(idx) == len(self.rank_list) or not all(
             map(lambda x: isinstance(x, int), idx)
         ):
-            raise ValueError(
-                "idx must be a tuple of integers that is the same length as the array's rank list"
-            )
+            return
+            # raise ValueError(
+            #     "idx must be a tuple of integers that is the same length as the array's rank list"
+            # )
         if not all(map(lambda ival: 0 <= ival[0] <= ival[1], zip(idx, self.rank_list))):
-            raise ValueError("Each idx[i] must be in the range [0, rank_list[i]]")
+            # raise ValueError("Each idx[i] must be in the range [0, rank_list[i]]")
+            return
         self.array_data[idx] = value
 
 

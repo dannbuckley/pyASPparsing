@@ -11,7 +11,7 @@ from .symbol import (
     ArraySymbol,
     ASPObject,
 )
-from .functions.function import ASPFunction
+from .functions.function import ASPFunction, UserFunction, UserSub
 
 
 @attrs.define
@@ -365,8 +365,16 @@ class SymbolTable:
                 elif isinstance(call_sym, ASPFunction):
                     # TODO: symbol is a function?
                     pass
+                elif isinstance(call_sym, UserFunction):
+                    # TODO: symbol is a user-defined function?
+                    pass
+                elif isinstance(call_sym, UserSub):
+                    # TODO: symbol is a user-defined sub?
+                    pass
                 return
         if not function_sub_body:
-            raise ValueError("Invalid symbol name in left_expr")
+            raise ValueError(
+                f"Invalid symbol name {repr(left_expr.sym_name)} in left_expr"
+            )
         # add a placeholder in the current scope
         self.add_symbol(UnresolvedExternalSymbol(left_expr.sym_name), curr_env[-1])
