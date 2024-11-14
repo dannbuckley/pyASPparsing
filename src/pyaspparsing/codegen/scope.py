@@ -1,5 +1,6 @@
 """Scope stack management"""
 
+from contextlib import contextmanager
 import enum
 import attrs
 import networkx as nx
@@ -17,8 +18,10 @@ class ScopeType(enum.Enum):
     SCOPE_SUB = enum.auto()
     SCOPE_FUNCTION = enum.auto()
     SCOPE_IF = enum.auto()
+    SCOPE_IF_BRANCH = enum.auto()
     SCOPE_WITH = enum.auto()
     SCOPE_SELECT = enum.auto()
+    SCOPE_SELECT_CASE = enum.auto()
     SCOPE_LOOP = enum.auto()
     SCOPE_FOR = enum.auto()
 
@@ -72,6 +75,7 @@ class ScopeManager:
         ----------
         scope_type : ScopeType
         """
+        assert isinstance(scope_type, ScopeType)
         self._curr_scope_id += 1
         self.scope_registry.add_node(self._curr_scope_id, scope_type=scope_type)
         if len(self.scope_stack) > 0:
@@ -83,6 +87,20 @@ class ScopeManager:
         """Pop the current scope off the stack"""
         assert len(self.scope_stack) > 0
         self.scope_stack.pop()
+
+    @contextmanager
+    def temporary_scope(self, scope_type: ScopeType):
+        """Temporarily enter into a new scope using a context manager
+
+        Parameters
+        ----------
+        scope_type : ScopeType
+        """
+        self.enter_scope(scope_type)
+        try:
+            yield
+        finally:
+            self.exit_scope()
 
     def get_scope_environment(self, scope_id: int) -> list[int]:
         """Get list of enclosing scopes for the given `scope_id`

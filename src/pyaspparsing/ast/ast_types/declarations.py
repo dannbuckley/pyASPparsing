@@ -358,19 +358,21 @@ class ConstDecl(FormatterMixin, GlobalStmt, MethodStmt, MemberDecl):
 
     @staticmethod
     def from_tokenizer(
-        tkzr: Tokenizer, access_mod: AccessModifierType = AccessModifierType.PUBLIC
+        tkzr: Tokenizer, access_mod: Optional[AccessModifierType] = None
     ):
         """Construct a ConstDecl object from an active Tokenizer
 
         Parameters
         ----------
         tkzr : Tokenizer
-        access_mod : AccessModifierType | None, default=AccessModifierType.PUBLIC
+        access_mod : AccessModifierType | None, default=None
 
         Returns
         -------
         ConstDecl
         """
+        if access_mod is None:
+            access_mod = AccessModifierType.PUBLIC
         tkzr.assert_consume(TokenType.IDENTIFIER, "const")
         const_list: list[ConstListItem] = []
         while not tkzr.try_multiple_token_type(

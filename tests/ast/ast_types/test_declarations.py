@@ -263,5 +263,8 @@ def test_parse_const_decl(
             tkzr.advance_pos()
         const_decl = ConstDecl.from_tokenizer(tkzr, exp_access_mod)
         assert const_decl.const_list == exp_const_list
-        assert const_decl.access_mod == exp_access_mod
+        if exp_access_mod is None:
+            assert const_decl.access_mod == AccessModifierType.PUBLIC
+        else:
+            assert const_decl.access_mod == exp_access_mod
         tkzr.advance_pos()

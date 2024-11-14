@@ -3,7 +3,7 @@
 from functools import partial
 from typing import Optional, Any
 import attrs
-from ...ast.ast_types.base import AccessModifierType
+from ...ast.ast_types.base import Expr, AccessModifierType
 from ...ast.ast_types.declarations import VarName, FieldName
 from ...ast.ast_types.expressions import LeftExpr
 from ...ast.ast_types.optimize import EvalExpr
@@ -92,6 +92,49 @@ class ValueSymbol(Symbol):
 
 
 @attrs.define(repr=False, slots=False)
+class LocalAssignmentSymbol(ValueSymbol):
+    """Symbol representing assignment to a variable defined in an enclosing scope
+
+    This symbol treats the original value symbol as
+    a special symbol inside the narrower scope
+    """
+
+    def __repr__(self):
+        match self.access_mod:
+            case AccessModifierType.PRIVATE:
+                access_str = "Private "
+            case AccessModifierType.PUBLIC:
+                access_str = "Public "
+            case _:
+                access_str = ""
+        base_repr = f"<{access_str}LocalAssignmentSymbol {repr(self.symbol_name)}"
+        if self.value is None:
+            return base_repr + ">"
+        if isinstance(self.value, EvalExpr):
+            return base_repr + f"; value={repr(self.value.expr_value)}>"
+        return base_repr + f"; value of type {repr(type(self.value).__name__)}>"
+
+    @staticmethod
+    def from_value_symbol(val_symbol: ValueSymbol):
+        """
+        Parameters
+        ----------
+        val_symbol : ValueSymbol
+        orig_scope : int
+
+        Returns
+        -------
+        LocalAssignmentSymbol
+        """
+        assert isinstance(val_symbol, ValueSymbol)
+        return LocalAssignmentSymbol(
+            val_symbol.symbol_name,
+            val_symbol.value,
+            access_mod=val_symbol.access_mod,
+        )
+
+
+@attrs.define(repr=False, slots=False)
 class ArraySymbol(Symbol):
     """Array variable created by a VarDecl object
 
@@ -119,7 +162,10 @@ class ArraySymbol(Symbol):
                 access_str = "Public "
             case _:
                 access_str = ""
-        return f"<{access_str}ArraySymbol {repr(self.symbol_name)}; rank_list={repr(self.rank_list)}>"
+        return (
+            f"<{access_str}ArraySymbol {repr(self.symbol_name)}; "
+            "rank_list={repr(self.rank_list)}>"
+        )
 
     @staticmethod
     def from_field_name(field_name: FieldName, access_mod: AccessModifierType):
@@ -233,6 +279,75 @@ class FunctionReturnSymbol(Symbol):
     End Function
     ```
     """
+
+
+@attrs.define(repr=False, slots=False)
+class ForLoopRangeTargetSymbol(Symbol):
+    """Symbol representing the target variable in a '=' 'To' for loop
+
+    This symbol treats the target as a special symbol inside a for loop scope
+    """
+
+    range_from: Expr
+    range_to: Expr
+    range_step: Optional[Expr]
+
+    def __repr__(self):
+        from_repr = (
+            repr(self.range_from.expr_value)
+            if isinstance(self.range_from, EvalExpr)
+            else f"object of type {repr(type(self.range_from).__name__)}"
+        )
+        to_repr = (
+            repr(self.range_to.expr_value)
+            if isinstance(self.range_to, EvalExpr)
+            else f"object of type {repr(type(self.range_to).__name__)}"
+        )
+        if self.range_step is None:
+            step_repr = "1"
+        else:
+            step_repr = (
+                repr(self.range_step.expr_value)
+                if isinstance(self.range_step, EvalExpr)
+                else f"object of type {repr(type(self.range_step).__name__)}"
+            )
+        return (
+            f"<For loop target {repr(self.symbol_name)}; "
+            f"range_from={from_repr}, "
+            f"range_to={to_repr}, "
+            f"range_step={step_repr}>"
+        )
+
+    @property
+    def constant_evaluation(self):
+        """
+        Returns
+        -------
+        bool
+            True if the for loop definition contains only constant,
+            pre-evaluated expressions
+        """
+        return (
+            isinstance(self.range_from, EvalExpr)
+            and isinstance(self.range_to, EvalExpr)
+            and (self.range_step is None or isinstance(self.range_step, EvalExpr))
+        )
+
+
+@attrs.define(repr=False, slots=False)
+class ForLoopIteratorTargetSymbol(Symbol):
+    """Symbol representing the target variable in an 'Each' 'In' for loop
+
+    This symbol treats the target as a special symbol inside a for loop scope
+    """
+
+    loop_iterator: Expr
+
+    def __repr__(self):
+        return (
+            f"<For loop target {repr(self.symbol_name)}; "
+            f"loop_iterator=object of type {repr(type(self.loop_iterator).__name__)}>"
+        )
 
 
 class ASPObject(Symbol):

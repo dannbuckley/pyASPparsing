@@ -1,5 +1,6 @@
 """Statement AST classes"""
 
+import enum
 from typing import Optional
 
 import attrs
@@ -479,9 +480,7 @@ class SubCallStmt(FormatterMixin, InlineStmt):
         terminal_code: Optional[str] = None,
         terminal_casefold: bool = True,
         *,
-        terminal_pairs: Optional[
-            list[tuple[TokenType, Optional[str]]]
-        ] = None,
+        terminal_pairs: Optional[list[tuple[TokenType, Optional[str]]]] = None,
     ):
         """
         Parameters
@@ -640,6 +639,17 @@ class ErrorStmt(FormatterMixin, InlineStmt):
         )
 
 
+@enum.verify(enum.CONTINUOUS, enum.UNIQUE)
+class ExitType(enum.Enum):
+    """Enumeration of valid exit types"""
+
+    EXIT_DO = enum.auto()
+    EXIT_FOR = enum.auto()
+    EXIT_FUNCTION = enum.auto()
+    EXIT_PROPERTY = enum.auto()
+    EXIT_SUB = enum.auto()
+
+
 @attrs.define(repr=False, slots=False)
 class ExitStmt(FormatterMixin, InlineStmt):
     """Exit statement AST type
@@ -650,14 +660,14 @@ class ExitStmt(FormatterMixin, InlineStmt):
 
     Attributes
     ----------
-    exit_token : Token
+    exit_type : ExitType
 
     Methods
     -------
     from_tokenizer(tkzr)
     """
 
-    exit_token: Token
+    exit_type: ExitType
 
     @staticmethod
     def from_tokenizer(tkzr: Tokenizer):
@@ -670,17 +680,20 @@ class ExitStmt(FormatterMixin, InlineStmt):
         -------
         ExitStmt
         """
+        exit_value: dict[str, ExitType] = {
+            "do": ExitType.EXIT_DO,
+            "for": ExitType.EXIT_FOR,
+            "function": ExitType.EXIT_FUNCTION,
+            "property": ExitType.EXIT_PROPERTY,
+            "sub": ExitType.EXIT_SUB,
+        }
         tkzr.assert_consume(TokenType.IDENTIFIER, "exit")
-        assert tkzr.try_token_type(TokenType.IDENTIFIER) and tkzr.get_token_code() in [
-            "do",
-            "for",
-            "function",
-            "property",
-            "sub",
-        ], "Invalid token in 'Exit' statement"
-        exit_tok = tkzr.current_token
+        assert (
+            tkzr.try_token_type(TokenType.IDENTIFIER)
+            and (exit_type := exit_value.get(tkzr.get_token_code(), None)) is not None
+        ), "Invalid token in 'Exit' statement"
         tkzr.advance_pos()  # consume exit type token
-        return ExitStmt(exit_tok)
+        return ExitStmt(exit_type)
 
 
 @attrs.define(repr=False, slots=False)

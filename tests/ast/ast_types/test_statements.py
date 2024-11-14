@@ -302,20 +302,20 @@ def test_parse_error_stmt(
 
 
 @pytest.mark.parametrize(
-    "codeblock,exp_exit_token",
+    "codeblock,exp_exit_type",
     [
-        ("Exit Do", Token.identifier(7, 9)),
-        ("Exit For", Token.identifier(7, 10)),
-        ("Exit Function", Token.identifier(7, 15)),
-        ("Exit Property", Token.identifier(7, 15)),
-        ("Exit Sub", Token.identifier(7, 10)),
+        ("Exit Do", ExitType.EXIT_DO),
+        ("Exit For", ExitType.EXIT_FOR),
+        ("Exit Function", ExitType.EXIT_FUNCTION),
+        ("Exit Property", ExitType.EXIT_PROPERTY),
+        ("Exit Sub", ExitType.EXIT_SUB),
     ],
 )
-def test_parse_exit_stmt(codeblock: str, exp_exit_token: Token):
+def test_parse_exit_stmt(codeblock: str, exp_exit_type: ExitType):
     with Tokenizer(f"<%{codeblock}%>", False) as tkzr:
         tkzr.advance_pos()
         exit_stmt = ExitStmt.from_tokenizer(tkzr)
-        assert exit_stmt.exit_token == exp_exit_token
+        assert exit_stmt.exit_type == exp_exit_type
         tkzr.advance_pos()
 
 
