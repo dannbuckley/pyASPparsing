@@ -52,4 +52,6 @@ def generate_code(
         # declarations finished, go back over remaining code
         for remaining_st in other_st:
             codegen_global_stmt(remaining_st, cg_state, top_level=True)
+    if cg_state.in_script_block:
+        cg_state.end_script_block()
     return cg_state

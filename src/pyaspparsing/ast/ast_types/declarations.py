@@ -19,6 +19,7 @@ from .base import (
 )
 from .statements import ExtendedID
 from .expressions import UnaryExpr, UnarySign
+from .optimize import EvalExpr
 from .expression_parser import ExpressionParser
 from .expression_evaluator import evaluate_expr
 
@@ -329,7 +330,7 @@ class ConstListItem(FormatterMixin):
     #       | '-' <ConstExprDef>
     #       | '+' <ConstExprDef>
     #       | <ConstExpr>
-    const_expr: Expr
+    const_expr: EvalExpr
 
 
 @attrs.define(repr=False, slots=False)
@@ -343,7 +344,7 @@ class ConstDecl(FormatterMixin, GlobalStmt, MethodStmt, MemberDecl):
     Attributes
     ----------
     const_list : List[ConstListItem], default=[]
-    access_mod : AccessModifierType | None, default=None
+    access_mod : AccessModifierType, default=AccessModifierType.PUBLIC
 
     Methods
     -------
@@ -351,18 +352,20 @@ class ConstDecl(FormatterMixin, GlobalStmt, MethodStmt, MemberDecl):
     """
 
     const_list: list[ConstListItem] = attrs.field(default=attrs.Factory(list))
-    access_mod: Optional[AccessModifierType] = attrs.field(default=None, kw_only=True)
+    access_mod: AccessModifierType = attrs.field(
+        default=AccessModifierType.PUBLIC, kw_only=True
+    )
 
     @staticmethod
     def from_tokenizer(
-        tkzr: Tokenizer, access_mod: Optional[AccessModifierType] = None
+        tkzr: Tokenizer, access_mod: AccessModifierType = AccessModifierType.PUBLIC
     ):
         """Construct a ConstDecl object from an active Tokenizer
 
         Parameters
         ----------
         tkzr : Tokenizer
-        access_mod : AccessModifierType | None, default=None
+        access_mod : AccessModifierType | None, default=AccessModifierType.PUBLIC
 
         Returns
         -------
@@ -459,7 +462,9 @@ class Arg(FormatterMixin):
     """
 
     extended_id: ExtendedID
-    arg_modifier: ArgModifierType = attrs.field(default=ArgModifierType.ARG_VALUE, kw_only=True)
+    arg_modifier: ArgModifierType = attrs.field(
+        default=ArgModifierType.ARG_VALUE, kw_only=True
+    )
     has_paren: bool = attrs.field(default=False, kw_only=True)
 
     @staticmethod

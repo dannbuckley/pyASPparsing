@@ -1,9 +1,10 @@
 """Symbol base class"""
 
 from functools import partial
-from typing import Any
+from typing import Optional, Any
 import attrs
-from ...ast.ast_types.declarations import VarName
+from ...ast.ast_types.base import AccessModifierType
+from ...ast.ast_types.declarations import VarName, FieldName
 from ...ast.ast_types.expressions import LeftExpr
 from ...ast.ast_types.optimize import EvalExpr
 from ...ast.ast_types.builtin_leftexpr import ResponseExpr, RequestExpr, ServerExpr
@@ -38,12 +39,21 @@ class ValueSymbol(Symbol):
     Attributes
     ----------
     value : Any, default=None
+    access_mod : AccessModifierType | None, default=None
     """
 
     value: Any = attrs.field(default=None)
+    access_mod: Optional[AccessModifierType] = attrs.field(default=None, kw_only=True)
 
     def __repr__(self):
-        base_repr = f"<ValueSymbol {repr(self.symbol_name)}"
+        match self.access_mod:
+            case AccessModifierType.PRIVATE:
+                access_str = "Private "
+            case AccessModifierType.PUBLIC:
+                access_str = "Public "
+            case _:
+                access_str = ""
+        base_repr = f"<{access_str}ValueSymbol {repr(self.symbol_name)}"
         if self.value is None:
             return base_repr + ">"
         if isinstance(self.value, EvalExpr):
@@ -51,17 +61,34 @@ class ValueSymbol(Symbol):
         return base_repr + f"; value of type {repr(type(self.value).__name__)}>"
 
     @staticmethod
-    def from_var_name(var_name: VarName):
+    def from_field_name(field_name: FieldName, access_mod: AccessModifierType):
         """
         Parameters
         ----------
-        var_name : VarName
+        field_name : FieldName
+        access_mod : AccessModifierType
 
         Returns
         -------
         ValueSymbol
         """
-        return ValueSymbol(var_name.extended_id.id_code)
+        return ValueSymbol(field_name.field_id.id_code, access_mod=access_mod)
+
+    @staticmethod
+    def from_var_name(
+        var_name: VarName, *, access_mod: Optional[AccessModifierType] = None
+    ):
+        """
+        Parameters
+        ----------
+        var_name : VarName
+        access_mod : AccessModifierType | None, default=None
+
+        Returns
+        -------
+        ValueSymbol
+        """
+        return ValueSymbol(var_name.extended_id.id_code, access_mod=access_mod)
 
 
 @attrs.define(repr=False, slots=False)
@@ -71,6 +98,8 @@ class ArraySymbol(Symbol):
     Attributes
     ----------
     rank_list : List[int], default=[]
+    array_data : Dict[Tuple[int, ...], Any], default={}
+    access_mod : AccessModifierType | None, default=None
     """
 
     rank_list: list[int] = attrs.field(
@@ -80,24 +109,55 @@ class ArraySymbol(Symbol):
     array_data: dict[tuple[int, ...], Any] = attrs.field(
         default=attrs.Factory(dict), init=False
     )
+    access_mod: Optional[AccessModifierType] = attrs.field(default=None, kw_only=True)
 
     def __repr__(self):
-        return (
-            f"<ArraySymbol {repr(self.symbol_name)}; rank_list={repr(self.rank_list)}>"
-        )
+        match self.access_mod:
+            case AccessModifierType.PRIVATE:
+                access_str = "Private "
+            case AccessModifierType.PUBLIC:
+                access_str = "Public "
+            case _:
+                access_str = ""
+        return f"<{access_str}ArraySymbol {repr(self.symbol_name)}; rank_list={repr(self.rank_list)}>"
 
     @staticmethod
-    def from_var_name(var_name: VarName):
+    def from_field_name(field_name: FieldName, access_mod: AccessModifierType):
         """
         Parameters
         ----------
-        var_name : VarName
+        field_name : FieldName
+        access_mod : AccessModifierType
 
         Returns
         -------
         ArraySymbol
         """
-        return ArraySymbol(var_name.extended_id.id_code, var_name.array_rank_list)
+        return ArraySymbol(
+            field_name.field_id.id_code,
+            field_name.array_rank_list,
+            access_mod=access_mod,
+        )
+
+    @staticmethod
+    def from_var_name(
+        var_name: VarName, *, access_mod: Optional[AccessModifierType] = None
+    ):
+        """
+        Parameters
+        ----------
+        var_name : VarName
+        access_mod : AccessModifierType | None, default=None
+
+        Returns
+        -------
+        ArraySymbol
+        """
+        return ArraySymbol(
+            var_name.extended_id.id_code,
+            var_name.array_rank_list,
+            access_mod=access_mod,
+        )
 
     def insert(self, idx: tuple[int, ...], value: Any):
         """
@@ -115,6 +175,30 @@ class ArraySymbol(Symbol):
         if not all(map(lambda ival: 0 <= ival[0] <= ival[1], zip(idx, self.rank_list))):
             raise ValueError("Each idx[i] must be in the range [0, rank_list[i]]")
         self.array_data[idx] = value
+
+
+@attrs.define(repr=False, slots=False)
+class ConstantSymbol(Symbol):
+    """
+    Attributes
+    ----------
+    access_mod : AccessModifierType
+    const_value : Any
+    """
+
+    access_mod: AccessModifierType
+    const_value: Any
+
+    def __repr__(self):
+        match self.access_mod:
+            case AccessModifierType.PRIVATE:
+                access_str = "Private "
+            case AccessModifierType.PUBLIC:
+                access_str = "Public "
+        return (
+            f"<{access_str}ConstantSymbol {repr(self.symbol_name)};"
+            f" value={repr(self.const_value)}>"
+        )
 
 
 @attrs.define(repr=False, slots=False)

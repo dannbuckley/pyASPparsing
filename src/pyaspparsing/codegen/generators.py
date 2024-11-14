@@ -45,6 +45,7 @@ from .symbols.symbol import (
     ValueMethodArgument,
     ReferenceMethodArgument,
     FunctionReturnSymbol,
+    ConstantSymbol,
 )
 from .symbols.symbol_table import SymbolTable
 from .symbols.functions import vbscript_builtin as vb_blt
@@ -174,7 +175,7 @@ class CodegenState:
             + self.jinja_env.variable_end_string,
             file=self.template_file,
         )
-        print(f"\nSTART {self.current_script_block}", file=self.script_file)
+        print(f"START {self.current_script_block}", file=self.script_file)
 
     def end_script_block(self):
         """End the current script output block"""
@@ -221,7 +222,7 @@ def codegen_global_stmt(
         ):
             cg_state.start_script_block()
         print(reg_stmt_cg[type(stmt)](stmt, cg_state), file=cg_state.script_file)
-        return
+        return None
     return reg_stmt_cg[type(stmt)](stmt, cg_state)
 
 
@@ -374,6 +375,17 @@ def cg_field_decl(
     CodegenReturn
     """
     cg_ret.append("Field declaration")
+    cg_state.add_symbol(
+        ValueSymbol.from_field_name(stmt.field_name, stmt.access_mod)
+        if len(stmt.field_name.array_rank_list) == 0
+        else ArraySymbol.from_field_name(stmt.field_name, stmt.access_mod)
+    )
+    for var_name in stmt.other_vars:
+        cg_state.add_symbol(
+            ValueSymbol.from_var_name(var_name, access_mod=stmt.access_mod)
+            if len(var_name.array_rank_list) == 0
+            else ArraySymbol.from_var_name(var_name, access_mod=stmt.access_mod)
+        )
     return cg_ret
 
 
@@ -394,6 +406,14 @@ def cg_const_decl(
     CodegenReturn
     """
     cg_ret.append("Constant declaration")
+    for const_item in stmt.const_list:
+        cg_state.add_symbol(
+            ConstantSymbol(
+                const_item.extended_id.id_code,
+                stmt.access_mod,
+                const_item.const_expr.expr_value,
+            )
+        )
     return cg_ret
 
 
