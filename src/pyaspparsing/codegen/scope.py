@@ -17,10 +17,14 @@ class ScopeType(enum.Enum):
     SCOPE_CLASS = enum.auto()
     SCOPE_SUB = enum.auto()
     SCOPE_FUNCTION = enum.auto()
+    # scope for the entire if statement
     SCOPE_IF = enum.auto()
+    # scope for each if/elseif/else branch
     SCOPE_IF_BRANCH = enum.auto()
     SCOPE_WITH = enum.auto()
+    # scope for the entire select statement
     SCOPE_SELECT = enum.auto()
+    # scope for each case statement
     SCOPE_SELECT_CASE = enum.auto()
     SCOPE_LOOP = enum.auto()
     SCOPE_FOR = enum.auto()
@@ -31,6 +35,15 @@ class ScopeManager:
     """
     Attributes
     ----------
+    scope_registry : networkx.Graph
+    scope_stack : list[int]
+
+    Methods
+    -------
+    enter_scope(scope_type)
+    exit_scope()
+    temporary_scope(scope_type)
+    get_scope_environment(scope_id)
     """
 
     scope_registry: nx.Graph = attrs.field(

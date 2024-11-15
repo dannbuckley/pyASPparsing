@@ -3,14 +3,11 @@
 from __future__ import annotations
 from collections.abc import Callable
 from functools import wraps
-import sys
-from typing import Optional, IO
+from typing import Optional
 import attrs
 from attrs.validators import instance_of
-from jinja2 import Environment
 from ..ast.ast_types import (
     GlobalStmt,
-    Expr,
     # special constructs
     ProcessingDirective,
     IncludeFile,
@@ -41,10 +38,9 @@ from ..ast.ast_types import (
     ExitStmt,
     EraseStmt,
 )
-from .scope import ScopeType, ScopeManager
-from .symbols import ValueSymbol, ArraySymbol, Response, Request, Server
+from .scope import ScopeType
+from .symbols import ValueSymbol, ArraySymbol
 from .symbols.symbol import (
-    Symbol,
     ValueMethodArgument,
     ReferenceMethodArgument,
     FunctionReturnSymbol,
@@ -52,9 +48,7 @@ from .symbols.symbol import (
     ForLoopRangeTargetSymbol,
     ForLoopIteratorTargetSymbol,
 )
-from .symbols.symbol_table import SymbolTable
-from .symbols.functions.function import UserFunction, UserSub
-from .symbols.functions import vbscript_builtin as vb_blt
+from .codegen_state import CodegenState
 
 
 @attrs.define
@@ -94,172 +88,6 @@ class CodegenReturn:
             if indent
             else other._script_lines
         )
-
-
-@attrs.define
-class CodegenState:
-    """
-    Attributes
-    ----------
-    jinja_env : jinja2.Environment
-    script_file : IO
-    template_file : IO
-    error_file : IO
-    in_script_block : bool
-    current_script_block : str | None
-
-    Methods
-    -------
-    start_script_block()
-        Create a new script output block
-    end_script_block()
-        End the current script output block
-    """
-
-    jinja_env: Environment
-    script_file: IO
-    template_file: IO
-    error_file: IO = attrs.field(default=sys.stderr)
-    scope_mgr: ScopeManager = attrs.field(
-        default=attrs.Factory(ScopeManager), init=False
-    )
-
-    sym_table: SymbolTable = attrs.field(default=attrs.Factory(SymbolTable), init=False)
-    _in_script_block: bool = attrs.field(default=False, repr=False, init=False)
-    _script_blocks: list[str] = attrs.field(
-        default=attrs.Factory(list), repr=False, init=False
-    )
-
-    output_exprs: dict[int, Expr] = attrs.field(default=attrs.Factory(dict), init=False)
-    _curr_output_id: int = attrs.field(default=-1, repr=False, init=False)
-
-    def __attrs_post_init__(self):
-        # initialize script scope with built-in symbols
-        self.add_symbol(Response())
-        self.add_symbol(Request())
-        self.add_symbol(Server())
-        for blt in filter(lambda x: x.find("builtin_", 0, 8) == 0, dir(vb_blt)):
-            self.add_symbol(getattr(vb_blt, blt)())
-        # all script data should be handled in a separate "user" scope
-        self.scope_mgr.enter_scope(ScopeType.SCOPE_SCRIPT_USER)
-
-    @property
-    def in_script_block(self) -> bool:
-        """Flag indicating whether the previous global statement was
-        part of a script block (as opposed to a global output block)
-
-        Returns
-        -------
-        bool
-        """
-        return self._in_script_block
-
-    @property
-    def current_script_block(self) -> Optional[str]:
-        """Name of the current script block;
-        returns None if no script blocks have been started yet
-
-        Returns
-        -------
-        str | None
-        """
-        if len(self._script_blocks) == 0:
-            return None
-        return self._script_blocks[-1]
-
-    def add_symbol(self, symbol: Symbol) -> bool:
-        """Add a new symbol to the symbol table under the current scope
-
-        Parameters
-        ----------
-        symbol : Symbol
-
-        Returns
-        -------
-        bool
-        """
-        return self.sym_table.add_symbol(symbol, self.scope_mgr.current_scope)
-
-    def add_function_symbol(self, func_name: str) -> bool:
-        """
-        Parameters
-        ----------
-        func_name : str
-
-        Returns
-        -------
-        bool
-        """
-        assert (
-            self.scope_mgr.scope_registry.nodes[self.scope_mgr.current_scope][
-                "scope_type"
-            ]
-            == ScopeType.SCOPE_FUNCTION
-        )
-        assert len(curr_env := self.scope_mgr.current_environment) >= 2
-        assert isinstance(func_name, str)
-        return self.sym_table.add_symbol(
-            UserFunction(func_name, self.scope_mgr.current_scope), curr_env[-2]
-        )
-
-    def add_sub_symbol(self, sub_name: str) -> bool:
-        """
-        Parameters
-        ----------
-        sub_name : str
-
-        Returns
-        -------
-        bool
-        """
-        assert (
-            self.scope_mgr.scope_registry.nodes[self.scope_mgr.current_scope][
-                "scope_type"
-            ]
-            == ScopeType.SCOPE_SUB
-        )
-        assert len(curr_env := self.scope_mgr.current_environment) >= 2
-        assert isinstance(sub_name, str)
-        return self.sym_table.add_symbol(
-            UserSub(sub_name, self.scope_mgr.current_scope), curr_env[-2]
-        )
-
-    def add_output_expr(self, output_expr: Expr) -> str:
-        """Add a new direct-output expression
-
-        Parameters
-        ----------
-        output_expr : Expr
-            Expression found in an OutputDirective object
-
-        Returns
-        -------
-        str
-            Template-style name for the new expression
-        """
-        assert isinstance(output_expr, Expr), "output_expr must be a valid expression"
-        self._curr_output_id += 1
-        self.output_exprs[self._curr_output_id] = output_expr
-        return f"__output_expr_{self._curr_output_id}"
-
-    def start_script_block(self):
-        """Create a new script output block"""
-        assert not self._in_script_block
-        self._in_script_block = True
-        self._script_blocks.append(f"__script_block_{len(self._script_blocks)}")
-        print(
-            self.jinja_env.variable_start_string
-            + f"- {self.current_script_block} -"
-            + self.jinja_env.variable_end_string,
-            file=self.template_file,
-        )
-        print(f"START {self.current_script_block}", file=self.script_file)
-
-    def end_script_block(self):
-        """End the current script output block"""
-        assert self._in_script_block and self.current_script_block is not None
-        self._in_script_block = False
-        print(f"END {self.current_script_block}\n", file=self.script_file)
 
 
 reg_stmt_cg: dict[
@@ -358,6 +186,47 @@ def cg_processing_directive(
     return cg_ret
 
 
+@create_global_cg_func(OptionExplicit)
+def cg_option_explicit(
+    stmt: OptionExplicit, cg_state: CodegenState, cg_ret: CodegenReturn
+) -> CodegenReturn:
+    """Handler for Option Explicit statement
+
+    Parameters
+    ----------
+    stmt : OptionExplicit
+    cg_state : CodegenState
+    cg_ret : CodegenReturn
+
+    Returns
+    -------
+    CodegenReturn
+    """
+    cg_ret.append("Option Explicit")
+    cg_state.sym_table.set_explicit()
+    return cg_ret
+
+
+@create_global_cg_func(ErrorStmt)
+def cg_error_stmt(
+    stmt: ErrorStmt, cg_state: CodegenState, cg_ret: CodegenReturn
+) -> CodegenReturn:
+    """Handler for error statement
+
+    Parameters
+    ----------
+    stmt : ErrorStmt
+    cg_state: CodegenState
+    cg_ret : CodegenReturn
+
+    Returns
+    -------
+    CodegenReturn
+    """
+    cg_ret.append("Error statement")
+    return cg_ret
+
+
 @create_global_cg_func(IncludeFile)
 def cg_include_file(
     stmt: IncludeFile, cg_state: CodegenState, cg_ret: CodegenReturn
@@ -411,15 +280,15 @@ def cg_output_text(
     return cg_ret
 
 
-@create_global_cg_func(OptionExplicit)
-def cg_option_explicit(
-    stmt: OptionExplicit, cg_state: CodegenState, cg_ret: CodegenReturn
+@create_global_cg_func(VarDecl)
+def cg_var_decl(
+    stmt: VarDecl, cg_state: CodegenState, cg_ret: CodegenReturn
 ) -> CodegenReturn:
-    """Handler for Option Explicit statement
+    """Code generator for variable declaration
 
     Parameters
     ----------
-    stmt : OptionExplicit
+    stmt : VarDecl
     cg_state : CodegenState
     cg_ret : CodegenReturn
 
@@ -427,28 +296,13 @@ def cg_option_explicit(
     -------
     CodegenReturn
     """
-    cg_ret.append("Option Explicit")
-    cg_state.sym_table.set_explicit()
-    return cg_ret
-
-
-@create_global_cg_func(ClassDecl, enters_scope=ScopeType.SCOPE_CLASS)
-def cg_class_decl(
-    stmt: ClassDecl, cg_state: CodegenState, cg_ret: CodegenReturn
-) -> CodegenReturn:
-    """Code generator for class declaration
-
-    Parameters
-    ----------
-    stmt : ClassDecl
-    cg_state : CodegenState
-    cg_ret : CodegenReturn
-
-    Returns
-    -------
-    CodegenReturn
-    """
-    cg_ret.append("Class declaration")
+    cg_ret.append("Variable declaration")
+    for var_name in stmt.var_name:
+        cg_state.add_symbol(
+            ValueSymbol.from_var_name(var_name)
+            if len(var_name.array_rank_list) == 0
+            else ArraySymbol.from_var_name(var_name)
+        )
     return cg_ret
 
 
@@ -511,102 +365,6 @@ def cg_const_decl(
     return cg_ret
 
 
-@create_global_cg_func(SubDecl, enters_scope=ScopeType.SCOPE_SUB)
-def cg_sub_decl(
-    stmt: SubDecl, cg_state: CodegenState, cg_ret: CodegenReturn
-) -> CodegenReturn:
-    """Code generator for sub declaration
-
-    Parameters
-    ----------
-    stmt : SubDecl
-    cg_state : CodegenState
-    cg_ret : CodegenReturn
-
-    Returns
-    -------
-    CodegenReturn
-    """
-    cg_ret.append(f"Sub {stmt.extended_id.id_code} {'{'}")
-    # define arguments in sub scope
-    for method_arg in stmt.method_arg_list:
-        match method_arg.arg_modifier:
-            case ArgModifierType.ARG_VALUE:
-                cg_state.add_symbol(ValueMethodArgument(method_arg.extended_id.id_code))
-            case ArgModifierType.ARG_REFERENCE:
-                cg_state.add_symbol(
-                    ReferenceMethodArgument(method_arg.extended_id.id_code)
-                )
-    for method_stmt in stmt.method_stmt_list:
-        cg_ret.combine(codegen_global_stmt(method_stmt, cg_state))
-    cg_ret.append("}\n")
-    # define sub symbol in enclosing scope
-    cg_state.add_sub_symbol(stmt.extended_id.id_code)
-    return cg_ret
-
-
-@create_global_cg_func(FunctionDecl, enters_scope=ScopeType.SCOPE_FUNCTION)
-def cg_function_decl(
-    stmt: FunctionDecl, cg_state: CodegenState, cg_ret: CodegenReturn
-) -> CodegenReturn:
-    """Code generator for function declaration
-
-    Parameters
-    ----------
-    stmt : FunctionDecl
-    cg_state : CodegenState
-    cg_ret : CodegenReturn
-
-    Returns
-    -------
-    CodegenReturn
-    """
-    cg_ret.append(f"Function {stmt.extended_id.id_code} {'{'}")
-    # define function name as return target
-    cg_state.add_symbol(FunctionReturnSymbol(stmt.extended_id.id_code))
-    # define arguments in function scope
-    for method_arg in stmt.method_arg_list:
-        match method_arg.arg_modifier:
-            case ArgModifierType.ARG_VALUE:
-                cg_state.add_symbol(ValueMethodArgument(method_arg.extended_id.id_code))
-            case ArgModifierType.ARG_REFERENCE:
-                cg_state.add_symbol(
-                    ReferenceMethodArgument(method_arg.extended_id.id_code)
-                )
-    for method_stmt in stmt.method_stmt_list:
-        cg_ret.combine(codegen_global_stmt(method_stmt, cg_state))
-    cg_ret.append("}\n")
-    # define function symbol in enclosing scope
-    cg_state.add_function_symbol(stmt.extended_id.id_code)
-    return cg_ret
-
-
-@create_global_cg_func(VarDecl)
-def cg_var_decl(
-    stmt: VarDecl, cg_state: CodegenState, cg_ret: CodegenReturn
-) -> CodegenReturn:
-    """Code generator for variable declaration
-
-    Parameters
-    ----------
-    stmt : VarDecl
-    cg_state : CodegenState
-    cg_ret : CodegenReturn
-
-    Returns
-    -------
-    CodegenReturn
-    """
-    cg_ret.append("Variable declaration")
-    for var_name in stmt.var_name:
-        cg_state.add_symbol(
-            ValueSymbol.from_var_name(var_name)
-            if len(var_name.array_rank_list) == 0
-            else ArraySymbol.from_var_name(var_name)
-        )
-    return cg_ret
-
-
 @create_global_cg_func(RedimStmt)
 def cg_redim_stmt(
     stmt: RedimStmt, cg_state: CodegenState, cg_ret: CodegenReturn
@@ -624,6 +382,144 @@ def cg_redim_stmt(
     CodegenReturn
     """
     cg_ret.append("Redim statement")
+    return cg_ret
+
+
+@create_global_cg_func(EraseStmt)
+def cg_erase_stmt(
+    stmt: EraseStmt, cg_state: CodegenState, cg_ret: CodegenReturn
+) -> CodegenReturn:
+    """Code generator for erase statement
+
+    Parameters
+    ----------
+    stmt : EraseStmt
+    cg_state : CodegenState
+    cg_ret : CodegenReturn
+
+    Returns
+    -------
+    CodegenReturn
+    """
+    cg_ret.append("Erase statement")
+    return cg_ret
+
+
+@create_global_cg_func(AssignStmt)
+def cg_assign_stmt(
+    stmt: AssignStmt, cg_state: CodegenState, cg_ret: CodegenReturn
+) -> CodegenReturn:
+    """Code generator for assignment statement
+
+    Parameters
+    ----------
+    stmt : AssignStmt
+    cg_state : CodegenState
+    cg_ret : CodegenReturn
+
+    Returns
+    -------
+    CodegenReturn
+    """
+    cg_ret.append("Assign statement")
+    curr_env = cg_state.scope_mgr.current_environment
+    scp_types = set(
+        map(
+            lambda x: cg_state.scope_mgr.scope_registry.nodes[x]["scope_type"], curr_env
+        )
+    )
+    cg_state.sym_table.assign(
+        stmt,
+        curr_env,
+        function_sub_body=(
+            ScopeType.SCOPE_FUNCTION in scp_types or ScopeType.SCOPE_SUB in scp_types
+        ),
+    )
+    return cg_ret
+
+
+@create_global_cg_func(CallStmt)
+def cg_call_stmt(
+    stmt: CallStmt, cg_state: CodegenState, cg_ret: CodegenReturn
+) -> CodegenReturn:
+    """Code generator for function call statement
+
+    Parameters
+    ----------
+    stmt : CallStmt
+    cg_state : CodegenState
+    cg_ret : CodegenReturn
+
+    Returns
+    -------
+    CodegenReturn
+    """
+    cg_ret.append("Call statement")
+    return cg_ret
+
+
+@create_global_cg_func(SubCallStmt)
+def cg_sub_call_stmt(
+    stmt: SubCallStmt, cg_state: CodegenState, cg_ret: CodegenReturn
+) -> CodegenReturn:
+    """Code generator for sub call statement
+
+    Parameters
+    ----------
+    stmt : SubCallStmt
+    cg_state : CodegenState
+    cg_ret : CodegenReturn
+
+    Returns
+    -------
+    CodegenReturn
+    """
+
+    def _display_left_expr():
+        nonlocal stmt
+        yield stmt.left_expr.sym_name
+        for idx in range(stmt.left_expr.end_idx):
+            if idx in stmt.left_expr.subnames:
+                yield f".{stmt.left_expr.subnames[idx]}"
+            elif idx in stmt.left_expr.call_args:
+                yield "(...)"
+            else:
+                raise ValueError("Invalid left expression")
+
+    cg_ret.append("".join(_display_left_expr()))
+    curr_env = cg_state.scope_mgr.current_environment
+    scp_types = set(
+        map(
+            lambda x: cg_state.scope_mgr.scope_registry.nodes[x]["scope_type"], curr_env
+        )
+    )
+    cg_state.sym_table.call(
+        stmt.left_expr,
+        curr_env,
+        function_sub_body=(
+            ScopeType.SCOPE_FUNCTION in scp_types or ScopeType.SCOPE_SUB in scp_types
+        ),
+    )
+    return cg_ret
+
+
+@create_global_cg_func(ExitStmt)
+def cg_exit_stmt(
+    stmt: ExitStmt, cg_state: CodegenState, cg_ret: CodegenReturn
+) -> CodegenReturn:
+    """Code generator for exit statement
+
+    Parameters
+    ----------
+    stmt : ExitStmt
+    cg_state : CodegenState
+    cg_ret : CodegenReturn
+
+    Returns
+    -------
+    CodegenReturn
+    """
+    cg_ret.append("Exit statement")
     return cg_ret
 
 
@@ -766,15 +662,15 @@ def cg_for_stmt(
     return cg_ret
 
 
-@create_global_cg_func(AssignStmt)
-def cg_assign_stmt(
-    stmt: AssignStmt, cg_state: CodegenState, cg_ret: CodegenReturn
+@create_global_cg_func(SubDecl, enters_scope=ScopeType.SCOPE_SUB)
+def cg_sub_decl(
+    stmt: SubDecl, cg_state: CodegenState, cg_ret: CodegenReturn
 ) -> CodegenReturn:
-    """Code generator for assignment statement
+    """Code generator for sub declaration
 
     Parameters
     ----------
-    stmt : AssignStmt
+    stmt : SubDecl
     cg_state : CodegenState
     cg_ret : CodegenReturn
 
@@ -782,32 +678,33 @@ def cg_assign_stmt(
     -------
     CodegenReturn
     """
-    cg_ret.append("Assign statement")
-    curr_env = cg_state.scope_mgr.current_environment
-    scp_types = set(
-        map(
-            lambda x: cg_state.scope_mgr.scope_registry.nodes[x]["scope_type"], curr_env
-        )
-    )
-    cg_state.sym_table.assign(
-        stmt,
-        curr_env,
-        function_sub_body=(
-            ScopeType.SCOPE_FUNCTION in scp_types or ScopeType.SCOPE_SUB in scp_types
-        ),
-    )
+    cg_ret.append(f"Sub {stmt.extended_id.id_code} {'{'}")
+    # define arguments in sub scope
+    for method_arg in stmt.method_arg_list:
+        match method_arg.arg_modifier:
+            case ArgModifierType.ARG_VALUE:
+                cg_state.add_symbol(ValueMethodArgument(method_arg.extended_id.id_code))
+            case ArgModifierType.ARG_REFERENCE:
+                cg_state.add_symbol(
+                    ReferenceMethodArgument(method_arg.extended_id.id_code)
+                )
+    for method_stmt in stmt.method_stmt_list:
+        cg_ret.combine(codegen_global_stmt(method_stmt, cg_state))
+    cg_ret.append("}\n")
+    # define sub symbol in enclosing scope
+    cg_state.add_sub_symbol(stmt.extended_id.id_code)
     return cg_ret
 
 
-@create_global_cg_func(CallStmt)
-def cg_call_stmt(
-    stmt: CallStmt, cg_state: CodegenState, cg_ret: CodegenReturn
+@create_global_cg_func(FunctionDecl, enters_scope=ScopeType.SCOPE_FUNCTION)
+def cg_function_decl(
+    stmt: FunctionDecl, cg_state: CodegenState, cg_ret: CodegenReturn
 ) -> CodegenReturn:
-    """Code generator for function call statement
+    """Code generator for function declaration
 
     Parameters
     ----------
-    stmt : CallStmt
+    stmt : FunctionDecl
     cg_state : CodegenState
     cg_ret : CodegenReturn
 
@@ -815,19 +712,35 @@ def cg_call_stmt(
     -------
     CodegenReturn
     """
-    cg_ret.append("Call statement")
+    cg_ret.append(f"Function {stmt.extended_id.id_code} {'{'}")
+    # define function name as return target
+    cg_state.add_symbol(FunctionReturnSymbol(stmt.extended_id.id_code))
+    # define arguments in function scope
+    for method_arg in stmt.method_arg_list:
+        match method_arg.arg_modifier:
+            case ArgModifierType.ARG_VALUE:
+                cg_state.add_symbol(ValueMethodArgument(method_arg.extended_id.id_code))
+            case ArgModifierType.ARG_REFERENCE:
+                cg_state.add_symbol(
+                    ReferenceMethodArgument(method_arg.extended_id.id_code)
+                )
+    for method_stmt in stmt.method_stmt_list:
+        cg_ret.combine(codegen_global_stmt(method_stmt, cg_state))
+    cg_ret.append("}\n")
+    # define function symbol in enclosing scope
+    cg_state.add_function_symbol(stmt.extended_id.id_code)
     return cg_ret
 
 
-@create_global_cg_func(SubCallStmt)
-def cg_sub_call_stmt(
-    stmt: SubCallStmt, cg_state: CodegenState, cg_ret: CodegenReturn
+@create_global_cg_func(ClassDecl, enters_scope=ScopeType.SCOPE_CLASS)
+def cg_class_decl(
+    stmt: ClassDecl, cg_state: CodegenState, cg_ret: CodegenReturn
 ) -> CodegenReturn:
-    """Code generator for sub call statement
+    """Code generator for class declaration
 
     Parameters
     ----------
-    stmt : SubCallStmt
+    stmt : ClassDecl
     cg_state : CodegenState
     cg_ret : CodegenReturn
 
@@ -835,90 +748,5 @@ def cg_sub_call_stmt(
     -------
     CodegenReturn
     """
-
-    def _display_left_expr():
-        nonlocal stmt
-        yield stmt.left_expr.sym_name
-        for idx in range(stmt.left_expr.end_idx):
-            if idx in stmt.left_expr.subnames:
-                yield f".{stmt.left_expr.subnames[idx]}"
-            elif idx in stmt.left_expr.call_args:
-                yield "(...)"
-            else:
-                raise ValueError("Invalid left expression")
-
-    cg_ret.append("".join(_display_left_expr()))
-    curr_env = cg_state.scope_mgr.current_environment
-    scp_types = set(
-        map(
-            lambda x: cg_state.scope_mgr.scope_registry.nodes[x]["scope_type"], curr_env
-        )
-    )
-    cg_state.sym_table.call(
-        stmt.left_expr,
-        curr_env,
-        function_sub_body=(
-            ScopeType.SCOPE_FUNCTION in scp_types or ScopeType.SCOPE_SUB in scp_types
-        ),
-    )
-    return cg_ret
-
-
-@create_global_cg_func(ErrorStmt)
-def cg_error_stmt(
-    stmt: ErrorStmt, cg_state: CodegenState, cg_ret: CodegenReturn
-) -> CodegenReturn:
-    """Handler for error statement
-
-    Parameters
-    ----------
-    stmt : ErrorStmt
-    cg_state: CodegenState
-    cg_ret : CodegenReturn
-
-    Returns
-    -------
-    CodegenReturn
-    """
-    cg_ret.append("Error statement")
-    return cg_ret
-
-
-@create_global_cg_func(ExitStmt)
-def cg_exit_stmt(
-    stmt: ExitStmt, cg_state: CodegenState, cg_ret: CodegenReturn
-) -> CodegenReturn:
-    """Code generator for exit statement
-
-    Parameters
-    ----------
-    stmt : ExitStmt
-    cg_state : CodegenState
-    cg_ret : CodegenReturn
-
-    Returns
-    -------
-    CodegenReturn
-    """
-    cg_ret.append("Exit statement")
-    return cg_ret
-
-
-@create_global_cg_func(EraseStmt)
-def cg_erase_stmt(
-    stmt: EraseStmt, cg_state: CodegenState, cg_ret: CodegenReturn
-) -> CodegenReturn:
-    """Code generator for erase statement
-
-    Parameters
-    ----------
-    stmt : EraseStmt
-    cg_state : CodegenState
-    cg_ret : CodegenReturn
-
-    Returns
-    -------
-    CodegenReturn
-    """
-    cg_ret.append("Erase statement")
+    cg_ret.append("Class declaration")
     return cg_ret
