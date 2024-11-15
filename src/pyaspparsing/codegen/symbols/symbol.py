@@ -164,7 +164,7 @@ class ArraySymbol(Symbol):
                 access_str = ""
         return (
             f"<{access_str}ArraySymbol {repr(self.symbol_name)}; "
-            "rank_list={repr(self.rank_list)}>"
+            f"rank_list={repr(self.rank_list)}>"
         )
 
     @staticmethod
@@ -223,6 +223,40 @@ class ArraySymbol(Symbol):
             # raise ValueError("Each idx[i] must be in the range [0, rank_list[i]]")
             return
         self.array_data[idx] = value
+
+    def retrieve(self, left_expr: LeftExpr) -> Any:
+        """
+        Parameters
+        ----------
+        left_expr : LeftExpr
+
+        Returns
+        -------
+        Any
+
+        Raises
+        ------
+        AssertionError
+        """
+        assert left_expr.sym_name == self.symbol_name, "Symbol names must match"
+        assert (
+            left_expr.end_idx == 1
+            and (idx := left_expr.call_args.get(0, None)) is not None
+        ), "left_expr must match 'sym_name(...)'"
+
+        def _unwrap_eval_expr():
+            nonlocal idx
+            for item in idx:
+                if isinstance(item, EvalExpr):
+                    yield item.expr_value
+                else:
+                    yield item
+
+        idx = tuple(_unwrap_eval_expr())
+        assert len(idx) == len(self.rank_list) and all(
+            map(lambda x: isinstance(x, int), idx)
+        ), "idx must be a tuple of integers that is the same length as the array's rank list"
+        return self.array_data[idx]
 
 
 @attrs.define(repr=False, slots=False)

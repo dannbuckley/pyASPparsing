@@ -8,6 +8,8 @@ import attrs
 from attrs.validators import instance_of
 from ..ast.ast_types import (
     GlobalStmt,
+    EvalExpr,
+    LeftExpr,
     # special constructs
     ProcessingDirective,
     IncludeFile,
@@ -271,6 +273,47 @@ def cg_output_text(
                 case OutputType.OUTPUT_DIRECTIVE:
                     # assert for type inference
                     assert isinstance(output[1], OutputDirective)
+                    out_expr = output[1].output_expr
+                    # check if the expression can be evaluated
+                    if isinstance(out_expr, EvalExpr):
+                        # print directly to template as string
+                        print(
+                            out_expr.str_cast().expr_value,
+                            end="",
+                            file=cg_state.template_file,
+                        )
+                        continue
+                    elif isinstance(out_expr, LeftExpr):
+                        # check if the left expression represents a value
+                        res_out = cg_state.sym_table.resolve_symbol(
+                            out_expr, cg_state.scope_mgr.current_environment
+                        )
+                        if len(res_out) == 1:
+                            sym_out = res_out[0].symbol
+                            if isinstance(sym_out, ValueSymbol) and isinstance(
+                                sym_out.value, EvalExpr
+                            ):
+                                print(
+                                    sym_out.value.str_cast().expr_value,
+                                    end="",
+                                    file=cg_state.template_file,
+                                )
+                                continue
+                            elif isinstance(sym_out, ArraySymbol):
+                                try:
+                                    if isinstance(
+                                        (sym_arr_val := sym_out.retrieve(out_expr)),
+                                        EvalExpr,
+                                    ):
+                                        print(
+                                            sym_arr_val.str_cast().expr_value,
+                                            end="",
+                                            file=cg_state.template_file,
+                                        )
+                                        continue
+                                except AssertionError:
+                                    # could not evaluate array indices
+                                    pass
                     # register output expression
                     expr_name = cg_state.add_output_expr(output[1].output_expr)
                     print(
@@ -690,9 +733,12 @@ def cg_sub_decl(
                 )
     for method_stmt in stmt.method_stmt_list:
         cg_ret.combine(codegen_global_stmt(method_stmt, cg_state))
-    cg_ret.append("}\n")
+    cg_ret.append(f"{'}'} // end sub {stmt.extended_id.id_code} \n")
     # define sub symbol in enclosing scope
-    cg_state.add_sub_symbol(stmt.extended_id.id_code)
+    cg_state.add_sub_symbol(
+        stmt.extended_id.id_code,
+        list(map(lambda x: x.extended_id.id_code, stmt.method_arg_list)),
+    )
     return cg_ret
 
 
@@ -726,9 +772,12 @@ def cg_function_decl(
                 )
     for method_stmt in stmt.method_stmt_list:
         cg_ret.combine(codegen_global_stmt(method_stmt, cg_state))
-    cg_ret.append("}\n")
+    cg_ret.append(f"{'}'} // end function {stmt.extended_id.id_code}\n")
     # define function symbol in enclosing scope
-    cg_state.add_function_symbol(stmt.extended_id.id_code)
+    cg_state.add_function_symbol(
+        stmt.extended_id.id_code,
+        list(map(lambda x: x.extended_id.id_code, stmt.method_arg_list)),
+    )
     return cg_ret
 
 

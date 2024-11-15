@@ -3,7 +3,7 @@
 from collections.abc import Callable
 import inspect
 import attrs
-from attrs.validators import instance_of
+from attrs.validators import deep_iterable, instance_of
 from ..symbol import Symbol
 
 
@@ -33,9 +33,15 @@ class UserFunction(Symbol):
     """User-defined function created somewhere in the script"""
 
     func_scope_id: int = attrs.field(validator=instance_of(int))
+    arg_names: list[str] = attrs.field(
+        default=attrs.Factory(list), validator=deep_iterable(instance_of(str))
+    )
 
     def __repr__(self):
-        return f"<UserFunction {repr(self.symbol_name)}; func_scope_id={repr(self.func_scope_id)}>"
+        return (
+            f"<UserFunction {self.symbol_name}({', '.join(self.arg_names)}); "
+            f"func_scope_id={repr(self.func_scope_id)}>"
+        )
 
 
 @attrs.define(repr=False, slots=False)
@@ -43,6 +49,12 @@ class UserSub(Symbol):
     """User-defined subprocedure created somewhere in the script"""
 
     sub_scope_id: int = attrs.field(validator=instance_of(int))
+    arg_names: list[str] = attrs.field(
+        default=attrs.Factory(list), validator=deep_iterable(instance_of(str))
+    )
 
     def __repr__(self):
-        return f"<UserSub {repr(self.symbol_name)}; sub_scope_id={repr(self.sub_scope_id)}>"
+        return (
+            f"<UserSub {self.symbol_name}({', '.join(self.arg_names)}); "
+            f"sub_scope_id={repr(self.sub_scope_id)}>"
+        )

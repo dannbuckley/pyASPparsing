@@ -1,6 +1,6 @@
 """Symbol table"""
 
-from typing import Generator, Any
+from typing import Optional, Generator, Any
 import attrs
 from ...ast.ast_types import AssignStmt, Expr, LeftExpr, EvalExpr
 from .symbol import (
@@ -164,6 +164,19 @@ class SymbolScope:
 
 
 @attrs.define
+class ResolvedSymbol:
+    """
+    Attributes
+    ----------
+    scope : int
+    symbol : Symbol
+    """
+
+    scope: int
+    symbol: Symbol
+
+
+@attrs.define
 class SymbolTable:
     """
     Attributes
@@ -203,6 +216,44 @@ class SymbolTable:
         if not scope in self.sym_scopes:
             self.sym_scopes[scope] = SymbolScope()
         return self.sym_scopes[scope].add_symbol(symbol)
+
+    def resolve_symbol(
+        self, left_expr: LeftExpr, curr_env: Optional[list[int]] = None
+    ) -> list[ResolvedSymbol]:
+        """
+        Parameters
+        ----------
+        left_expr : LeftExpr
+        curr_env : list[int] | None, default=None
+            If None, will search for symbol in all scopes
+
+        Returns
+        -------
+        list[ResolvedSymbol]
+        """
+        ret_syms: list[ResolvedSymbol] = []
+        if curr_env is None:
+            # search for symbol in all scopes
+            for scp in self.sym_scopes.keys():
+                if (
+                    left_sym := self.sym_scopes[scp].sym_table.get(
+                        left_expr.sym_name, None
+                    )
+                ) is not None:
+                    ret_syms.append(ResolvedSymbol(scp, left_sym))
+        else:
+            # search for symbol in current environment
+            assert len(curr_env) > 0, "curr_env must not be empty"
+            for scp in curr_env:
+                # ^ order of scope resolution doesn't matter since
+                # we're searching the entire environment
+                if (
+                    left_sym := self.sym_scopes[scp].sym_table.get(
+                        left_expr.sym_name, None
+                    )
+                ) is not None:
+                    ret_syms.append(ResolvedSymbol(scp, left_sym))
+        return ret_syms
 
     def _try_resolve_args(self, call_args: tuple[Any, ...], curr_env: list[int]):
         """Try to resolve left expressions passed as call arguments

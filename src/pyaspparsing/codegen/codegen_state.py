@@ -99,7 +99,9 @@ class CodegenState:
         """
         return self.sym_table.add_symbol(symbol, self.scope_mgr.current_scope)
 
-    def add_function_symbol(self, func_name: str) -> bool:
+    def add_function_symbol(
+        self, func_name: str, arg_names: Optional[list[str]] = None
+    ) -> bool:
         """
         Parameters
         ----------
@@ -117,11 +119,20 @@ class CodegenState:
         )
         assert len(curr_env := self.scope_mgr.current_environment) >= 2
         assert isinstance(func_name, str)
+        assert arg_names is None or (
+            isinstance(arg_names, list)
+            and all(map(lambda x: isinstance(x, str), arg_names))
+        )
+        if arg_names is None:
+            arg_names = []
         return self.sym_table.add_symbol(
-            UserFunction(func_name, self.scope_mgr.current_scope), curr_env[-2]
+            UserFunction(func_name, self.scope_mgr.current_scope, arg_names),
+            curr_env[-2],
         )
 
-    def add_sub_symbol(self, sub_name: str) -> bool:
+    def add_sub_symbol(
+        self, sub_name: str, arg_names: Optional[list[str]] = None
+    ) -> bool:
         """
         Parameters
         ----------
@@ -139,8 +150,14 @@ class CodegenState:
         )
         assert len(curr_env := self.scope_mgr.current_environment) >= 2
         assert isinstance(sub_name, str)
+        assert arg_names is None or (
+            isinstance(arg_names, list)
+            and all(map(lambda x: isinstance(x, str), arg_names))
+        )
+        if arg_names is None:
+            arg_names = []
         return self.sym_table.add_symbol(
-            UserSub(sub_name, self.scope_mgr.current_scope), curr_env[-2]
+            UserSub(sub_name, self.scope_mgr.current_scope, arg_names), curr_env[-2]
         )
 
     def add_output_expr(self, output_expr: Expr) -> str:
@@ -170,6 +187,7 @@ class CodegenState:
             self.jinja_env.variable_start_string
             + f"- {self.current_script_block} -"
             + self.jinja_env.variable_end_string,
+            end="",  # don't add newline after template variable
             file=self.template_file,
         )
         print(f"START {self.current_script_block}", file=self.script_file)

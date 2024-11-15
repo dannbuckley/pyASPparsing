@@ -12,6 +12,7 @@ from ..ast.ast_types import (
     ErrorStmt,
     FunctionDecl,
     SubDecl,
+    OutputText,
 )
 from .linker import Linker, generate_linked_program
 from .generators import CodegenState, codegen_global_stmt
@@ -46,6 +47,15 @@ def generate_code(
                 # this alleviates a scope resolution issue since
                 # functions can be declared AFTER they're used
                 codegen_global_stmt(glob_st, cg_state, top_level=True)
+            elif isinstance(glob_st, OutputText):
+                if (
+                    len(glob_st.directives) == 0
+                    and len(glob_st.chunks) == 1
+                    and glob_st.chunks[0].isspace()
+                ):
+                    # ignore output between statements if the output is exclusively whitespace
+                    continue
+                other_st.append(glob_st)
             else:
                 # defer consideration of other code until after all functions/subs declared
                 other_st.append(glob_st)
