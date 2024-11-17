@@ -3,7 +3,7 @@
 from __future__ import annotations
 from collections.abc import Callable
 from functools import wraps
-from typing import Optional
+from typing import Optional, Any
 import attrs
 from attrs.validators import instance_of
 from ..ast.ast_types import (
@@ -43,6 +43,7 @@ from ..ast.ast_types import (
 from .scope import ScopeType
 from .symbols import ValueSymbol, ArraySymbol
 from .symbols.symbol import (
+    ASPObject,
     ValueMethodArgument,
     ReferenceMethodArgument,
     FunctionReturnSymbol,
@@ -50,6 +51,7 @@ from .symbols.symbol import (
     ForLoopRangeTargetSymbol,
     ForLoopIteratorTargetSymbol,
 )
+from .symbols.functions.function import ASPFunction, UserFunction, UserSub
 from .codegen_state import CodegenState
 
 
@@ -466,18 +468,228 @@ def cg_assign_stmt(
     """
     cg_ret.append("Assign statement")
     curr_env = cg_state.scope_mgr.current_environment
-    scp_types = set(
-        map(
-            lambda x: cg_state.scope_mgr.scope_registry.nodes[x]["scope_type"], curr_env
-        )
-    )
+    # scp_types = set(
+    #     map(
+    #         lambda x: cg_state.scope_mgr.scope_registry.nodes[x]["scope_type"], curr_env
+    #     )
+    # )
     cg_state.sym_table.assign(
         stmt,
         curr_env,
-        function_sub_body=(
-            ScopeType.SCOPE_FUNCTION in scp_types or ScopeType.SCOPE_SUB in scp_types
-        ),
+        # function_sub_body=(
+        #     ScopeType.SCOPE_FUNCTION_DEFINITION in scp_types
+        #     or ScopeType.SCOPE_SUB_DEFINITION in scp_types
+        # ),
     )
+    return cg_ret
+
+
+def cghelper_call_builtin_object(left_expr: LeftExpr, cg_state: CodegenState):
+    """Call a function attached to a builtin object
+
+    The object will always be in SCOPE_SCRIPT_BUILTIN
+
+    Parameters
+    ----------
+    left_expr : LeftExpr
+    cg_state : CodegenState
+    """
+
+
+def cghelper_call_builtin_function(left_expr: LeftExpr, cg_state: CodegenState):
+    """Call a builtin function
+
+    The function will always be in SCOPE_SCRIPT_BUILTIN
+
+    Parameters
+    ----------
+    left_expr : LeftExpr
+    cg_state : CodegenState
+    """
+
+
+def cghelper_call_value_object(
+    res_scope: int, left_expr: LeftExpr, cg_state: CodegenState
+):
+    """Call a function attached to a created object
+
+    Parameters
+    ----------
+    res_scope : int
+    left_expr : LeftExpr
+    cg_state : CodegenState
+    """
+
+
+def cghelper_setup_user_arguments(
+    method_args: list[str], call_args: tuple[Any, ...], cg_state: CodegenState
+):
+    """
+    Parameters
+    ----------
+    method_args : list[str]
+    call_args : tuple[Any, ...]
+    cg_state : CodegenState
+    """
+    call_scp = cg_state.scope_mgr.current_scope
+    for marg, carg in zip(method_args, call_args):
+        arg_sym = cg_state.sym_table.sym_scopes[call_scp].sym_table[marg]
+        if isinstance(arg_sym, ValueMethodArgument):
+            cg_state.sym_table.sym_scopes[call_scp].sym_table[marg].value = carg
+        elif isinstance(arg_sym, ReferenceMethodArgument):
+            assert isinstance(carg, LeftExpr) and carg.end_idx == 0
+            arg_resv = cg_state.sym_table.resolve_symbol(
+                carg,
+                # referenced argument must exist in an enclosing scope
+                cg_state.scope_mgr.current_environment[:-1],
+            )
+            assert len(arg_resv) > 0
+            # refer to the name in the nearest enclosing scope
+            cg_state.sym_table.sym_scopes[call_scp].sym_table[marg].ref_name = arg_resv[
+                -1
+            ].symbol.symbol_name
+            cg_state.sym_table.sym_scopes[call_scp].sym_table[marg].ref_scope = (
+                arg_resv[-1].scope
+            )
+
+
+def cghelper_call_user_function(
+    res_scope: int, left_expr: LeftExpr, cg_state: CodegenState
+) -> CodegenReturn:
+    """Call a user-defined function
+
+    Parameters
+    ----------
+    res_scope : int
+    left_expr : LeftExpr
+    cg_state : CodegenState
+    """
+    cg_ret = CodegenReturn()
+    call_sym: UserFunction = cg_state.sym_table.sym_scopes[res_scope].sym_table[
+        left_expr.sym_name
+    ]
+    with cg_state.scope_mgr.temporary_scope(ScopeType.SCOPE_FUNCTION_CALL):
+        call_scp = cg_state.scope_mgr.current_scope
+        # copy function signature into new scope
+        cg_state.sym_table.copy_scope(call_sym.func_scope_id, call_scp)
+        # setup function arguments
+        if (num_args := len(call_sym.arg_names)) > 0:
+            assert (
+                cargs := left_expr.call_args.get(left_expr.end_idx - 1, None)
+            ) is not None and len(cargs) == num_args, (
+                "Number of arguments in left expression "
+                "must match number of function arguments"
+            )
+            cghelper_setup_user_arguments(call_sym.arg_names, cargs, cg_state)
+        # copy-and-paste function body into current statement
+        for body_stmt in call_sym.func_body:
+            cg_ret.combine(codegen_global_stmt(body_stmt, cg_state), indent=False)
+    return cg_ret
+
+
+def cghelper_call_user_sub(
+    res_scope: int, left_expr: LeftExpr, cg_state: CodegenState
+) -> CodegenReturn:
+    """Call a user-defined sub
+
+    Parameters
+    ----------
+    res_scope : int
+    left_expr : LeftExpr
+    cg_state : CodegenState
+    """
+    cg_ret = CodegenReturn()
+    call_sym: UserSub = cg_state.sym_table.sym_scopes[res_scope].sym_table[
+        left_expr.sym_name
+    ]
+    with cg_state.scope_mgr.temporary_scope(ScopeType.SCOPE_SUB_CALL):
+        call_scp = cg_state.scope_mgr.current_scope
+        # copy sub signature into new scope
+        cg_state.sym_table.copy_scope(call_sym.sub_scope_id, call_scp)
+        # setup sub arguments
+        if (num_args := len(call_sym.arg_names)) > 0:
+            assert (
+                cargs := left_expr.call_args.get(left_expr.end_idx - 1, None)
+            ) is not None and len(cargs) == num_args, (
+                "Number of arguments in left expression "
+                "must match number of sub arguments"
+            )
+            cghelper_setup_user_arguments(call_sym.arg_names, cargs, cg_state)
+        # copy-and-paste sub body into current statement
+        for body_stmt in call_sym.sub_body:
+            cg_ret.combine(codegen_global_stmt(body_stmt, cg_state), indent=False)
+    return cg_ret
+
+
+def cghelper_call(
+    left_expr: LeftExpr, cg_state: CodegenState, cg_ret: CodegenReturn
+) -> CodegenReturn:
+    """Helper function for call and sub-call statements
+
+    Parameters
+    ----------
+    left_expr : LeftExpr
+    cg_state : CodegenState
+    cg_ret : CodegenReturn
+
+    Returns
+    -------
+    CodegenReturn
+    """
+
+    def _display_left_expr():
+        nonlocal left_expr
+        yield left_expr.sym_name
+        for idx in range(left_expr.end_idx):
+            if idx in left_expr.subnames:
+                yield f".{left_expr.subnames[idx]}"
+            elif idx in left_expr.call_args:
+                yield "(...)"
+            else:
+                raise ValueError("Invalid left expression")
+
+    display_str = "".join(_display_left_expr())
+    curr_env = cg_state.scope_mgr.current_environment
+    sym_resv = cg_state.sym_table.resolve_symbol(left_expr, curr_env)
+    # assume callable is only defined once
+    assert len(sym_resv) == 1
+    if isinstance(sym_resv[0].symbol, ASPObject):
+        cg_ret.append(f"{display_str};")
+        cghelper_call_builtin_object(left_expr, cg_state)
+    elif isinstance(sym_resv[0].symbol, ASPFunction):
+        cg_ret.append(f"{display_str};")
+        cghelper_call_builtin_function(left_expr, cg_state)
+    elif isinstance(sym_resv[0].symbol, ValueSymbol) and isinstance(
+        sym_resv[0].symbol.value, ASPObject
+    ):
+        cg_ret.append(f"{display_str};")
+        cghelper_call_value_object(sym_resv[0].scope, left_expr, cg_state)
+    elif isinstance(sym_resv[0].symbol, UserFunction):
+        if len(sym_resv[0].symbol.func_body) == 0:
+            print(
+                f"Skipped {sym_resv[0].symbol.symbol_name} function call (empty function body)",
+                file=cg_state.error_file,
+            )
+        else:
+            cg_ret.append(f"{display_str} {'{'}")
+            cg_ret.combine(
+                cghelper_call_user_function(sym_resv[0].scope, left_expr, cg_state)
+            )
+            cg_ret.append("}")
+    elif isinstance(sym_resv[0].symbol, UserSub):
+        if len(sym_resv[0].symbol.sub_body) == 0:
+            print(
+                f"Skipped {sym_resv[0].symbol.symbol_name} sub call (empty sub body)",
+                file=cg_state.error_file,
+            )
+        else:
+            cg_ret.append(f"{display_str} {'{'}")
+            cg_ret.combine(
+                cghelper_call_user_sub(sym_resv[0].scope, left_expr, cg_state)
+            )
+            cg_ret.append("}")
+    else:
+        raise ValueError("Symbol associated with left expression is not callable")
     return cg_ret
 
 
@@ -497,8 +709,7 @@ def cg_call_stmt(
     -------
     CodegenReturn
     """
-    cg_ret.append("Call statement")
-    return cg_ret
+    return cghelper_call(stmt.left_expr, cg_state, cg_ret)
 
 
 @create_global_cg_func(SubCallStmt)
@@ -517,33 +728,7 @@ def cg_sub_call_stmt(
     -------
     CodegenReturn
     """
-
-    def _display_left_expr():
-        nonlocal stmt
-        yield stmt.left_expr.sym_name
-        for idx in range(stmt.left_expr.end_idx):
-            if idx in stmt.left_expr.subnames:
-                yield f".{stmt.left_expr.subnames[idx]}"
-            elif idx in stmt.left_expr.call_args:
-                yield "(...)"
-            else:
-                raise ValueError("Invalid left expression")
-
-    cg_ret.append("".join(_display_left_expr()))
-    curr_env = cg_state.scope_mgr.current_environment
-    scp_types = set(
-        map(
-            lambda x: cg_state.scope_mgr.scope_registry.nodes[x]["scope_type"], curr_env
-        )
-    )
-    cg_state.sym_table.call(
-        stmt.left_expr,
-        curr_env,
-        function_sub_body=(
-            ScopeType.SCOPE_FUNCTION in scp_types or ScopeType.SCOPE_SUB in scp_types
-        ),
-    )
-    return cg_ret
+    return cghelper_call(stmt.left_expr, cg_state, cg_ret)
 
 
 @create_global_cg_func(ExitStmt)
@@ -705,7 +890,7 @@ def cg_for_stmt(
     return cg_ret
 
 
-@create_global_cg_func(SubDecl, enters_scope=ScopeType.SCOPE_SUB)
+@create_global_cg_func(SubDecl, enters_scope=ScopeType.SCOPE_SUB_DEFINITION)
 def cg_sub_decl(
     stmt: SubDecl, cg_state: CodegenState, cg_ret: CodegenReturn
 ) -> CodegenReturn:
@@ -721,28 +906,31 @@ def cg_sub_decl(
     -------
     CodegenReturn
     """
-    cg_ret.append(f"Sub {stmt.extended_id.id_code} {'{'}")
     # define arguments in sub scope
+    arg_names: list[str] = []
     for method_arg in stmt.method_arg_list:
+        arg_names.append(method_arg.extended_id.id_code)
         match method_arg.arg_modifier:
             case ArgModifierType.ARG_VALUE:
-                cg_state.add_symbol(ValueMethodArgument(method_arg.extended_id.id_code))
+                cg_state.add_symbol(ValueMethodArgument(arg_names[-1]))
             case ArgModifierType.ARG_REFERENCE:
-                cg_state.add_symbol(
-                    ReferenceMethodArgument(method_arg.extended_id.id_code)
-                )
-    for method_stmt in stmt.method_stmt_list:
-        cg_ret.combine(codegen_global_stmt(method_stmt, cg_state))
-    cg_ret.append(f"{'}'} // end sub {stmt.extended_id.id_code} \n")
+                cg_state.add_symbol(ReferenceMethodArgument(arg_names[-1]))
+    if (body_len := len(stmt.method_stmt_list)) > 0:
+        body_desc = f" // {body_len} body statement{'s' if body_len > 1 else ''}"
+    else:
+        body_desc = " // empty sub body"
+    cg_ret.append(f"Sub {stmt.extended_id.id_code}({', '.join(arg_names)});{body_desc}")
     # define sub symbol in enclosing scope
     cg_state.add_sub_symbol(
         stmt.extended_id.id_code,
-        list(map(lambda x: x.extended_id.id_code, stmt.method_arg_list)),
+        arg_names,
+        # don't evaluate the sub body until the sub is called
+        stmt.method_stmt_list,
     )
     return cg_ret
 
 
-@create_global_cg_func(FunctionDecl, enters_scope=ScopeType.SCOPE_FUNCTION)
+@create_global_cg_func(FunctionDecl, enters_scope=ScopeType.SCOPE_FUNCTION_DEFINITION)
 def cg_function_decl(
     stmt: FunctionDecl, cg_state: CodegenState, cg_ret: CodegenReturn
 ) -> CodegenReturn:
@@ -758,25 +946,30 @@ def cg_function_decl(
     -------
     CodegenReturn
     """
-    cg_ret.append(f"Function {stmt.extended_id.id_code} {'{'}")
     # define function name as return target
     cg_state.add_symbol(FunctionReturnSymbol(stmt.extended_id.id_code))
     # define arguments in function scope
+    arg_names: list[str] = []
     for method_arg in stmt.method_arg_list:
+        arg_names.append(method_arg.extended_id.id_code)
         match method_arg.arg_modifier:
             case ArgModifierType.ARG_VALUE:
-                cg_state.add_symbol(ValueMethodArgument(method_arg.extended_id.id_code))
+                cg_state.add_symbol(ValueMethodArgument(arg_names[-1]))
             case ArgModifierType.ARG_REFERENCE:
-                cg_state.add_symbol(
-                    ReferenceMethodArgument(method_arg.extended_id.id_code)
-                )
-    for method_stmt in stmt.method_stmt_list:
-        cg_ret.combine(codegen_global_stmt(method_stmt, cg_state))
-    cg_ret.append(f"{'}'} // end function {stmt.extended_id.id_code}\n")
+                cg_state.add_symbol(ReferenceMethodArgument(arg_names[-1]))
+    if (body_len := len(stmt.method_stmt_list)) > 0:
+        body_desc = f" // {body_len} body statement{'s' if body_len > 1 else ''}"
+    else:
+        body_desc = " // empty function body"
+    cg_ret.append(
+        f"Function {stmt.extended_id.id_code}({', '.join(arg_names)});{body_desc}"
+    )
     # define function symbol in enclosing scope
     cg_state.add_function_symbol(
         stmt.extended_id.id_code,
-        list(map(lambda x: x.extended_id.id_code, stmt.method_arg_list)),
+        arg_names,
+        # don't evaluate the function body until the function is called
+        stmt.method_stmt_list,
     )
     return cg_ret
 

@@ -5,7 +5,6 @@ import attrs
 from ...ast.ast_types import AssignStmt, Expr, LeftExpr, EvalExpr
 from .symbol import (
     Symbol,
-    UnresolvedExternalSymbol,
     ValueSymbol,
     LocalAssignmentSymbol,
     ArraySymbol,
@@ -217,6 +216,34 @@ class SymbolTable:
             self.sym_scopes[scope] = SymbolScope()
         return self.sym_scopes[scope].add_symbol(symbol)
 
+    def copy_scope(self, src_scope: int, dest_scope: int) -> bool:
+        """Copy symbols from one scope into another
+
+        Parameters
+        ----------
+        src_scope : int
+            Source scope to copy symbols from
+        dest_scope : int
+            Destination scope to copy symbols into
+
+        Returns
+        -------
+        bool
+            False if `src_scope` does not exist in the symbol table
+
+        Raises
+        ------
+        AssertionError
+            If a symbol from `src_scope` already exists in `dest_scope`
+        """
+        if src_scope not in self.sym_scopes:
+            return False
+        for src_name in self.sym_scopes[src_scope].sym_table:
+            assert self.add_symbol(
+                self.sym_scopes[src_scope].sym_table[src_name], dest_scope
+            ), f"Symbol {src_name} already exists in destination scope"
+        return True
+
     def resolve_symbol(
         self, left_expr: LeftExpr, curr_env: Optional[list[int]] = None
     ) -> list[ResolvedSymbol]:
@@ -235,10 +262,8 @@ class SymbolTable:
         if curr_env is None:
             # search for symbol in all scopes
             for scp in self.sym_scopes.keys():
-                if (
-                    left_sym := self.sym_scopes[scp].sym_table.get(
-                        left_expr.sym_name, None
-                    )
+                if (scp_sym := self.sym_scopes.get(scp, None)) is not None and (
+                    left_sym := scp_sym.sym_table.get(left_expr.sym_name, None)
                 ) is not None:
                     ret_syms.append(ResolvedSymbol(scp, left_sym))
         else:
@@ -247,10 +272,8 @@ class SymbolTable:
             for scp in curr_env:
                 # ^ order of scope resolution doesn't matter since
                 # we're searching the entire environment
-                if (
-                    left_sym := self.sym_scopes[scp].sym_table.get(
-                        left_expr.sym_name, None
-                    )
+                if (scp_sym := self.sym_scopes.get(scp, None)) is not None and (
+                    left_sym := scp_sym.sym_table.get(left_expr.sym_name, None)
                 ) is not None:
                     ret_syms.append(ResolvedSymbol(scp, left_sym))
         return ret_syms
@@ -293,7 +316,9 @@ class SymbolTable:
         return tuple(_resolve_helper())
 
     def assign(
-        self, asgn: AssignStmt, curr_env: list[int], *, function_sub_body: bool = False
+        self,
+        asgn: AssignStmt,
+        curr_env: list[int],
     ):
         """
         Parameters
@@ -337,7 +362,7 @@ class SymbolTable:
                         right_expr = scp_sym[right_expr.sym_name](*right_args)
                     found = True
                     break
-            if not found and not function_sub_body:
+            if not found:
                 raise ValueError(
                     "Could not find symbol associated with assignment expression"
                 )
@@ -364,9 +389,6 @@ class SymbolTable:
                     scp_sym.assign(left_expr, right_expr)
                 return
         # did not find symbol
-        if function_sub_body:
-            self.add_symbol(UnresolvedExternalSymbol(left_expr.sym_name), curr_env[-1])
-            return
         assert (
             not self.option_explicit
         ), "Option Explicit is set, variables must be defined before use"
@@ -383,8 +405,6 @@ class SymbolTable:
         self,
         left_expr: LeftExpr,
         curr_env: list[int],
-        *,
-        function_sub_body: bool = False,
     ):
         """
         Parameters
@@ -423,9 +443,4 @@ class SymbolTable:
                     # TODO: symbol is a user-defined sub?
                     pass
                 return
-        if not function_sub_body:
-            raise ValueError(
-                f"Invalid symbol name {repr(left_expr.sym_name)} in left_expr"
-            )
-        # add a placeholder in the current scope
-        self.add_symbol(UnresolvedExternalSymbol(left_expr.sym_name), curr_env[-1])
+        raise ValueError(f"Invalid symbol name {repr(left_expr.sym_name)} in left_expr")

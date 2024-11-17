@@ -15,8 +15,18 @@ class ScopeType(enum.Enum):
     # user-defined objects and functions
     SCOPE_SCRIPT_USER = enum.auto()
     SCOPE_CLASS = enum.auto()
-    SCOPE_SUB = enum.auto()
-    SCOPE_FUNCTION = enum.auto()
+    # template scope for user-defined subs
+    SCOPE_SUB_DEFINITION = enum.auto()
+    # custom scope for calling user-defined subs
+    # should start from a copy of the *_DEFINITION scope
+    # (if the definition scope exists)
+    SCOPE_SUB_CALL = enum.auto()
+    # template scope for user-defined functions
+    SCOPE_FUNCTION_DEFINITION = enum.auto()
+    # custom scope for calling user-defined functions
+    # should start from a copy of the *_DEFINITION scope
+    # (if the definition scope exists)
+    SCOPE_FUNCTION_CALL = enum.auto()
     # scope for the entire if statement
     SCOPE_IF = enum.auto()
     # scope for each if/elseif/else branch
@@ -35,7 +45,7 @@ class ScopeManager:
     """
     Attributes
     ----------
-    scope_registry : networkx.Graph
+    scope_registry : networkx.DiGraph
     scope_stack : list[int]
 
     Methods
@@ -46,8 +56,8 @@ class ScopeManager:
     get_scope_environment(scope_id)
     """
 
-    scope_registry: nx.Graph = attrs.field(
-        default=attrs.Factory(nx.Graph), repr=False, init=False
+    scope_registry: nx.DiGraph = attrs.field(
+        default=attrs.Factory(nx.DiGraph), repr=False, init=False
     )
     scope_stack: list[int] = attrs.field(default=attrs.Factory(list), init=False)
     _curr_scope_id: int = attrs.field(default=-1, repr=False, init=False)

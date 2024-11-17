@@ -25,14 +25,6 @@ class Symbol:
 
 
 @attrs.define(repr=False, slots=False)
-class UnresolvedExternalSymbol(Symbol):
-    """Symbol type for names used in function or sub declarations
-
-    If the name is not yet defined, use this as a placeholder
-    """
-
-
-@attrs.define(repr=False, slots=False)
 class ValueSymbol(Symbol):
     """Simple variable created by a VarDecl object
 
@@ -289,7 +281,21 @@ class ValueMethodArgument(Symbol):
     (i.e., a copy of the value is made and given to the method)
 
     Used in: FunctionDecl, SubDecl, PropertyDecl
+
+    Attributes
+    ----------
+    value : Any, default=None
     """
+
+    value: Any = attrs.field(default=None)
+
+    def __repr__(self):
+        base_repr = f"<ValueMethodArgument {repr(self.symbol_name)}"
+        if self.value is None:
+            return base_repr + ">"
+        if isinstance(self.value, EvalExpr):
+            return base_repr + f"; value={repr(self.value.expr_value)}>"
+        return base_repr + f"; value of type {repr(type(self.value).__name__)}>"
 
 
 @attrs.define(repr=False, slots=False)
@@ -298,7 +304,25 @@ class ReferenceMethodArgument(Symbol):
     (i.e., referring to a value defined in an enclosing scope)
 
     Used in: FunctionDecl, SubDecl, PropertyDecl
+
+    Attributes
+    ----------
+    ref_scope : int | None, default=None
+    ref_name : str | None, default=None
     """
+
+    # scope of original symbol
+    ref_scope: Optional[int] = attrs.field(default=None)
+    # name of original symbol
+    ref_name: Optional[str] = attrs.field(default=None)
+
+    def __repr__(self):
+        base_repr = f"<ReferenceMethodArgument {repr(self.symbol_name)}"
+        if self.ref_scope is None and self.ref_name is None:
+            return base_repr + ">"
+        return (
+            base_repr + f"; refers to {repr(self.ref_name)} in scope {self.ref_scope}>"
+        )
 
 
 @attrs.define(repr=False, slots=False)
@@ -322,6 +346,12 @@ class ForLoopRangeTargetSymbol(Symbol):
     """Symbol representing the target variable in a '=' 'To' for loop
 
     This symbol treats the target as a special symbol inside a for loop scope
+
+    Attributes
+    ----------
+    range_from : Expr
+    range_to : Expr
+    range_step : Expr | None
     """
 
     range_from: Expr
@@ -375,6 +405,10 @@ class ForLoopIteratorTargetSymbol(Symbol):
     """Symbol representing the target variable in an 'Each' 'In' for loop
 
     This symbol treats the target as a special symbol inside a for loop scope
+
+    Attributes
+    ----------
+    loop_iterator : Expr
     """
 
     loop_iterator: Expr

@@ -4,6 +4,7 @@ from collections.abc import Callable
 import inspect
 import attrs
 from attrs.validators import deep_iterable, instance_of
+from ....ast.ast_types import MethodStmt
 from ..symbol import Symbol
 
 
@@ -36,6 +37,9 @@ class UserFunction(Symbol):
     arg_names: list[str] = attrs.field(
         default=attrs.Factory(list), validator=deep_iterable(instance_of(str))
     )
+    func_body: list[MethodStmt] = attrs.field(
+        default=attrs.Factory(list), validator=deep_iterable(instance_of(MethodStmt))
+    )
 
     def __repr__(self):
         return (
@@ -51,6 +55,9 @@ class UserSub(Symbol):
     sub_scope_id: int = attrs.field(validator=instance_of(int))
     arg_names: list[str] = attrs.field(
         default=attrs.Factory(list), validator=deep_iterable(instance_of(str))
+    )
+    sub_body: list[MethodStmt] = attrs.field(
+        default=attrs.Factory(list), validator=deep_iterable(instance_of(MethodStmt))
     )
 
     def __repr__(self):

@@ -6,7 +6,7 @@ from typing import Optional, IO
 import attrs
 from jinja2 import Environment
 
-from ..ast.ast_types import Expr
+from ..ast.ast_types import Expr, MethodStmt
 from .scope import ScopeType, ScopeManager
 from .symbols import Response, Request, Server
 from .symbols.symbol import Symbol
@@ -100,64 +100,81 @@ class CodegenState:
         return self.sym_table.add_symbol(symbol, self.scope_mgr.current_scope)
 
     def add_function_symbol(
-        self, func_name: str, arg_names: Optional[list[str]] = None
+        self, func_name: str, arg_names: list[str], func_body: list[MethodStmt]
     ) -> bool:
         """
         Parameters
         ----------
         func_name : str
+        arg_names : list[str]
+        func_body : list[MethodStmt]
 
         Returns
         -------
         bool
+
+        Raises
+        ------
+        AssertionError
         """
         assert (
             self.scope_mgr.scope_registry.nodes[self.scope_mgr.current_scope][
                 "scope_type"
             ]
-            == ScopeType.SCOPE_FUNCTION
-        )
-        assert len(curr_env := self.scope_mgr.current_environment) >= 2
+            == ScopeType.SCOPE_FUNCTION_DEFINITION
+        ), "Function must be defined within a function definition scope"
+        assert (
+            len(curr_env := self.scope_mgr.current_environment) >= 2
+        ), "Function definition scope must be within an enclosing scope"
         assert isinstance(func_name, str)
-        assert arg_names is None or (
-            isinstance(arg_names, list)
-            and all(map(lambda x: isinstance(x, str), arg_names))
+        assert isinstance(arg_names, list) and all(
+            map(lambda x: isinstance(x, str), arg_names)
         )
-        if arg_names is None:
-            arg_names = []
+        assert isinstance(func_body, list) and all(
+            map(lambda x: isinstance(x, MethodStmt), func_body)
+        )
         return self.sym_table.add_symbol(
-            UserFunction(func_name, self.scope_mgr.current_scope, arg_names),
+            UserFunction(func_name, self.scope_mgr.current_scope, arg_names, func_body),
             curr_env[-2],
         )
 
     def add_sub_symbol(
-        self, sub_name: str, arg_names: Optional[list[str]] = None
+        self, sub_name: str, arg_names: list[str], sub_body: list[MethodStmt]
     ) -> bool:
         """
         Parameters
         ----------
         sub_name : str
+        arg_names : list[str]
+        sub_body : list[MethodStmt]
 
         Returns
         -------
         bool
+
+        Raises
+        ------
+        AssertionError
         """
         assert (
             self.scope_mgr.scope_registry.nodes[self.scope_mgr.current_scope][
                 "scope_type"
             ]
-            == ScopeType.SCOPE_SUB
-        )
-        assert len(curr_env := self.scope_mgr.current_environment) >= 2
+            == ScopeType.SCOPE_SUB_DEFINITION
+        ), "Sub must be defined within a sub definition scope"
+        assert (
+            len(curr_env := self.scope_mgr.current_environment) >= 2
+        ), "Sub definition scope must be within an enclosing scope"
         assert isinstance(sub_name, str)
-        assert arg_names is None or (
-            isinstance(arg_names, list)
-            and all(map(lambda x: isinstance(x, str), arg_names))
+        assert isinstance(arg_names, list) and all(
+            map(lambda x: isinstance(x, str), arg_names)
         )
-        if arg_names is None:
-            arg_names = []
+        assert isinstance(sub_body, list) and all(
+            map(lambda x: isinstance(x, MethodStmt), sub_body)
+        )
         return self.sym_table.add_symbol(
-            UserSub(sub_name, self.scope_mgr.current_scope, arg_names), curr_env[-2]
+            UserSub(sub_name, self.scope_mgr.current_scope, arg_names, sub_body),
+            curr_env[-2],
         )
 
     def add_output_expr(self, output_expr: Expr) -> str:
