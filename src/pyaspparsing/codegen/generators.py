@@ -454,25 +454,29 @@ def cg_erase_stmt(
 def cghelper_call_builtin_object(left_expr: LeftExpr, cg_state: CodegenState):
     """Call a function attached to a builtin object
 
-    The object will always be in SCOPE_SCRIPT_BUILTIN
+    The object will always be in SCOPE_SCRIPT_BUILTIN at ID 0 (zero)
 
     Parameters
     ----------
     left_expr : LeftExpr
     cg_state : CodegenState
     """
+    cg_state.sym_table.sym_scopes[0].sym_table[left_expr.sym_name](left_expr, cg_state)
 
 
 def cghelper_call_builtin_function(left_expr: LeftExpr, cg_state: CodegenState):
     """Call a builtin function
 
-    The function will always be in SCOPE_SCRIPT_BUILTIN
+    The function will always be in SCOPE_SCRIPT_BUILTIN at ID 0 (zero)
 
     Parameters
     ----------
     left_expr : LeftExpr
     cg_state : CodegenState
     """
+    cg_state.sym_table.sym_scopes[0].sym_table[left_expr.sym_name](
+        cg_state, *left_expr.call_args[left_expr.end_idx - 1]
+    )
 
 
 def cghelper_call_value_object(
@@ -486,12 +490,16 @@ def cghelper_call_value_object(
     left_expr : LeftExpr
     cg_state : CodegenState
     """
+    cg_state.sym_table.sym_scopes[res_scope].sym_table[left_expr.sym_name].value(
+        left_expr, cg_state
+    )
 
 
 def cghelper_setup_user_arguments(
     method_args: list[str], call_args: tuple[Any, ...], cg_state: CodegenState
 ):
-    """
+    """Prepare arguments for a user-defined function or sub
+
     Parameters
     ----------
     method_args : list[str]
@@ -504,7 +512,10 @@ def cghelper_setup_user_arguments(
         if isinstance(arg_sym, ValueMethodArgument):
             cg_state.sym_table.sym_scopes[call_scp].sym_table[marg].value = carg
         elif isinstance(arg_sym, ReferenceMethodArgument):
-            assert isinstance(carg, LeftExpr) and carg.end_idx == 0
+            assert isinstance(carg, LeftExpr) and carg.end_idx == 0, (
+                "Argument given by reference must be a "
+                "left expression that contains only a symbol name"
+            )
             arg_resv = cg_state.sym_table.resolve_symbol(
                 carg,
                 # referenced argument must exist in an enclosing scope
@@ -551,6 +562,10 @@ def cghelper_call_user_function(
         # copy-and-paste function body into current statement
         for body_stmt in call_sym.func_body:
             cg_ret.combine(codegen_global_stmt(body_stmt, cg_state), indent=False)
+        # make a pointer to the return value
+        cg_state.add_function_return(
+            cg_state.scope_mgr.current_scope, left_expr.sym_name
+        )
     return cg_ret
 
 
@@ -676,14 +691,18 @@ def cg_call_stmt(
     -------
     CodegenReturn
     """
-    return cghelper_call(stmt.left_expr, cg_state, cg_ret)
+    call_ret = cghelper_call(stmt.left_expr, cg_state, cg_ret)
+    if cg_state.have_returned:
+        # not assigning to any symbol, ignore return value
+        cg_state.pop_function_return()
+    return call_ret
 
 
 @create_global_cg_func(SubCallStmt)
 def cg_sub_call_stmt(
     stmt: SubCallStmt, cg_state: CodegenState, cg_ret: CodegenReturn
 ) -> CodegenReturn:
-    """Code generator for sub call statement
+    """Code generator for sub-call statement
 
     Parameters
     ----------
@@ -695,7 +714,11 @@ def cg_sub_call_stmt(
     -------
     CodegenReturn
     """
-    return cghelper_call(stmt.left_expr, cg_state, cg_ret)
+    call_ret = cghelper_call(stmt.left_expr, cg_state, cg_ret)
+    if cg_state.have_returned:
+        # not assigning to any symbol, ignore return value
+        cg_state.pop_function_return()
+    return call_ret
 
 
 @create_global_cg_func(AssignStmt)
@@ -726,18 +749,44 @@ def cg_assign_stmt(
             ) is not None and (
                 rhs_sym := scp_sym.sym_table.get(rhs_expr.sym_name)
             ) is not None:
-                if isinstance(rhs_sym, ValueSymbol) and isinstance(
-                    rhs_sym.value, ASPObject
-                ):
-                    # object created in script
-                    pass
+                found = True
+                if isinstance(rhs_sym, ReferenceMethodArgument):
+                    # method argument passed by reference
+                    # resolve reference before trying to evaluate expression
+                    assert (
+                        rhs_sym.ref_scope is not None and rhs_sym.ref_name is not None
+                    )
+                    rhs_sym = cg_state.sym_table.sym_scopes[
+                        rhs_sym.ref_scope
+                    ].sym_table[rhs_sym.ref_name]
+                if isinstance(rhs_sym, ValueMethodArgument):
+                    # method argument passed by value
+                    rhs_expr = rhs_sym.value
+                    break
+                elif isinstance(rhs_sym, ArraySymbol):
+                    # array variable
+                    rhs_expr = rhs_sym.retrieve(rhs_expr)
+                    break
+                elif isinstance(rhs_sym, ValueSymbol):
+                    if isinstance(rhs_sym.value, ASPObject):
+                        # object created in script
+                        cghelper_call_value_object(scp, rhs_expr, cg_state)
+                    else:
+                        # simple variable
+                        rhs_expr = rhs_sym.value
+                        break
                 elif isinstance(rhs_sym, ASPObject):
                     # builtin object
-                    pass
+                    cghelper_call_builtin_object(rhs_expr, cg_state)
                 elif isinstance(rhs_sym, ASPFunction):
                     # builtin function
-                    pass
-                found = True
+                    cghelper_call_builtin_function(rhs_expr, cg_state)
+                elif isinstance(rhs_sym, UserFunction):
+                    # user-defined function
+                    cghelper_call_user_function(scp, rhs_expr, cg_state)
+                # overwrite expression with function return value
+                rhs_expr = cg_state.function_return_symbols[-1].return_value
+                cg_state.pop_function_return()
                 break
         if not found:
             raise ValueError(
@@ -964,7 +1013,7 @@ def cg_sub_decl(
         body_desc = " // empty sub body"
     cg_ret.append(f"Sub {stmt.extended_id.id_code}({', '.join(arg_names)});{body_desc}")
     # define sub symbol in enclosing scope
-    cg_state.add_sub_symbol(
+    cg_state.add_user_sub_symbol(
         stmt.extended_id.id_code,
         arg_names,
         # don't evaluate the sub body until the sub is called
@@ -1008,7 +1057,7 @@ def cg_function_decl(
         f"Function {stmt.extended_id.id_code}({', '.join(arg_names)});{body_desc}"
     )
     # define function symbol in enclosing scope
-    cg_state.add_function_symbol(
+    cg_state.add_user_function_symbol(
         stmt.extended_id.id_code,
         arg_names,
         # don't evaluate the function body until the function is called

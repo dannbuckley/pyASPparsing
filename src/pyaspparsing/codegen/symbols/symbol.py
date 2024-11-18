@@ -339,6 +339,17 @@ class FunctionReturnSymbol(Symbol):
     ```
     """
 
+    return_value: Any = attrs.field(default=None)
+
+    def __repr__(self):
+        base_repr = f"<FunctionReturnSymbol {repr(self.symbol_name)}"
+        if self.return_value is None:
+            return base_repr + ">"
+        return (
+            base_repr
+            + f"; return value of type {repr(type(self.return_value).__name__)}>"
+        )
+
 
 @attrs.define(repr=False, slots=False)
 class ForLoopRangeTargetSymbol(Symbol):

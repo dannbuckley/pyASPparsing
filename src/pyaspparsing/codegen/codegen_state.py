@@ -8,7 +8,7 @@ from jinja2 import Environment
 
 from ..ast.ast_types import Expr, MethodStmt
 from .scope import ScopeType, ScopeManager
-from .symbols.symbol import Symbol
+from .symbols.symbol import Symbol, FunctionReturnSymbol
 from .symbols.symbol_table import SymbolTable
 from .symbols.functions.function import UserFunction, UserSub
 
@@ -61,7 +61,7 @@ class CodegenState:
         default=attrs.Factory(list), repr=False, init=False
     )
 
-    func_returns: list[FunctionReturnPointer] = attrs.field(
+    _func_returns: list[FunctionReturnPointer] = attrs.field(
         default=attrs.Factory(list), init=False
     )
 
@@ -92,6 +92,33 @@ class CodegenState:
             return None
         return self._script_blocks[-1]
 
+    @property
+    def function_return_symbols(self) -> list[FunctionReturnSymbol]:
+        """List of resolved symbols for function return values
+
+        Returns
+        -------
+        list[FunctionReturnSymbol]
+        """
+        return [
+            self.sym_table.sym_scopes[ret_pnt.call_scope].sym_table[ret_pnt.symbol_name]
+            for ret_pnt in self._func_returns
+        ]
+
+    @property
+    def have_returned(self) -> bool:
+        """True if there are function return values in the state
+
+        Returns
+        -------
+        bool
+        """
+        return len(self._func_returns) > 0
+
+    def pop_function_return(self):
+        """Pop the latest function return symbol from the state"""
+        self._func_returns.pop()
+
     def add_symbol(self, symbol: Symbol) -> bool:
         """Add a new symbol to the symbol table under the current scope
 
@@ -105,7 +132,7 @@ class CodegenState:
         """
         return self.sym_table.add_symbol(symbol, self.scope_mgr.current_scope)
 
-    def add_function_symbol(
+    def add_user_function_symbol(
         self, func_name: str, arg_names: list[str], func_body: list[MethodStmt]
     ) -> bool:
         """
@@ -144,7 +171,7 @@ class CodegenState:
             curr_env[-2],
         )
 
-    def add_sub_symbol(
+    def add_user_sub_symbol(
         self, sub_name: str, arg_names: list[str], sub_body: list[MethodStmt]
     ) -> bool:
         """
@@ -182,6 +209,32 @@ class CodegenState:
             UserSub(sub_name, self.scope_mgr.current_scope, arg_names, sub_body),
             curr_env[-2],
         )
+
+    def add_function_return(self, call_scope: int, symbol_name: str):
+        """Add a pointer to a function return value
+
+        Parameters
+        ----------
+        call_scope : int
+            The ID of a function call scope
+        symbol_name : str
+            The name of a `FunctionReturnSymbol` object within `call_scope`
+
+        Raises
+        ------
+        AssertionError
+        """
+        assert (
+            call_scope in self.scope_mgr.scope_registry
+            and self.scope_mgr.scope_registry.nodes[call_scope]["scope_type"]
+            == ScopeType.SCOPE_FUNCTION_CALL
+        ), "call_scope must point to a function call scope"
+        assert (
+            (scp_sym := self.sym_table.sym_scopes.get(call_scope, None)) is not None
+            and (ret_sym := scp_sym.sym_table.get(symbol_name, None)) is not None
+            and isinstance(ret_sym, FunctionReturnSymbol)
+        )
+        self._func_returns.append(FunctionReturnPointer(call_scope, symbol_name))
 
     def add_output_expr(self, output_expr: Expr) -> str:
         """Add a new direct-output expression
