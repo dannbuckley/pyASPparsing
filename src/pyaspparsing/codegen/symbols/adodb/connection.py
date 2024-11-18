@@ -3,9 +3,11 @@
 from typing import Optional
 import attrs
 from ....ast.ast_types.base import Expr
-from ..symbol import ASPObject, prepare_symbol_name
+from ..asp_object import ASPObject
+from ..symbol import prepare_symbol_name
 from .base import Database, Query
 from .recordset import Recordset
+from ...codegen_state import CodegenState
 
 
 @prepare_symbol_name
@@ -16,20 +18,21 @@ class Connection(ASPObject):
     db: Optional[Database] = attrs.field(default=None, init=False)
     db_queries: list[Query] = attrs.field(default=attrs.Factory(list), init=False)
 
-    def begintrans(self):
+    def begintrans(self, cg_state: CodegenState):
         """"""
 
-    def cancel(self):
+    def cancel(self, cg_state: CodegenState):
         """"""
 
-    def close(self):
+    def close(self, cg_state: CodegenState):
         """"""
 
-    def committrans(self):
+    def committrans(self, cg_state: CodegenState):
         """"""
 
     def execute(
         self,
+        cg_state: CodegenState,
         param_commandtext: Expr,
         param_ra: Optional[Expr] = None,
         param_options: Optional[Expr] = None,
@@ -69,6 +72,7 @@ class Connection(ASPObject):
 
     def open(
         self,
+        cg_state: CodegenState,
         param_connectionstring: Expr,
         param_userid: Optional[Expr] = None,
         param_password: Optional[Expr] = None,
@@ -103,8 +107,15 @@ class Connection(ASPObject):
         except AssertionError as ex:
             raise ValueError("Invalid input in Connection.Open") from ex
 
-    def openschema(self, param_querytype, param_criteria=None, param_schemaid=None, /):
+    def openschema(
+        self,
+        cg_state: CodegenState,
+        param_querytype,
+        param_criteria=None,
+        param_schemaid=None,
+        /,
+    ):
         """"""
 
-    def rollbacktrans(self):
+    def rollbacktrans(self, cg_state: CodegenState):
         """"""

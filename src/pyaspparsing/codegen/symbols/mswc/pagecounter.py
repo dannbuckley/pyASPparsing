@@ -3,7 +3,9 @@
 from typing import Optional
 import attrs
 from ....ast.ast_types.base import Expr
-from ..symbol import ASPObject, prepare_symbol_name
+from ..asp_object import ASPObject
+from ..symbol import prepare_symbol_name
+from ...codegen_state import CodegenState
 
 
 @prepare_symbol_name
@@ -11,11 +13,11 @@ from ..symbol import ASPObject, prepare_symbol_name
 class PageCounter(ASPObject):
     """"""
 
-    def hits(self, param_page: Optional[Expr] = None, /):
+    def hits(self, cg_state: CodegenState, param_page: Optional[Expr] = None, /):
         """"""
 
-    def pagehit(self):
+    def pagehit(self, cg_state: CodegenState):
         """"""
 
-    def reset(self, param_page: Optional[Expr] = None, /):
+    def reset(self, cg_state: CodegenState, param_page: Optional[Expr] = None, /):
         """"""

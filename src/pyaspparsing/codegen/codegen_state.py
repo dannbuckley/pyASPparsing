@@ -8,11 +8,22 @@ from jinja2 import Environment
 
 from ..ast.ast_types import Expr, MethodStmt
 from .scope import ScopeType, ScopeManager
-from .symbols import Response, Request, Server
 from .symbols.symbol import Symbol
 from .symbols.symbol_table import SymbolTable
 from .symbols.functions.function import UserFunction, UserSub
-from .symbols.functions import vbscript_builtin as vb_blt
+
+
+@attrs.define
+class FunctionReturnPointer:
+    """
+    Attributes
+    ----------
+    call_scope : int
+    symbol_name : str
+    """
+
+    call_scope: int
+    symbol_name: str
 
 
 @attrs.define
@@ -24,8 +35,9 @@ class CodegenState:
     script_file : IO
     template_file : IO
     error_file : IO
-    in_script_block : bool
-    current_script_block : str | None
+    scope_mgr : ScopeManager
+    sym_table : SymbolTable
+    func_returns : list[tuple[int, str]]
 
     Methods
     -------
@@ -49,18 +61,12 @@ class CodegenState:
         default=attrs.Factory(list), repr=False, init=False
     )
 
+    func_returns: list[FunctionReturnPointer] = attrs.field(
+        default=attrs.Factory(list), init=False
+    )
+
     output_exprs: dict[int, Expr] = attrs.field(default=attrs.Factory(dict), init=False)
     _curr_output_id: int = attrs.field(default=-1, repr=False, init=False)
-
-    def __attrs_post_init__(self):
-        # initialize script scope with built-in symbols
-        self.add_symbol(Response())
-        self.add_symbol(Request())
-        self.add_symbol(Server())
-        for blt in filter(lambda x: x.find("builtin_", 0, 8) == 0, dir(vb_blt)):
-            self.add_symbol(getattr(vb_blt, blt)())
-        # all script data should be handled in a separate "user" scope
-        self.scope_mgr.enter_scope(ScopeType.SCOPE_SCRIPT_USER)
 
     @property
     def in_script_block(self) -> bool:

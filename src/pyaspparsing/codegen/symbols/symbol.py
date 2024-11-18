@@ -7,7 +7,6 @@ from ...ast.ast_types.base import Expr, AccessModifierType
 from ...ast.ast_types.declarations import VarName, FieldName
 from ...ast.ast_types.expressions import LeftExpr
 from ...ast.ast_types.optimize import EvalExpr
-from ...ast.ast_types.builtin_leftexpr import ResponseExpr, RequestExpr, ServerExpr
 
 
 @attrs.define(repr=False, slots=False)
@@ -418,52 +417,6 @@ class ForLoopIteratorTargetSymbol(Symbol):
             f"<For loop target {repr(self.symbol_name)}; "
             f"loop_iterator=object of type {repr(type(self.loop_iterator).__name__)}>"
         )
-
-
-class ASPObject(Symbol):
-    """An ASP object that may have methods, properties, or collections"""
-
-    def __call__(self, left_expr: LeftExpr) -> Any:
-        """
-        Parameters
-        ----------
-        left_expr : LeftExpr
-
-        Returns
-        -------
-        Any
-        """
-        try:
-            ex = None
-            assert isinstance(
-                left_expr, LeftExpr
-            ), f"left_expr must be a valid left expression, got {repr(type(left_expr))}"
-            assert left_expr.end_idx >= 1, "left_expr cannot contain only symbol name"
-            if isinstance(left_expr, (ResponseExpr, RequestExpr, ServerExpr)):
-                return self.__getattribute__("handle_builtin_left_expr")(left_expr)
-            idx = 0
-            ret_obj = self
-            while idx < left_expr.end_idx:
-                if (l_subname := left_expr.subnames.get(idx, None)) is not None:
-                    ret_obj = ret_obj.__getattribute__(l_subname)
-                elif (l_callargs := left_expr.call_args.get(idx, None)) is not None:
-                    ret_obj = ret_obj(*l_callargs)
-                else:
-                    # don't catch, something is seriously wrong
-                    raise RuntimeError(f"Index {idx} of left expression is not valid")
-                idx += 1
-            return ret_obj
-        except AssertionError as ex_wrong_type:
-            ex = ex_wrong_type
-        except AttributeError as ex_wrong_name:
-            ex = ex_wrong_name
-        except TypeError as ex_wrong_sig:
-            ex = ex_wrong_sig
-        finally:
-            if ex is not None:
-                raise ValueError(
-                    f"Invalid call on {self.__class__.__name__} object symbol"
-                ) from ex
 
 
 def prepare_symbol_name[T](symbol_type: type[T]) -> partial[T]:

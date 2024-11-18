@@ -1,73 +1,76 @@
 """VBScript builtin other functions"""
 
+from ....codegen_state import CodegenState
 from .make_builtin import make_builtin_function
 
 
 @make_builtin_function
-def builtin_createobject(param_type, param_location=None, /):
+def builtin_createobject(cg_state: CodegenState, param_type, param_location=None, /):
     """"""
 
 
 @make_builtin_function
-def builtin_eval(param_expression, /):
+def builtin_eval(cg_state: CodegenState, param_expression, /):
     """"""
 
 
 @make_builtin_function
-def builtin_isempty(param_expression, /):
+def builtin_isempty(cg_state: CodegenState, param_expression, /):
     """"""
 
 
 @make_builtin_function
-def builtin_isnull(param_expression, /):
+def builtin_isnull(cg_state: CodegenState, param_expression, /):
     """"""
 
 
 @make_builtin_function
-def builtin_isnumeric(param_expression, /):
+def builtin_isnumeric(cg_state: CodegenState, param_expression, /):
     """"""
 
 
 @make_builtin_function
-def builtin_isobject(param_expression, /):
+def builtin_isobject(cg_state: CodegenState, param_expression, /):
     """"""
 
 
 @make_builtin_function
-def builtin_rgb(param_red, param_green, param_blue, /):
+def builtin_rgb(cg_state: CodegenState, param_red, param_green, param_blue, /):
     """"""
 
 
 @make_builtin_function
-def builtin_round(param_expression, param_numdecimalplaces=None, /):
+def builtin_round(
+    cg_state: CodegenState, param_expression, param_numdecimalplaces=None, /
+):
     """"""
 
 
 @make_builtin_function
-def builtin_scriptengine():
+def builtin_scriptengine(cg_state: CodegenState, /):
     """"""
 
 
 @make_builtin_function
-def builtin_scriptenginebuildversion():
+def builtin_scriptenginebuildversion(cg_state: CodegenState, /):
     """"""
 
 
 @make_builtin_function
-def builtin_scriptenginemajorversion():
+def builtin_scriptenginemajorversion(cg_state: CodegenState, /):
     """"""
 
 
 @make_builtin_function
-def builtin_scriptengineminorversion():
+def builtin_scriptengineminorversion(cg_state: CodegenState, /):
     """"""
 
 
 @make_builtin_function
-def builtin_typename(param_varname, /):
+def builtin_typename(cg_state: CodegenState, param_varname, /):
     """"""
 
 
 @make_builtin_function
-def builtin_vartype(param_varname, /):
+def builtin_vartype(cg_state: CodegenState, param_varname, /):
     """"""

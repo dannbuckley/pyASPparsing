@@ -1,68 +1,69 @@
 """VBScript builtin conversion functions"""
 
+from ....codegen_state import CodegenState
 from .make_builtin import make_builtin_function
 
 
 @make_builtin_function
-def builtin_asc(param_string, /):
+def builtin_asc(cg_state: CodegenState, param_string, /):
     """"""
 
 
 @make_builtin_function
-def builtin_cbool(param_expression, /):
+def builtin_cbool(cg_state: CodegenState, param_expression, /):
     """"""
 
 
 @make_builtin_function
-def builtin_cbyte(param_expression, /):
+def builtin_cbyte(cg_state: CodegenState, param_expression, /):
     """"""
 
 
 @make_builtin_function
-def builtin_ccur(param_expression, /):
+def builtin_ccur(cg_state: CodegenState, param_expression, /):
     """"""
 
 
 @make_builtin_function
-def builtin_cdate(param_date, /):
+def builtin_cdate(cg_state: CodegenState, param_date, /):
     """"""
 
 
 @make_builtin_function
-def builtin_cdbl(param_expression, /):
+def builtin_cdbl(cg_state: CodegenState, param_expression, /):
     """"""
 
 
 @make_builtin_function
-def builtin_chr(param_charcode, /):
+def builtin_chr(cg_state: CodegenState, param_charcode, /):
     """"""
 
 
 @make_builtin_function
-def builtin_cint(param_expression, /):
+def builtin_cint(cg_state: CodegenState, param_expression, /):
     """"""
 
 
 @make_builtin_function
-def builtin_clng(param_expression, /):
+def builtin_clng(cg_state: CodegenState, param_expression, /):
     """"""
 
 
 @make_builtin_function
-def builtin_csng(param_expression, /):
+def builtin_csng(cg_state: CodegenState, param_expression, /):
     """"""
 
 
 @make_builtin_function
-def builtin_cstr(param_expression, /):
+def builtin_cstr(cg_state: CodegenState, param_expression, /):
     """"""
 
 
 @make_builtin_function
-def builtin_hex(param_number, /):
+def builtin_hex(cg_state: CodegenState, param_number, /):
     """"""
 
 
 @make_builtin_function
-def builtin_oct(param_number, /):
+def builtin_oct(cg_state: CodegenState, param_number, /):
     """"""

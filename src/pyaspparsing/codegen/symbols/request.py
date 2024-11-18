@@ -18,10 +18,12 @@ from ...ast.ast_types.builtin_leftexpr.request import (
     # methods
     RequestBinaryReadExpr,
 )
-from .symbol import ASPObject, prepare_symbol_name
+from .asp_object import ASPObject
+from .symbol import prepare_symbol_name
+from ..codegen_state import CodegenState
 
 request_expr_handlers: dict[
-    type[RequestExpr], Callable[[ASPObject, RequestExpr], Any]
+    type[RequestExpr], Callable[[ASPObject, RequestExpr, CodegenState], Any]
 ] = {}
 
 
@@ -34,14 +36,14 @@ class Request(ASPObject):
     handle_builtin_left_expr(left_expr)
     """
 
-    def handle_builtin_left_expr(self, left_expr: RequestExpr):
+    def handle_builtin_left_expr(self, left_expr: RequestExpr, cg_state: CodegenState):
         """
         Parameters
         ----------
         left_expr : RequestExpr
         """
         assert isinstance(left_expr, RequestExpr)
-        return request_expr_handlers[type(left_expr)](self, left_expr)
+        return request_expr_handlers[type(left_expr)](self, left_expr, cg_state)
 
 
 def create_request_handler(request_expr_type: type[RequestExpr]):
@@ -53,11 +55,13 @@ def create_request_handler(request_expr_type: type[RequestExpr]):
     """
     assert issubclass(request_expr_type, RequestExpr)
 
-    def wrap_func(func: Callable[[ASPObject, RequestExpr], Any]):
+    def wrap_func(func: Callable[[ASPObject, RequestExpr, CodegenState], Any]):
         @wraps(func)
-        def handle_request_expr(req: ASPObject, left_expr: RequestExpr):
+        def handle_request_expr(
+            req: ASPObject, left_expr: RequestExpr, cg_state: CodegenState
+        ):
             assert isinstance(left_expr, request_expr_type)
-            return func(req, left_expr)
+            return func(req, left_expr, cg_state)
 
         request_expr_handlers[request_expr_type] = handle_request_expr
         return handle_request_expr
@@ -66,7 +70,9 @@ def create_request_handler(request_expr_type: type[RequestExpr]):
 
 
 @create_request_handler(RequestAnonymousExpr)
-def handle_request_anonymous_expr(req: Request, left_expr: RequestAnonymousExpr):
+def handle_request_anonymous_expr(
+    req: Request, left_expr: RequestAnonymousExpr, cg_state: CodegenState
+):
     """
     Parameters
     ----------
@@ -77,7 +83,7 @@ def handle_request_anonymous_expr(req: Request, left_expr: RequestAnonymousExpr)
 
 @create_request_handler(RequestClientCertificateExpr)
 def handle_request_client_certificate_expr(
-    req: Request, left_expr: RequestClientCertificateExpr
+    req: Request, left_expr: RequestClientCertificateExpr, cg_state: CodegenState
 ):
     """
     Parameters
@@ -88,7 +94,9 @@ def handle_request_client_certificate_expr(
 
 
 @create_request_handler(RequestCookiesExpr)
-def handle_request_cookies_expr(req: Request, left_expr: RequestCookiesExpr):
+def handle_request_cookies_expr(
+    req: Request, left_expr: RequestCookiesExpr, cg_state: CodegenState
+):
     """
     Parameters
     ----------
@@ -98,7 +106,9 @@ def handle_request_cookies_expr(req: Request, left_expr: RequestCookiesExpr):
 
 
 @create_request_handler(RequestFormExpr)
-def handle_request_form_expr(req: Request, left_expr: RequestFormExpr):
+def handle_request_form_expr(
+    req: Request, left_expr: RequestFormExpr, cg_state: CodegenState
+):
     """
     Parameters
     ----------
@@ -108,7 +118,9 @@ def handle_request_form_expr(req: Request, left_expr: RequestFormExpr):
 
 
 @create_request_handler(RequestQueryStringExpr)
-def handle_request_query_string_expr(req: Request, left_expr: RequestQueryStringExpr):
+def handle_request_query_string_expr(
+    req: Request, left_expr: RequestQueryStringExpr, cg_state: CodegenState
+):
     """
     Parameters
     ----------
@@ -119,7 +131,7 @@ def handle_request_query_string_expr(req: Request, left_expr: RequestQueryString
 
 @create_request_handler(RequestServerVariablesExpr)
 def handle_request_server_variables_expr(
-    req: Request, left_expr: RequestServerVariablesExpr
+    req: Request, left_expr: RequestServerVariablesExpr, cg_state: CodegenState
 ):
     """
     Parameters
@@ -130,7 +142,9 @@ def handle_request_server_variables_expr(
 
 
 @create_request_handler(RequestTotalBytesExpr)
-def handle_request_total_bytes_expr(req: Request, left_expr: RequestTotalBytesExpr):
+def handle_request_total_bytes_expr(
+    req: Request, left_expr: RequestTotalBytesExpr, cg_state: CodegenState
+):
     """
     Parameters
     ----------
@@ -140,7 +154,9 @@ def handle_request_total_bytes_expr(req: Request, left_expr: RequestTotalBytesEx
 
 
 @create_request_handler(RequestBinaryReadExpr)
-def handle_request_binary_read_expr(req: Request, left_expr: RequestBinaryReadExpr):
+def handle_request_binary_read_expr(
+    req: Request, left_expr: RequestBinaryReadExpr, cg_state: CodegenState
+):
     """
     Parameters
     ----------

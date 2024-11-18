@@ -2,15 +2,13 @@
 
 from typing import Optional, Generator, Any
 import attrs
-from ...ast.ast_types import AssignStmt, Expr, LeftExpr, EvalExpr
+from ...ast.ast_types import Expr, LeftExpr, EvalExpr
 from .symbol import (
     Symbol,
     ValueSymbol,
     LocalAssignmentSymbol,
     ArraySymbol,
-    ASPObject,
 )
-from .functions.function import ASPFunction, UserFunction, UserSub
 
 
 @attrs.define
@@ -117,9 +115,6 @@ class SymbolScope:
                     target_expr.sym_name,
                     assign_expr,
                 )
-            elif len(target_expr.subnames) > 0 and isinstance(val_sym.value, ASPObject):
-                # property assignment
-                pass
             else:
                 raise RuntimeError
         elif isinstance(self.sym_table[target_expr.sym_name], ArraySymbol):
@@ -157,9 +152,6 @@ class SymbolScope:
             self.sym_table[target_expr.sym_name].insert(
                 tuple(_get_array_idx()), assign_expr
             )
-        elif isinstance(self.sym_table[target_expr.sym_name], ASPObject):
-            # TODO: establish appropriate assign target (properties?)
-            pass
 
 
 @attrs.define
@@ -278,7 +270,7 @@ class SymbolTable:
                     ret_syms.append(ResolvedSymbol(scp, left_sym))
         return ret_syms
 
-    def _try_resolve_args(self, call_args: tuple[Any, ...], curr_env: list[int]):
+    def try_resolve_args(self, call_args: tuple[Any, ...], curr_env: list[int]):
         """Try to resolve left expressions passed as call arguments
 
         Parameters
@@ -314,133 +306,3 @@ class SymbolTable:
                 yield arg
 
         return tuple(_resolve_helper())
-
-    def assign(
-        self,
-        asgn: AssignStmt,
-        curr_env: list[int],
-    ):
-        """
-        Parameters
-        ----------
-        asgn : AssignStmt
-        curr_env : list[int]
-
-        Raises
-        ------
-        AssertionError
-        """
-        right_expr = asgn.assign_expr
-        if isinstance(right_expr, LeftExpr):
-            # try to evaluate expression before assigning to target
-            found = False
-            for scp in reversed(curr_env):
-                if (
-                    scp_sym := self.sym_scopes.get(scp, None)
-                ) is not None and right_expr.sym_name in scp_sym.sym_table:
-                    right_sym = scp_sym.sym_table[right_expr.sym_name]
-                    # try to replace left expression args with their values
-                    for ckey in right_expr.call_args.keys():
-                        right_expr.call_args[ckey] = self._try_resolve_args(
-                            right_expr.call_args[ckey], curr_env
-                        )
-                    if isinstance(right_sym, ValueSymbol) and isinstance(
-                        right_sym.value, ASPObject
-                    ):
-                        # object created in script
-                        right_expr = scp_sym[right_expr.sym_name].value(right_expr)
-                    elif isinstance(right_sym, ASPObject):
-                        # builtin object
-                        right_expr = scp_sym[right_expr.sym_name](right_expr)
-                    elif isinstance(right_sym, ASPFunction):
-                        # builtin function
-                        assert (
-                            right_args := right_expr.call_args.get(0, None)
-                        ) is not None, (
-                            "Function call must have call record in left expression"
-                        )
-                        right_expr = scp_sym[right_expr.sym_name](*right_args)
-                    found = True
-                    break
-            if not found:
-                raise ValueError(
-                    "Could not find symbol associated with assignment expression"
-                )
-
-        left_expr = asgn.target_expr
-        for scp in reversed(curr_env):
-            if (scp_sym := self.sym_scopes.get(scp, None)) is not None and (
-                left_sym := scp_sym.sym_table.get(left_expr.sym_name, None)
-            ) is not None:
-                if scp != curr_env[-1] and isinstance(left_sym, ValueSymbol):
-                    # symbol defined in an enclosing scope
-                    self.add_symbol(
-                        LocalAssignmentSymbol.from_value_symbol(left_sym),
-                        curr_env[-1],
-                    )
-                    self.sym_scopes[curr_env[-1]].assign(left_expr, right_expr)
-                elif isinstance(left_sym, ArraySymbol):
-                    for ckey in left_expr.call_args.keys():
-                        left_expr.call_args[ckey] = self._try_resolve_args(
-                            left_expr.call_args[ckey], curr_env
-                        )
-                    scp_sym.assign(left_expr, right_expr)
-                else:
-                    scp_sym.assign(left_expr, right_expr)
-                return
-        # did not find symbol
-        assert (
-            not self.option_explicit
-        ), "Option Explicit is set, variables must be defined before use"
-        # TODO: how to handle subnames of symbol that doesn't exist?
-        assert left_expr.end_idx == 0
-        self.add_symbol(
-            ValueSymbol(left_expr.sym_name, asgn.assign_expr),
-            # add new name to the current scope
-            curr_env[-1],
-        )
-        self.sym_scopes[curr_env[-1]].track_assign(left_expr.sym_name)
-
-    def call(
-        self,
-        left_expr: LeftExpr,
-        curr_env: list[int],
-    ):
-        """
-        Parameters
-        ----------
-        left_expr : LeftExpr
-        curr_env : list[int]
-
-        Raises
-        ------
-        ValueError
-        """
-        for scp in reversed(curr_env):
-            if (scp_sym := self.sym_scopes.get(scp, None)) is not None and (
-                call_sym := scp_sym.sym_table.get(left_expr.sym_name, None)
-            ) is not None:
-                # try to replace left expression args with their values
-                for ckey in left_expr.call_args.keys():
-                    left_expr.call_args[ckey] = self._try_resolve_args(
-                        left_expr.call_args[ckey], curr_env
-                    )
-                if isinstance(call_sym, ASPObject):
-                    # builtin object
-                    call_sym(left_expr)
-                elif isinstance(call_sym, ValueSymbol) and isinstance(
-                    call_sym.value, ASPObject
-                ):
-                    # object created in script
-                    call_sym.value(left_expr)
-                elif isinstance(call_sym, ASPFunction):
-                    # TODO: symbol is a function?
-                    pass
-                elif isinstance(call_sym, UserFunction):
-                    # TODO: symbol is a user-defined function?
-                    pass
-                elif isinstance(call_sym, UserSub):
-                    # TODO: symbol is a user-defined sub?
-                    pass
-                return
-        raise ValueError(f"Invalid symbol name {repr(left_expr.sym_name)} in left_expr")

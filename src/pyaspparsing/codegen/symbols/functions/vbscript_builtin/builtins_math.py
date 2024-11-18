@@ -1,63 +1,64 @@
 """VBScript builtin math functions"""
 
+from ....codegen_state import CodegenState
 from .make_builtin import make_builtin_function
 
 
 @make_builtin_function
-def builtin_abs(param_number, /):
+def builtin_abs(cg_state: CodegenState, param_number, /):
     """"""
 
 
 @make_builtin_function
-def builtin_atn(param_number, /):
+def builtin_atn(cg_state: CodegenState, param_number, /):
     """"""
 
 
 @make_builtin_function
-def builtin_cos(param_number, /):
+def builtin_cos(cg_state: CodegenState, param_number, /):
     """"""
 
 
 @make_builtin_function
-def builtin_exp(param_number, /):
+def builtin_exp(cg_state: CodegenState, param_number, /):
     """"""
 
 
 @make_builtin_function
-def builtin_int(param_number, /):
+def builtin_int(cg_state: CodegenState, param_number, /):
     """"""
 
 
 @make_builtin_function
-def builtin_fix(param_number, /):
+def builtin_fix(cg_state: CodegenState, param_number, /):
     """"""
 
 
 @make_builtin_function
-def builtin_log(param_number, /):
+def builtin_log(cg_state: CodegenState, param_number, /):
     """"""
 
 
 @make_builtin_function
-def builtin_rnd(param_number=None, /):
+def builtin_rnd(cg_state: CodegenState, param_number=None, /):
     """"""
 
 
 @make_builtin_function
-def builtin_sgn(param_number, /):
+def builtin_sgn(cg_state: CodegenState, param_number, /):
     """"""
 
 
 @make_builtin_function
-def builtin_sin(param_number, /):
+def builtin_sin(cg_state: CodegenState, param_number, /):
     """"""
 
 
 @make_builtin_function
-def builtin_sqr(param_number, /):
+def builtin_sqr(cg_state: CodegenState, param_number, /):
     """"""
 
 
 @make_builtin_function
-def builtin_tan(param_number, /):
+def builtin_tan(cg_state: CodegenState, param_number, /):
     """"""

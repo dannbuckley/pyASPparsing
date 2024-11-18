@@ -18,18 +18,20 @@ from ...ast.ast_types.builtin_leftexpr.server import (
     ServerTransferExpr,
     ServerURLEncodeExpr,
 )
-from .symbol import ASPObject, prepare_symbol_name
+from .asp_object import ASPObject
+from .symbol import prepare_symbol_name
 from .adodb import Connection, Recordset
 from .mswc import PageCounter
+from ..codegen_state import CodegenState
 
 server_object_types: dict[str, dict[str, type[ASPObject]]] = {
     "adodb": {"connection": Connection, "recordset": Recordset},
     "mswc": {"pagecounter": PageCounter},
 }
 
-server_expr_handlers: dict[type[ServerExpr], Callable[[ASPObject, ServerExpr], Any]] = (
-    {}
-)
+server_expr_handlers: dict[
+    type[ServerExpr], Callable[[ASPObject, ServerExpr, CodegenState], Any]
+] = {}
 
 
 @prepare_symbol_name
@@ -41,14 +43,14 @@ class Server(ASPObject):
     handle_builtin_left_expr(left_expr)
     """
 
-    def handle_builtin_left_expr(self, left_expr: ServerExpr):
+    def handle_builtin_left_expr(self, left_expr: ServerExpr, cg_state: CodegenState):
         """
         Parameters
         ----------
         left_expr : ServerExpr
         """
         assert isinstance(left_expr, ServerExpr)
-        return server_expr_handlers[type(left_expr)](self, left_expr)
+        return server_expr_handlers[type(left_expr)](self, left_expr, cg_state)
 
 
 def create_server_handler(server_expr_type: type[ServerExpr]):
@@ -60,11 +62,13 @@ def create_server_handler(server_expr_type: type[ServerExpr]):
     """
     assert issubclass(server_expr_type, ServerExpr)
 
-    def wrap_func(func: Callable[[ASPObject, ServerExpr], Any]):
+    def wrap_func(func: Callable[[ASPObject, ServerExpr, CodegenState], Any]):
         @wraps(func)
-        def handle_server_expr(serv: ASPObject, left_expr: ServerExpr):
+        def handle_server_expr(
+            serv: ASPObject, left_expr: ServerExpr, cg_state: CodegenState
+        ):
             assert isinstance(left_expr, server_expr_type)
-            return func(serv, left_expr)
+            return func(serv, left_expr, cg_state)
 
         server_expr_handlers[server_expr_type] = handle_server_expr
         return handle_server_expr
@@ -73,7 +77,9 @@ def create_server_handler(server_expr_type: type[ServerExpr]):
 
 
 @create_server_handler(ServerScriptTimeoutExpr)
-def handle_server_script_timeout_expr(serv: Server, left_expr: ServerScriptTimeoutExpr):
+def handle_server_script_timeout_expr(
+    serv: Server, left_expr: ServerScriptTimeoutExpr, cg_state: CodegenState
+):
     """
     Parameters
     ----------
@@ -83,7 +89,9 @@ def handle_server_script_timeout_expr(serv: Server, left_expr: ServerScriptTimeo
 
 
 @create_server_handler(ServerCreateObjectExpr)
-def handle_server_create_object_expr(serv: Server, left_expr: ServerCreateObjectExpr):
+def handle_server_create_object_expr(
+    serv: Server, left_expr: ServerCreateObjectExpr, cg_state: CodegenState
+):
     """
     Parameters
     ----------
@@ -104,7 +112,9 @@ def handle_server_create_object_expr(serv: Server, left_expr: ServerCreateObject
 
 
 @create_server_handler(ServerExecuteExpr)
-def handle_server_execute_expr(serv: Server, left_expr: ServerExecuteExpr):
+def handle_server_execute_expr(
+    serv: Server, left_expr: ServerExecuteExpr, cg_state: CodegenState
+):
     """
     Parameters
     ----------
@@ -114,7 +124,9 @@ def handle_server_execute_expr(serv: Server, left_expr: ServerExecuteExpr):
 
 
 @create_server_handler(ServerGetLastErrorExpr)
-def handle_server_get_last_error_expr(serv: Server, left_expr: ServerGetLastErrorExpr):
+def handle_server_get_last_error_expr(
+    serv: Server, left_expr: ServerGetLastErrorExpr, cg_state: CodegenState
+):
     """
     Parameters
     ----------
@@ -124,7 +136,9 @@ def handle_server_get_last_error_expr(serv: Server, left_expr: ServerGetLastErro
 
 
 @create_server_handler(ServerHTMLEncodeExpr)
-def handle_server_html_encode_expr(serv: Server, left_expr: ServerHTMLEncodeExpr):
+def handle_server_html_encode_expr(
+    serv: Server, left_expr: ServerHTMLEncodeExpr, cg_state: CodegenState
+):
     """
     Parameters
     ----------
@@ -134,7 +148,9 @@ def handle_server_html_encode_expr(serv: Server, left_expr: ServerHTMLEncodeExpr
 
 
 @create_server_handler(ServerMapPathExpr)
-def handle_server_map_path_expr(serv: Server, left_expr: ServerMapPathExpr):
+def handle_server_map_path_expr(
+    serv: Server, left_expr: ServerMapPathExpr, cg_state: CodegenState
+):
     """
     Parameters
     ----------
@@ -144,7 +160,9 @@ def handle_server_map_path_expr(serv: Server, left_expr: ServerMapPathExpr):
 
 
 @create_server_handler(ServerTransferExpr)
-def handle_server_transfer_expr(serv: Server, left_expr: ServerTransferExpr):
+def handle_server_transfer_expr(
+    serv: Server, left_expr: ServerTransferExpr, cg_state: CodegenState
+):
     """
     Parameters
     ----------
@@ -154,7 +172,9 @@ def handle_server_transfer_expr(serv: Server, left_expr: ServerTransferExpr):
 
 
 @create_server_handler(ServerURLEncodeExpr)
-def handle_server_url_encode_expr(serv: Server, left_expr: ServerURLEncodeExpr):
+def handle_server_url_encode_expr(
+    serv: Server, left_expr: ServerURLEncodeExpr, cg_state: CodegenState
+):
     """
     Parameters
     ----------

@@ -16,6 +16,9 @@ from ..ast.ast_types import (
 )
 from .linker import Linker, generate_linked_program
 from .generators import CodegenState, codegen_global_stmt
+from .scope import ScopeType
+from .symbols import Response, Request, Server
+from .symbols.functions import vbscript_builtin as vb_blt
 
 
 def generate_code(
@@ -34,7 +37,15 @@ def generate_code(
     -------
     CodegenState
     """
+    # initialize state object
     cg_state = CodegenState(Environment(), StringIO(), StringIO(), StringIO())
+    cg_state.add_symbol(Response())
+    cg_state.add_symbol(Request())
+    cg_state.add_symbol(Server())
+    for blt in filter(lambda x: x.find("builtin_", 0, 8) == 0, dir(vb_blt)):
+        cg_state.add_symbol(getattr(vb_blt, blt)())
+    # all script data should be handled in a separate "user" scope
+    cg_state.scope_mgr.enter_scope(ScopeType.SCOPE_SCRIPT_USER)
     # separate function/sub declarations from other code
     other_st: list[GlobalStmt] = []
     with Tokenizer(codeblock, suppress_exc, exc_file) as tkzr:

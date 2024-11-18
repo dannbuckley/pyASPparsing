@@ -42,8 +42,9 @@ from ..ast.ast_types import (
 )
 from .scope import ScopeType
 from .symbols import ValueSymbol, ArraySymbol
+from .symbols.asp_object import ASPObject
 from .symbols.symbol import (
-    ASPObject,
+    LocalAssignmentSymbol,
     ValueMethodArgument,
     ReferenceMethodArgument,
     FunctionReturnSymbol,
@@ -450,40 +451,6 @@ def cg_erase_stmt(
     return cg_ret
 
 
-@create_global_cg_func(AssignStmt)
-def cg_assign_stmt(
-    stmt: AssignStmt, cg_state: CodegenState, cg_ret: CodegenReturn
-) -> CodegenReturn:
-    """Code generator for assignment statement
-
-    Parameters
-    ----------
-    stmt : AssignStmt
-    cg_state : CodegenState
-    cg_ret : CodegenReturn
-
-    Returns
-    -------
-    CodegenReturn
-    """
-    cg_ret.append("Assign statement")
-    curr_env = cg_state.scope_mgr.current_environment
-    # scp_types = set(
-    #     map(
-    #         lambda x: cg_state.scope_mgr.scope_registry.nodes[x]["scope_type"], curr_env
-    #     )
-    # )
-    cg_state.sym_table.assign(
-        stmt,
-        curr_env,
-        # function_sub_body=(
-        #     ScopeType.SCOPE_FUNCTION_DEFINITION in scp_types
-        #     or ScopeType.SCOPE_SUB_DEFINITION in scp_types
-        # ),
-    )
-    return cg_ret
-
-
 def cghelper_call_builtin_object(left_expr: LeftExpr, cg_state: CodegenState):
     """Call a function attached to a builtin object
 
@@ -729,6 +696,82 @@ def cg_sub_call_stmt(
     CodegenReturn
     """
     return cghelper_call(stmt.left_expr, cg_state, cg_ret)
+
+
+@create_global_cg_func(AssignStmt)
+def cg_assign_stmt(
+    stmt: AssignStmt, cg_state: CodegenState, cg_ret: CodegenReturn
+) -> CodegenReturn:
+    """Code generator for assignment statement
+
+    Parameters
+    ----------
+    stmt : AssignStmt
+    cg_state : CodegenState
+    cg_ret : CodegenReturn
+
+    Returns
+    -------
+    CodegenReturn
+    """
+    cg_ret.append("Assign statement")
+    curr_env = cg_state.scope_mgr.current_environment
+    rhs_expr = stmt.assign_expr
+    if isinstance(rhs_expr, LeftExpr):
+        # try to evaluate expression before assigning to target
+        found = False
+        for scp in reversed(curr_env):
+            if (
+                scp_sym := cg_state.sym_table.sym_scopes.get(scp, None)
+            ) is not None and (
+                rhs_sym := scp_sym.sym_table.get(rhs_expr.sym_name)
+            ) is not None:
+                if isinstance(rhs_sym, ValueSymbol) and isinstance(
+                    rhs_sym.value, ASPObject
+                ):
+                    # object created in script
+                    pass
+                elif isinstance(rhs_sym, ASPObject):
+                    # builtin object
+                    pass
+                elif isinstance(rhs_sym, ASPFunction):
+                    # builtin function
+                    pass
+                found = True
+                break
+        if not found:
+            raise ValueError(
+                "Could not find symbol associated with assignment expression"
+            )
+
+    lhs_expr = stmt.target_expr
+    for scp in reversed(curr_env):
+        if (scp_sym := cg_state.sym_table.sym_scopes.get(scp, None)) is not None and (
+            lhs_sym := scp_sym.sym_table.get(lhs_expr.sym_name, None)
+        ) is not None:
+            if scp != curr_env[-1] and isinstance(lhs_sym, ValueSymbol):
+                # symbol defined in an enclosing scope
+                cg_state.add_symbol(LocalAssignmentSymbol.from_value_symbol(lhs_sym))
+                cg_state.sym_table.sym_scopes[curr_env[-1]].assign(lhs_expr, rhs_expr)
+            elif isinstance(lhs_sym, ArraySymbol):
+                for ckey in lhs_expr.call_args.keys():
+                    lhs_expr.call_args[ckey] = cg_state.sym_table.try_resolve_args(
+                        lhs_expr.call_args[ckey], curr_env
+                    )
+                cg_state.sym_table.sym_scopes[scp].assign(lhs_expr, rhs_expr)
+            else:
+                cg_state.sym_table.sym_scopes[scp].assign(lhs_expr, rhs_expr)
+            return cg_ret
+    # did not find symbol
+    assert (
+        not cg_state.sym_table.option_explicit
+    ), "Option Explicit is set, variables must be defined before use"
+    # if symbol doesn't exist,
+    # ensure that only the new symbol name is in the left expression
+    assert lhs_expr.end_idx == 0
+    cg_state.add_symbol(ValueSymbol(lhs_expr.sym_name, rhs_expr))
+    cg_state.sym_table.sym_scopes[curr_env[-1]].track_assign(lhs_expr.sym_name)
+    return cg_ret
 
 
 @create_global_cg_func(ExitStmt)

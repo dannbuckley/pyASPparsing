@@ -1,12 +1,19 @@
 """Helper function to make a builtin Function symbol"""
 
 from collections.abc import Callable
-from functools import partial
+from functools import wraps
 import re
+from typing import Concatenate, ParamSpec
 from ..function import ASPFunction
+from ....scope import ScopeType
+from ....codegen_state import CodegenState
+
+P = ParamSpec("P")
 
 
-def make_builtin_function(func: Callable):
+def make_builtin_function(
+    func: Callable[Concatenate[CodegenState, P], None]
+) -> Callable[[], ASPFunction]:
     """Wrapper function for making VBScript builtin function symbols
 
     Parameters
@@ -26,6 +33,13 @@ def make_builtin_function(func: Callable):
     assert (
         match_name is not None
     ), "Builtin function must match r'builtin_([a-z]+)' pattern"
-    return partial(
-        ASPFunction, symbol_name=match_name.groupdict()["vbscript_name"], func=func
-    )
+
+    @wraps(func)
+    def call_builtin(cg_state: CodegenState, /, *args: P.args):
+        with cg_state.scope_mgr.temporary_scope(ScopeType.SCOPE_FUNCTION_CALL):
+            func(cg_state, *args)
+
+    def make_function_symbol():
+        return ASPFunction(match_name.groupdict()["vbscript_name"], call_builtin)
+
+    return make_function_symbol
