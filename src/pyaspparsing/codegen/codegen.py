@@ -38,7 +38,7 @@ def generate_code(
     CodegenState
     """
     # initialize state object
-    cg_state = CodegenState(Environment(), StringIO(), StringIO(), StringIO())
+    cg_state = CodegenState(Environment(), lnk, StringIO(), StringIO(), StringIO())
     cg_state.add_symbol(Response())
     cg_state.add_symbol(Request())
     cg_state.add_symbol(Server())

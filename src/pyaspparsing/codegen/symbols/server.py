@@ -5,6 +5,7 @@ from functools import wraps
 from typing import Any
 import attrs
 from ...ast.ast_types.optimize import EvalExpr
+from ...ast.ast_types.builtin_leftexpr.obj_property import PropertyExpr
 from ...ast.ast_types.builtin_leftexpr.server import (
     ServerExpr,
     # properties
@@ -22,7 +23,7 @@ from .asp_object import ASPObject
 from .symbol import prepare_symbol_name, FunctionReturnSymbol
 from .adodb import Connection, Recordset
 from .mswc import PageCounter
-from ..codegen_state import CodegenState, FunctionReturnPointer
+from ..codegen_state import CodegenState
 from ..scope import ScopeType
 
 server_object_types: dict[str, dict[str, type[ASPObject]]] = {
@@ -49,9 +50,19 @@ class Server(ASPObject):
         Parameters
         ----------
         left_expr : ServerExpr
+        cg_state : CodegenState
         """
         assert isinstance(left_expr, ServerExpr)
         return server_expr_handlers[type(left_expr)](self, left_expr, cg_state)
+
+    def handle_property_expr(self, prop_expr: PropertyExpr, cg_state: CodegenState):
+        """
+        Parameters
+        ----------
+        prop_expr : PropertyExpr
+        cg_state : CodegenState
+        """
+        assert isinstance(prop_expr, PropertyExpr)
 
 
 def create_server_handler(server_expr_type: type[ServerExpr]):

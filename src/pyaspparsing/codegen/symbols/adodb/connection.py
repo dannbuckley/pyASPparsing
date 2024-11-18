@@ -3,10 +3,12 @@
 from typing import Optional
 import attrs
 from ....ast.ast_types.base import Expr
+from ....ast.ast_types.builtin_leftexpr.obj_property import PropertyExpr
 from ..asp_object import ASPObject
-from ..symbol import prepare_symbol_name
+from ..symbol import prepare_symbol_name, FunctionReturnSymbol
 from .base import Database, Query
 from .recordset import Recordset
+from ...scope import ScopeType
 from ...codegen_state import CodegenState
 
 
@@ -17,6 +19,15 @@ class Connection(ASPObject):
 
     db: Optional[Database] = attrs.field(default=None, init=False)
     db_queries: list[Query] = attrs.field(default=attrs.Factory(list), init=False)
+
+    def handle_property_expr(self, prop_expr: PropertyExpr, cg_state: CodegenState):
+        """
+        Parameters
+        ----------
+        prop_expr : PropertyExpr
+        cg_state : CodegenState
+        """
+        assert isinstance(prop_expr, PropertyExpr)
 
     def begintrans(self, cg_state: CodegenState):
         """"""
@@ -66,7 +77,11 @@ class Connection(ASPObject):
                 self.db, param_commandtext, param_ra, param_options
             )
             self.db_queries.append(ret_recordset.query)
-            return ret_recordset
+            with cg_state.scope_mgr.temporary_scope(ScopeType.SCOPE_FUNCTION_CALL):
+                cg_state.add_symbol(FunctionReturnSymbol("execute", ret_recordset))
+                cg_state.add_function_return(
+                    cg_state.scope_mgr.current_scope, "execute"
+                )
         except AssertionError as ex:
             raise ValueError("Invalid input in Connection.Execute") from ex
 
@@ -116,6 +131,9 @@ class Connection(ASPObject):
         /,
     ):
         """"""
+        with cg_state.scope_mgr.temporary_scope(ScopeType.SCOPE_FUNCTION_CALL):
+            cg_state.add_symbol(FunctionReturnSymbol("openschema"))
+            cg_state.add_function_return(cg_state.scope_mgr.current_scope, "openschema")
 
     def rollbacktrans(self, cg_state: CodegenState):
         """"""

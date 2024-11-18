@@ -4,6 +4,7 @@ from collections.abc import Callable
 from functools import wraps
 from typing import Any
 import attrs
+from ...ast.ast_types.builtin_leftexpr.obj_property import PropertyExpr
 from ...ast.ast_types.builtin_leftexpr.response import (
     ResponseExpr,
     # collections
@@ -29,7 +30,8 @@ from ...ast.ast_types.builtin_leftexpr.response import (
     ResponseWriteExpr,
 )
 from .asp_object import ASPObject
-from .symbol import prepare_symbol_name
+from .symbol import prepare_symbol_name, FunctionReturnSymbol
+from ..scope import ScopeType
 from ..codegen_state import CodegenState
 
 response_expr_handlers: dict[
@@ -51,9 +53,19 @@ class Response(ASPObject):
         Parameters
         ----------
         left_expr : ResponseExpr
+        cg_state : CodegenState
         """
         assert isinstance(left_expr, ResponseExpr)
         return response_expr_handlers[type(left_expr)](self, left_expr, cg_state)
+
+    def handle_property_expr(self, prop_expr: PropertyExpr, cg_state: CodegenState):
+        """
+        Parameters
+        ----------
+        prop_expr : PropertyExpr
+        cg_state : CodegenState
+        """
+        assert isinstance(prop_expr, PropertyExpr)
 
 
 def create_response_handler(response_expr_type: type[ResponseExpr]):
@@ -101,6 +113,9 @@ def handle_response_buffer_expr(
     resp : Response
     left_expr : ResponseBufferExpr
     """
+    with cg_state.scope_mgr.temporary_scope(ScopeType.SCOPE_FUNCTION_CALL):
+        cg_state.add_symbol(FunctionReturnSymbol("buffer"))
+        cg_state.add_function_return(cg_state.scope_mgr.current_scope, "buffer")
 
 
 @create_response_handler(ResponseCacheControlExpr)
@@ -173,6 +188,11 @@ def handle_response_is_client_connected_expr(
     resp : Response
     left_expr : ResponseIsClientConnectedExpr
     """
+    with cg_state.scope_mgr.temporary_scope(ScopeType.SCOPE_FUNCTION_CALL):
+        cg_state.add_symbol(FunctionReturnSymbol("isclientconnected"))
+        cg_state.add_function_return(
+            cg_state.scope_mgr.current_scope, "isclientconnected"
+        )
 
 
 @create_response_handler(ResponsePICSExpr)

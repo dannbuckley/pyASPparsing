@@ -2,6 +2,7 @@
 
 from typing import Optional
 import attrs
+from ....ast.ast_types.builtin_leftexpr.obj_property import PropertyExpr
 from ..asp_object import ASPObject
 from ..symbol import prepare_symbol_name
 from .base import Query
@@ -14,6 +15,15 @@ class Recordset(ASPObject):
     """"""
 
     query: Optional[Query] = attrs.field(default=None, init=False)
+
+    def handle_property_expr(self, prop_expr: PropertyExpr, cg_state: CodegenState):
+        """
+        Parameters
+        ----------
+        prop_expr : PropertyExpr
+        cg_state : CodegenState
+        """
+        assert isinstance(prop_expr, PropertyExpr)
 
     def addnew(
         self, cg_state: CodegenState, param_fieldlist=None, param_values=None, /

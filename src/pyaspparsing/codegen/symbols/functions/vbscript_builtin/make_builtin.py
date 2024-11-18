@@ -5,6 +5,7 @@ from functools import wraps
 import re
 from typing import Concatenate, ParamSpec
 from ..function import ASPFunction
+from ...symbol import FunctionReturnSymbol
 from ....scope import ScopeType
 from ....codegen_state import CodegenState
 
@@ -33,13 +34,18 @@ def make_builtin_function(
     assert (
         match_name is not None
     ), "Builtin function must match r'builtin_([a-z]+)' pattern"
+    vbs_func_name = match_name.groupdict()["vbscript_name"]
 
     @wraps(func)
     def call_builtin(cg_state: CodegenState, /, *args: P.args):
         with cg_state.scope_mgr.temporary_scope(ScopeType.SCOPE_FUNCTION_CALL):
+            cg_state.add_symbol(FunctionReturnSymbol(vbs_func_name))
             func(cg_state, *args)
+            cg_state.add_function_return(
+                cg_state.scope_mgr.current_scope, vbs_func_name
+            )
 
     def make_function_symbol():
-        return ASPFunction(match_name.groupdict()["vbscript_name"], call_builtin)
+        return ASPFunction(vbs_func_name, call_builtin)
 
     return make_function_symbol

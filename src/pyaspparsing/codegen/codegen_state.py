@@ -7,6 +7,7 @@ import attrs
 from jinja2 import Environment
 
 from ..ast.ast_types import Expr, MethodStmt
+from .linker import Linker
 from .scope import ScopeType, ScopeManager
 from .symbols.symbol import Symbol, FunctionReturnSymbol
 from .symbols.symbol_table import SymbolTable
@@ -32,6 +33,7 @@ class CodegenState:
     Attributes
     ----------
     jinja_env : jinja2.Environment
+    lnk : Linker
     script_file : IO
     template_file : IO
     error_file : IO
@@ -48,6 +50,7 @@ class CodegenState:
     """
 
     jinja_env: Environment
+    lnk: Linker
     script_file: IO
     template_file: IO
     error_file: IO = attrs.field(default=sys.stderr)

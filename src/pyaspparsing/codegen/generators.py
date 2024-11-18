@@ -3,6 +3,7 @@
 from __future__ import annotations
 from collections.abc import Callable
 from functools import wraps
+from pathlib import Path
 from typing import Optional, Any
 import attrs
 from attrs.validators import instance_of
@@ -10,6 +11,7 @@ from ..ast.ast_types import (
     GlobalStmt,
     EvalExpr,
     LeftExpr,
+    PropertyExpr,
     # special constructs
     ProcessingDirective,
     IncludeFile,
@@ -40,6 +42,7 @@ from ..ast.ast_types import (
     ExitStmt,
     EraseStmt,
 )
+from ..ast.ast_types.parser import Parser
 from .scope import ScopeType
 from .symbols import ValueSymbol, ArraySymbol
 from .symbols.asp_object import ASPObject
@@ -248,7 +251,30 @@ def cg_include_file(
     -------
     CodegenReturn
     """
-    print(f"Unresolved include: {stmt.include_path}", file=cg_state.error_file)
+    # try to include file
+    inc_path = Path(stmt.include_path[1:-1])
+    if (inc_prog := cg_state.lnk.request(inc_path)) is not None:
+        for glob_st in inc_prog.global_stmt_list:
+            if isinstance(glob_st, OutputText) and (
+                len(glob_st.directives) == 0
+                and len(glob_st.chunks) == 1
+                and glob_st.chunks[0].isspace()
+            ):
+                # ignore output between statements if the output is exclusively whitespace
+                continue
+            cg_ret.combine(
+                codegen_global_stmt(
+                    (
+                        Parser.reinterpret_output_block(glob_st)
+                        if isinstance(glob_st, OutputText)
+                        else glob_st
+                    ),
+                    cg_state,
+                ),
+                indent=False,
+            )
+    else:
+        print(f"Unresolved include: {stmt.include_path}", file=cg_state.error_file)
     return cg_ret
 
 
@@ -633,8 +659,17 @@ def cghelper_call(
     display_str = "".join(_display_left_expr())
     curr_env = cg_state.scope_mgr.current_environment
     sym_resv = cg_state.sym_table.resolve_symbol(left_expr, curr_env)
+    if len(sym_resv) == 0:
+        # since return value doesn't matter for (sub)call statements,
+        # ignore method if cannot resolve
+        print(
+            f"Skipped {left_expr.sym_name} call (cannot resolve symbol)",
+            file=cg_state.error_file,
+        )
+        return cg_ret
     # assume callable is only defined once
     assert len(sym_resv) == 1
+    # determine callable type
     if isinstance(sym_resv[0].symbol, ASPObject):
         cg_ret.append(f"{display_str};")
         cghelper_call_builtin_object(left_expr, cg_state)
@@ -657,7 +692,7 @@ def cghelper_call(
             cg_ret.combine(
                 cghelper_call_user_function(sym_resv[0].scope, left_expr, cg_state)
             )
-            cg_ret.append("}")
+            cg_ret.append(f"{'}'} // end {display_str} function call")
     elif isinstance(sym_resv[0].symbol, UserSub):
         if len(sym_resv[0].symbol.sub_body) == 0:
             print(
@@ -669,7 +704,7 @@ def cghelper_call(
             cg_ret.combine(
                 cghelper_call_user_sub(sym_resv[0].scope, left_expr, cg_state)
             )
-            cg_ret.append("}")
+            cg_ret.append(f"{'}'} // end {display_str} sub call")
     else:
         raise ValueError("Symbol associated with left expression is not callable")
     return cg_ret
@@ -737,6 +772,12 @@ def cg_assign_stmt(
     -------
     CodegenReturn
     """
+    if isinstance(stmt.assign_expr, LeftExpr) and stmt.target_expr == stmt.assign_expr:
+        print(
+            "Skipped no-op assignment (target_expr == assign_expr)",
+            file=cg_state.error_file,
+        )
+        return cg_ret
     cg_ret.append("Assign statement")
     curr_env = cg_state.scope_mgr.current_environment
     rhs_expr = stmt.assign_expr
@@ -798,10 +839,31 @@ def cg_assign_stmt(
         if (scp_sym := cg_state.sym_table.sym_scopes.get(scp, None)) is not None and (
             lhs_sym := scp_sym.sym_table.get(lhs_expr.sym_name, None)
         ) is not None:
-            if scp != curr_env[-1] and isinstance(lhs_sym, ValueSymbol):
-                # symbol defined in an enclosing scope
-                cg_state.add_symbol(LocalAssignmentSymbol.from_value_symbol(lhs_sym))
-                cg_state.sym_table.sym_scopes[curr_env[-1]].assign(lhs_expr, rhs_expr)
+            if isinstance(lhs_sym, ASPObject):
+                # property assignment on builtin object
+                # treat property assignment as function call
+                cghelper_call_builtin_object(
+                    PropertyExpr.from_assignment(lhs_expr, rhs_expr),
+                    cg_state,
+                )
+            elif isinstance(lhs_sym, ValueSymbol):
+                if scp != curr_env[-1]:
+                    # symbol defined in an enclosing scope
+                    cg_state.add_symbol(
+                        LocalAssignmentSymbol.from_value_symbol(lhs_sym)
+                    )
+                if lhs_expr.end_idx > 0 and isinstance(lhs_sym.value, ASPObject):
+                    # property assignment on user-created object
+                    # treat property assignment as function call
+                    cghelper_call_value_object(
+                        curr_env[-1],
+                        PropertyExpr.from_assignment(lhs_expr, rhs_expr),
+                        cg_state,
+                    )
+                else:
+                    cg_state.sym_table.sym_scopes[curr_env[-1]].assign(
+                        lhs_expr, rhs_expr
+                    )
             elif isinstance(lhs_sym, ArraySymbol):
                 for ckey in lhs_expr.call_args.keys():
                     lhs_expr.call_args[ckey] = cg_state.sym_table.try_resolve_args(
