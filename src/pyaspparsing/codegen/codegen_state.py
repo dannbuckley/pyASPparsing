@@ -1,7 +1,9 @@
 """Code generator state classes"""
 
+from itertools import groupby
+from operator import itemgetter
 import sys
-from typing import Optional, IO
+from typing import Optional, Any, IO
 
 import attrs
 from jinja2 import Environment
@@ -12,6 +14,7 @@ from .scope import ScopeType, ScopeManager
 from .symbols.symbol import Symbol, FunctionReturnSymbol
 from .symbols.symbol_table import SymbolTable
 from .symbols.functions.function import UserFunction, UserSub
+from .symbols.adodb_base import Database, Query, RecordField
 
 
 @attrs.define
@@ -71,6 +74,18 @@ class CodegenState:
     output_exprs: dict[int, Expr] = attrs.field(default=attrs.Factory(dict), init=False)
     _curr_output_id: int = attrs.field(default=-1, repr=False, init=False)
 
+    db_cxns: list[Database] = attrs.field(default=attrs.Factory(list), init=False)
+    db_queries: list[Query] = attrs.field(default=attrs.Factory(list), init=False)
+    db_query_fields: list[RecordField] = attrs.field(
+        default=attrs.Factory(list), init=False
+    )
+    _cxn_to_query: list[tuple[int, int]] = attrs.field(
+        default=attrs.Factory(list), repr=False, init=False
+    )
+    _query_to_field: list[tuple[int, int]] = attrs.field(
+        default=attrs.Factory(list), repr=False, init=False
+    )
+
     @property
     def in_script_block(self) -> bool:
         """Flag indicating whether the previous global statement was
@@ -117,6 +132,36 @@ class CodegenState:
         bool
         """
         return len(self._func_returns) > 0
+
+    @property
+    def database_query_map(self) -> dict[int, set[int]]:
+        """Compute a dictionary of {database: {queries from database}} pairs
+
+        Returns
+        -------
+        dict[int, set[int]]
+        """
+        return {
+            _db: set(map(itemgetter(1), _queries))
+            for _db, _queries in groupby(
+                sorted(self._cxn_to_query, key=itemgetter(0)), itemgetter(0)
+            )
+        }
+
+    @property
+    def query_field_map(self) -> dict[int, set[int]]:
+        """Compute a dictionary of {query: {fields requested from query}} pairs
+
+        Returns
+        -------
+        dict[int, set[int]]
+        """
+        return {
+            _query: set(map(itemgetter(1), _fields))
+            for _query, _fields in groupby(
+                sorted(self._query_to_field, key=itemgetter(0)), itemgetter(0)
+            )
+        }
 
     def pop_function_return(self):
         """Pop the latest function return symbol from the state"""
@@ -256,6 +301,79 @@ class CodegenState:
         self._curr_output_id += 1
         self.output_exprs[self._curr_output_id] = output_expr
         return f"__output_expr_{self._curr_output_id}"
+
+    def add_database_cxn(
+        self,
+        connectionstring: dict[str, str],
+        userid: Optional[Expr] = None,
+        password: Optional[Expr] = None,
+        options: Optional[Expr] = None,
+    ) -> int:
+        """
+        Parameters
+        ----------
+        connectionstring : dict[str, str]
+        userid : Expr | None, default=None
+        password : Expr | None, default=None
+        options : Expr | None, default=None
+
+        Returns
+        -------
+        int
+            ID of new database connection
+        """
+        self.db_cxns.append(Database(connectionstring, userid, password, options))
+        return len(self.db_cxns) - 1
+
+    def add_database_query(
+        self,
+        db: int,
+        commandtext: Expr,
+        ra: Optional[Expr] = None,
+        options: Optional[Expr] = None,
+    ) -> int:
+        """
+        Parameters
+        ----------
+        db : int
+            ID of database connection
+        commandtext : Expr
+        ra : Expr | None, default=None
+        options : Expr | None, default=None
+
+        Returns
+        -------
+        int
+            ID of new database query
+        """
+        try:
+            assert 0 <= db < len(self.db_cxns)
+            self.db_queries.append(Query(db, commandtext, ra, options))
+            query_id = len(self.db_queries) - 1
+            self._cxn_to_query.append((db, query_id))
+            return query_id
+        except IndexError as ex:
+            raise ValueError("Database connection does not exist") from ex
+
+    def add_query_field(self, query: int, column: Any) -> RecordField:
+        """
+        Parameters
+        ----------
+        query : int
+            ID of database query
+        column : Any
+
+        Returns
+        -------
+        ID of new query field
+        """
+        try:
+            assert 0 <= query < len(self.db_queries)
+            self.db_query_fields.append(RecordField(query, column))
+            self._query_to_field.append((query, len(self.db_query_fields) - 1))
+            return self.db_query_fields[-1]
+        except AssertionError as ex:
+            raise ValueError("Database query does not exist") from ex
 
     def start_script_block(self):
         """Create a new script output block"""

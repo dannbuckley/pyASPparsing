@@ -1,12 +1,15 @@
 """ADODB Connection object"""
 
+import re
 from typing import Optional
+
 import attrs
+
 from ....ast.ast_types.base import Expr
+from ....ast.ast_types.optimize import EvalExpr
 from ....ast.ast_types.builtin_leftexpr.obj_property import PropertyExpr
 from ..asp_object import ASPObject
 from ..symbol import prepare_symbol_name, FunctionReturnSymbol
-from .base import Database, Query
 from .recordset import Recordset
 from ...scope import ScopeType
 from ...codegen_state import CodegenState
@@ -17,8 +20,8 @@ from ...codegen_state import CodegenState
 class Connection(ASPObject):
     """"""
 
-    db: Optional[Database] = attrs.field(default=None, init=False)
-    db_queries: list[Query] = attrs.field(default=attrs.Factory(list), init=False)
+    db: Optional[int] = attrs.field(default=None, init=False)
+    db_queries: list[int] = attrs.field(default=attrs.Factory(list), init=False)
 
     def handle_property_expr(self, prop_expr: PropertyExpr, cg_state: CodegenState):
         """
@@ -73,7 +76,7 @@ class Connection(ASPObject):
                 assert isinstance(param_options, Expr), "options must be an expression"
 
             ret_recordset = Recordset()
-            ret_recordset.query = Query(
+            ret_recordset.query = cg_state.add_database_query(
                 self.db, param_commandtext, param_ra, param_options
             )
             self.db_queries.append(ret_recordset.query)
@@ -103,9 +106,6 @@ class Connection(ASPObject):
         param_options : Expr | None, default=None
         """
         try:
-            assert isinstance(
-                param_connectionstring, Expr
-            ), "connectionstring must be an expression"
             if param_userid is not None:
                 assert isinstance(param_userid, Expr), "userid must be an expression"
             if param_password is not None:
@@ -115,9 +115,21 @@ class Connection(ASPObject):
             if param_options is not None:
                 assert isinstance(param_options, Expr), "options must be an expression"
 
+            assert isinstance(param_connectionstring, EvalExpr) and isinstance(
+                param_connectionstring.expr_value, str
+            ), "connectionstring must be a string"
+            cxn_dict = dict(
+                re.findall(
+                    # assume connection string is already valid
+                    # just break into key-value pairs
+                    r"([^=]+)=([^;]+);",
+                    param_connectionstring.expr_value,
+                )
+            )
+
             # "open" a database connection
-            self.db = Database(
-                param_connectionstring, param_userid, param_password, param_options
+            self.db = cg_state.add_database_cxn(
+                cxn_dict, param_userid, param_password, param_options
             )
         except AssertionError as ex:
             raise ValueError("Invalid input in Connection.Open") from ex
