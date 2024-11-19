@@ -1,18 +1,37 @@
 """ADODB Recordset object"""
 
-from typing import Optional
+from typing import Optional, Any
 import attrs
 from ....ast.ast_types.builtin_leftexpr.obj_property import PropertyExpr
+from ....ast.ast_types.base import FormatterMixin
 from ..asp_object import ASPObject
-from ..symbol import prepare_symbol_name
+from ..symbol import prepare_symbol_name, FunctionReturnSymbol
 from .base import Query
 from ...codegen_state import CodegenState
+from ...scope import ScopeType
+
+
+@attrs.define(repr=False, slots=False)
+class RecordField(FormatterMixin):
+    """
+    Attributes
+    ----------
+    query : Query
+    column : Any
+    """
+
+    query: Query
+    column: Any
 
 
 @prepare_symbol_name
 @attrs.define(repr=False, slots=False)
 class Recordset(ASPObject):
-    """"""
+    """
+    Attributes
+    ----------
+    query : Query | None, default=None
+    """
 
     query: Optional[Query] = attrs.field(default=None, init=False)
 
@@ -24,6 +43,38 @@ class Recordset(ASPObject):
         cg_state : CodegenState
         """
         assert isinstance(prop_expr, PropertyExpr)
+        if prop_expr.assign_value is None:
+            left_expr = prop_expr.object_property
+            if (
+                left_expr.end_idx == 1
+                and (cargs := left_expr.call_args.get(0, None)) is not None
+            ):
+                assert len(cargs) == 1
+                with cg_state.scope_mgr.temporary_scope(ScopeType.SCOPE_FUNCTION_CALL):
+                    cg_state.add_symbol(
+                        FunctionReturnSymbol(
+                            "fields", RecordField(self.query, cargs[0])
+                        )
+                    )
+                    cg_state.add_function_return(
+                        cg_state.scope_mgr.current_scope, "fields"
+                    )
+            elif (
+                left_expr.end_idx == 2
+                and (prop_name := left_expr.subnames.get(0, None)) is not None
+                and (cargs := left_expr.call_args.get(1, None)) is not None
+            ):
+                assert prop_name == "fields"
+                assert len(cargs) == 1
+                with cg_state.scope_mgr.temporary_scope(ScopeType.SCOPE_FUNCTION_CALL):
+                    cg_state.add_symbol(
+                        FunctionReturnSymbol(
+                            "fields", RecordField(self.query, cargs[0])
+                        )
+                    )
+                    cg_state.add_function_return(
+                        cg_state.scope_mgr.current_scope, "fields"
+                    )
 
     def addnew(
         self, cg_state: CodegenState, param_fieldlist=None, param_values=None, /

@@ -2,8 +2,9 @@
 
 from collections.abc import Callable
 from functools import wraps
-from typing import Any
+from typing import Optional, Any
 import attrs
+from ...ast.ast_types.base import FormatterMixin
 from ...ast.ast_types.builtin_leftexpr.obj_property import PropertyExpr
 from ...ast.ast_types.builtin_leftexpr.request import (
     RequestExpr,
@@ -113,6 +114,21 @@ def handle_request_client_certificate_expr(
         )
 
 
+@attrs.define(repr=False, slots=False)
+class RequestCookie(FormatterMixin):
+    """
+    Attributes
+    ----------
+    name : Any
+    key : Any
+    attribute : str | None
+    """
+
+    name: Any
+    key: Any
+    attribute: Optional[str]
+
+
 @create_request_handler(RequestCookiesExpr)
 def handle_request_cookies_expr(
     req: Request, left_expr: RequestCookiesExpr, cg_state: CodegenState
@@ -124,7 +140,16 @@ def handle_request_cookies_expr(
     left_expr : RequestCookiesExpr
     """
     with cg_state.scope_mgr.temporary_scope(ScopeType.SCOPE_FUNCTION_CALL):
-        cg_state.add_symbol(FunctionReturnSymbol("cookies"))
+        cg_state.add_symbol(
+            FunctionReturnSymbol(
+                "cookies",
+                RequestCookie(
+                    left_expr.cookie_name,
+                    left_expr.cookie_key,
+                    left_expr.cookie_attribute,
+                ),
+            )
+        )
         cg_state.add_function_return(cg_state.scope_mgr.current_scope, "cookies")
 
 
