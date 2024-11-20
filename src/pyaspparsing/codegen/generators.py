@@ -3,8 +3,9 @@
 from __future__ import annotations
 from collections.abc import Callable
 from functools import wraps
+from inspect import signature, Signature
 from pathlib import Path
-from typing import Optional, Any
+from typing import Optional, Any, Generator
 import attrs
 from attrs.validators import instance_of
 from ..ast.ast_types import (
@@ -480,18 +481,110 @@ def cg_erase_stmt(
     return cg_ret
 
 
-def cghelper_call_builtin_object(left_expr: LeftExpr, cg_state: CodegenState):
-    """Call a function attached to a builtin object
+def display_left_expr(left_expr: LeftExpr) -> str:
+    """
+    Parameters
+    ----------
+    left_expr : LeftExpr
 
-    The object will always be in SCOPE_SCRIPT_BUILTIN at ID 0 (zero)
+    Returns
+    -------
+    str
+    """
+
+    def _display_helper() -> Generator[str, None, None]:
+        nonlocal left_expr
+        yield left_expr.sym_name
+        for idx in range(left_expr.end_idx):
+            if idx in left_expr.subnames:
+                yield f".{left_expr.subnames[idx]}"
+            elif idx in left_expr.call_args:
+                yield "(...)"
+            else:
+                raise ValueError("Invalid left expression")
+
+    return "".join(_display_helper())
+
+
+def cghelper_setup_builtin_arguments(
+    sig: Signature, left_expr: LeftExpr, cg_state: CodegenState
+) -> Generator[Any, None, None]:
+    """
+    Parameters
+    ----------
+    sig : Signature
+    left_expr : LeftExpr
+    cg_state : CodegenState
+
+    Yields
+    ------
+    Any
+    """
+    if (l_callargs := left_expr.call_args.get(left_expr.end_idx - 1, None)) is not None:
+        for param_idx, (_, param_obj) in enumerate(sig.parameters.items(), -1):
+            if param_idx < 0:
+                # ignore cg_state parameter
+                continue
+            try:
+                # try to access value before creating symbol
+                idx_arg = l_callargs[param_idx]
+                cg_state.add_symbol(ValueMethodArgument(param_obj.name))
+                # ignore codegen output for argument assignment
+                codegen_global_stmt(
+                    AssignStmt(LeftExpr(param_obj.name), idx_arg), cg_state
+                )
+                yield cg_state.sym_table.sym_scopes[
+                    cg_state.scope_mgr.current_scope
+                ].sym_table[param_obj.name].value
+            except IndexError:
+                # argument not specified in left expression
+                # check for default value in function signature
+                assert param_obj.default is not param_obj.empty, (
+                    f"Missing parameter {repr(param_obj.name)} in "
+                    f"{display_left_expr(left_expr)} function call, "
+                    "no default value available"
+                )
+                yield param_obj.default
+
+
+def cghelper_call_object(
+    left_expr: LeftExpr, cg_state: CodegenState, *, res_scope: int = 0
+):
+    """Call a function attached to an object
 
     Parameters
     ----------
     left_expr : LeftExpr
     cg_state : CodegenState
+    res_scope : int, default=0
     """
     with cg_state.scope_mgr.temporary_scope(ScopeType.SCOPE_FUNCTION_CALL):
-        sym: ASPObject = cg_state.sym_table.sym_scopes[0].sym_table[left_expr.sym_name]
+        sym: ASPObject
+        if res_scope > 0:
+            # object assigned to a variable
+            assert (
+                (res_scp := cg_state.sym_table.sym_scopes.get(res_scope, None))
+                is not None
+                and (res_sym := res_scp.sym_table.get(left_expr.sym_name, None))
+                is not None
+                and isinstance(res_sym, ValueSymbol)
+                and isinstance(res_sym.value, ASPObject)
+            ), (
+                f"Left expression {repr(left_expr.sym_name)} does not "
+                "point to a callable ASPObject symbol"
+            )
+            sym = res_sym.value
+        else:
+            # builtin object
+            assert (
+                res_sym := cg_state.sym_table.sym_scopes[0].sym_table.get(
+                    left_expr.sym_name, None
+                )
+            ) is not None and isinstance(res_sym, ASPObject), (
+                f"Left expression {repr(left_expr.sym_name)} does not "
+                "point to a callable builtin ASPObject symbol"
+            )
+            sym = res_sym
         try:
             ex = None
             assert isinstance(
@@ -510,15 +603,23 @@ def cghelper_call_builtin_object(left_expr: LeftExpr, cg_state: CodegenState):
                 while idx < left_expr.end_idx:
                     if (l_subname := left_expr.subnames.get(idx, None)) is not None:
                         ret_obj = getattr(ret_obj, l_subname)
-                    elif (l_callargs := left_expr.call_args.get(idx, None)) is not None:
-                        ret_obj = ret_obj(cg_state, *l_callargs)
+                        if left_expr.end_idx == 1:
+                            # "object.method" call with no parentheses
+                            ret_obj(cg_state)
+                    elif left_expr.call_args.get(idx, None) is not None:
+                        ret_obj = ret_obj(
+                            cg_state,
+                            *cghelper_setup_builtin_arguments(
+                                signature(ret_obj), left_expr, cg_state
+                            ),
+                        )
                     else:
                         # don't catch, something is seriously wrong
                         raise RuntimeError(
                             f"Index {idx} of left expression is not valid"
                         )
                     idx += 1
-            except (AttributeError, ValueError):
+            except (AttributeError, TypeError):
                 # retry as a get property
                 getattr(sym, "handle_property_expr")(
                     PropertyExpr.from_retrieval(left_expr), cg_state
@@ -547,25 +648,18 @@ def cghelper_call_builtin_function(left_expr: LeftExpr, cg_state: CodegenState):
     cg_state : CodegenState
     """
     with cg_state.scope_mgr.temporary_scope(ScopeType.SCOPE_FUNCTION_CALL):
-        cg_state.sym_table.sym_scopes[0].sym_table[left_expr.sym_name](
-            cg_state, *left_expr.call_args[left_expr.end_idx - 1]
+        sym: ASPFunction
+        assert (
+            sym := cg_state.sym_table.sym_scopes[0].sym_table.get(
+                left_expr.sym_name, None
+            )
+        ) is not None, (
+            f"Left expression {repr(left_expr.sym_name)} does not "
+            "point to a callable ASPFunction symbol"
         )
-
-
-def cghelper_call_value_object(
-    res_scope: int, left_expr: LeftExpr, cg_state: CodegenState
-):
-    """Call a function attached to a created object
-
-    Parameters
-    ----------
-    res_scope : int
-    left_expr : LeftExpr
-    cg_state : CodegenState
-    """
-    with cg_state.scope_mgr.temporary_scope(ScopeType.SCOPE_FUNCTION_CALL):
-        cg_state.sym_table.sym_scopes[res_scope].sym_table[left_expr.sym_name].value(
-            left_expr, cg_state
+        cg_state.sym_table.sym_scopes[0].sym_table[left_expr.sym_name](
+            cg_state,
+            *cghelper_setup_builtin_arguments(signature(sym.func), left_expr, cg_state),
         )
 
 
@@ -584,7 +678,8 @@ def cghelper_setup_user_arguments(
     for marg, carg in zip(method_args, call_args):
         arg_sym = cg_state.sym_table.sym_scopes[call_scp].sym_table[marg]
         if isinstance(arg_sym, ValueMethodArgument):
-            cg_state.sym_table.sym_scopes[call_scp].sym_table[marg].value = carg
+            # ignore codegen output for argument assignment
+            codegen_global_stmt(AssignStmt(LeftExpr(marg), carg), cg_state)
         elif isinstance(arg_sym, ReferenceMethodArgument):
             assert isinstance(carg, LeftExpr) and carg.end_idx == 0, (
                 "Argument given by reference must be a "
@@ -692,19 +787,7 @@ def cghelper_call(
     -------
     CodegenReturn
     """
-
-    def _display_left_expr():
-        nonlocal left_expr
-        yield left_expr.sym_name
-        for idx in range(left_expr.end_idx):
-            if idx in left_expr.subnames:
-                yield f".{left_expr.subnames[idx]}"
-            elif idx in left_expr.call_args:
-                yield "(...)"
-            else:
-                raise ValueError("Invalid left expression")
-
-    display_str = "".join(_display_left_expr())
+    display_str = display_left_expr(left_expr)
     curr_env = cg_state.scope_mgr.current_environment
     sym_resv = cg_state.sym_table.resolve_symbol(left_expr, curr_env)
     if len(sym_resv) == 0:
@@ -720,7 +803,7 @@ def cghelper_call(
     # determine callable type
     if isinstance(sym_resv[0].symbol, ASPObject):
         cg_ret.append(f"{display_str};")
-        cghelper_call_builtin_object(left_expr, cg_state)
+        cghelper_call_object(left_expr, cg_state)
     elif isinstance(sym_resv[0].symbol, ASPFunction):
         cg_ret.append(f"{display_str};")
         cghelper_call_builtin_function(left_expr, cg_state)
@@ -728,7 +811,7 @@ def cghelper_call(
         sym_resv[0].symbol.value, ASPObject
     ):
         cg_ret.append(f"{display_str};")
-        cghelper_call_value_object(sym_resv[0].scope, left_expr, cg_state)
+        cghelper_call_object(left_expr, cg_state, res_scope=sym_resv[0].scope)
     elif isinstance(sym_resv[0].symbol, UserFunction):
         if len(sym_resv[0].symbol.func_body) == 0:
             print(
@@ -826,7 +909,7 @@ def cg_assign_stmt(
             file=cg_state.error_file,
         )
         return cg_ret
-    cg_ret.append("Assign statement")
+    cg_ret.append(f"Assign to {display_left_expr(stmt.target_expr)}")
     curr_env = cg_state.scope_mgr.current_environment
     rhs_expr = stmt.assign_expr
     if isinstance(rhs_expr, LeftExpr):
@@ -859,14 +942,14 @@ def cg_assign_stmt(
                 elif isinstance(rhs_sym, ValueSymbol):
                     if isinstance(rhs_sym.value, ASPObject):
                         # object created in script
-                        cghelper_call_value_object(scp, rhs_expr, cg_state)
+                        cghelper_call_object(rhs_expr, cg_state, res_scope=scp)
                     else:
                         # simple variable
                         rhs_expr = rhs_sym.value
                         break
                 elif isinstance(rhs_sym, ASPObject):
                     # builtin object
-                    cghelper_call_builtin_object(rhs_expr, cg_state)
+                    cghelper_call_object(rhs_expr, cg_state)
                 elif isinstance(rhs_sym, ASPFunction):
                     # builtin function
                     cghelper_call_builtin_function(rhs_expr, cg_state)
@@ -890,7 +973,7 @@ def cg_assign_stmt(
             if isinstance(lhs_sym, ASPObject):
                 # property assignment on builtin object
                 # treat property assignment as function call
-                cghelper_call_builtin_object(
+                cghelper_call_object(
                     PropertyExpr.from_assignment(lhs_expr, rhs_expr),
                     cg_state,
                 )
@@ -903,10 +986,10 @@ def cg_assign_stmt(
                 if lhs_expr.end_idx > 0 and isinstance(lhs_sym.value, ASPObject):
                     # property assignment on user-created object
                     # treat property assignment as function call
-                    cghelper_call_value_object(
-                        curr_env[-1],
+                    cghelper_call_object(
                         PropertyExpr.from_assignment(lhs_expr, rhs_expr),
                         cg_state,
+                        res_scope=curr_env[-1],
                     )
                 else:
                     cg_state.sym_table.sym_scopes[curr_env[-1]].assign(

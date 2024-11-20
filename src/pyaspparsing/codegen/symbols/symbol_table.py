@@ -9,6 +9,7 @@ from .symbol import (
     LocalAssignmentSymbol,
     ArraySymbol,
     FunctionReturnSymbol,
+    ValueMethodArgument,
 )
 
 
@@ -120,6 +121,8 @@ class SymbolScope:
                 raise RuntimeError
         elif isinstance(self.sym_table[target_expr.sym_name], FunctionReturnSymbol):
             self.sym_table[target_expr.sym_name].return_value = assign_expr
+        elif isinstance(self.sym_table[target_expr.sym_name], ValueMethodArgument):
+            self.sym_table[target_expr.sym_name].value = assign_expr
         elif isinstance(self.sym_table[target_expr.sym_name], ArraySymbol):
             # array item assignment
             def _get_array_idx() -> Generator[int, None, None]:

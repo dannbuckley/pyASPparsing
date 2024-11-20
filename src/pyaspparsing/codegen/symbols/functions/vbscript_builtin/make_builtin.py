@@ -6,7 +6,6 @@ import re
 from typing import Concatenate, ParamSpec
 from ..function import ASPFunction
 from ...symbol import FunctionReturnSymbol
-from ....scope import ScopeType
 from ....codegen_state import CodegenState
 
 P = ParamSpec("P")
@@ -38,12 +37,9 @@ def make_builtin_function(
 
     @wraps(func)
     def call_builtin(cg_state: CodegenState, /, *args: P.args):
-        with cg_state.scope_mgr.temporary_scope(ScopeType.SCOPE_FUNCTION_CALL):
-            cg_state.add_symbol(FunctionReturnSymbol(vbs_func_name))
-            func(cg_state, *args)
-            cg_state.add_function_return(
-                cg_state.scope_mgr.current_scope, vbs_func_name
-            )
+        cg_state.add_symbol(FunctionReturnSymbol(vbs_func_name))
+        func(cg_state, *args)
+        cg_state.add_function_return(cg_state.scope_mgr.current_scope, vbs_func_name)
 
     def make_function_symbol():
         return ASPFunction(vbs_func_name, call_builtin)

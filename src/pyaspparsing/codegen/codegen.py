@@ -49,6 +49,8 @@ def generate_code(
     # separate function/sub declarations from other code
     other_st: list[GlobalStmt] = []
     with Tokenizer(codeblock, suppress_exc, exc_file) as tkzr:
+        # file contains user-defined functions/subs?
+        user_methods = False
         for glob_st in generate_linked_program(tkzr, lnk):
             if isinstance(
                 glob_st,
@@ -58,6 +60,8 @@ def generate_code(
                 # this alleviates a scope resolution issue since
                 # functions can be declared AFTER they're used
                 codegen_global_stmt(glob_st, cg_state, top_level=True)
+                if not user_methods:
+                    user_methods = True
             elif isinstance(glob_st, OutputText):
                 if (
                     len(glob_st.directives) == 0
@@ -70,6 +74,9 @@ def generate_code(
             else:
                 # defer consideration of other code until after all functions/subs declared
                 other_st.append(glob_st)
+        if user_methods and len(other_st) > 0:
+            # add a blank line for readability
+            print("\n", end="", file=cg_state.script_file)
         # declarations finished, go back over remaining code
         for remaining_st in other_st:
             codegen_global_stmt(remaining_st, cg_state, top_level=True)
