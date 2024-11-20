@@ -6,7 +6,6 @@ from ....ast.ast_types.builtin_leftexpr.obj_property import PropertyExpr
 from ..asp_object import ASPObject
 from ..symbol import prepare_symbol_name, FunctionReturnSymbol
 from ...codegen_state import CodegenState
-from ...scope import ScopeType
 
 
 @prepare_symbol_name
@@ -36,15 +35,12 @@ class Recordset(ASPObject):
             ):
                 assert len(cargs) == 1
                 assert self.query is not None
-                with cg_state.scope_mgr.temporary_scope(ScopeType.SCOPE_FUNCTION_CALL):
-                    cg_state.add_symbol(
-                        FunctionReturnSymbol(
-                            "fields", cg_state.add_query_field(self.query, cargs[0])
-                        )
+                cg_state.add_symbol(
+                    FunctionReturnSymbol(
+                        "fields", cg_state.add_query_field(self.query, cargs[0])
                     )
-                    cg_state.add_function_return(
-                        cg_state.scope_mgr.current_scope, "fields"
-                    )
+                )
+                cg_state.add_function_return(cg_state.scope_mgr.current_scope, "fields")
             elif (
                 left_expr.end_idx == 2
                 and (prop_name := left_expr.subnames.get(0, None)) is not None
@@ -53,15 +49,12 @@ class Recordset(ASPObject):
                 assert prop_name == "fields"
                 assert len(cargs) == 1
                 assert self.query is not None
-                with cg_state.scope_mgr.temporary_scope(ScopeType.SCOPE_FUNCTION_CALL):
-                    cg_state.add_symbol(
-                        FunctionReturnSymbol(
-                            "fields", cg_state.add_query_field(self.query, cargs[0])
-                        )
+                cg_state.add_symbol(
+                    FunctionReturnSymbol(
+                        "fields", cg_state.add_query_field(self.query, cargs[0])
                     )
-                    cg_state.add_function_return(
-                        cg_state.scope_mgr.current_scope, "fields"
-                    )
+                )
+                cg_state.add_function_return(cg_state.scope_mgr.current_scope, "fields")
 
     def addnew(
         self, cg_state: CodegenState, param_fieldlist=None, param_values=None, /

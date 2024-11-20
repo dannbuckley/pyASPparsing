@@ -11,7 +11,6 @@ from ....ast.ast_types.builtin_leftexpr.obj_property import PropertyExpr
 from ..asp_object import ASPObject
 from ..symbol import prepare_symbol_name, FunctionReturnSymbol
 from .recordset import Recordset
-from ...scope import ScopeType
 from ...codegen_state import CodegenState
 
 
@@ -80,11 +79,10 @@ class Connection(ASPObject):
                 self.db, param_commandtext, param_ra, param_options
             )
             self.db_queries.append(ret_recordset.query)
-            with cg_state.scope_mgr.temporary_scope(ScopeType.SCOPE_FUNCTION_CALL):
-                cg_state.add_symbol(FunctionReturnSymbol("execute", ret_recordset))
-                cg_state.add_function_return(
-                    cg_state.scope_mgr.current_scope, "execute"
-                )
+            cg_state.add_symbol(FunctionReturnSymbol("execute", ret_recordset))
+            cg_state.add_function_return(
+                cg_state.scope_mgr.current_scope, "execute"
+            )
         except AssertionError as ex:
             raise ValueError("Invalid input in Connection.Execute") from ex
 
@@ -143,9 +141,9 @@ class Connection(ASPObject):
         /,
     ):
         """"""
-        with cg_state.scope_mgr.temporary_scope(ScopeType.SCOPE_FUNCTION_CALL):
-            cg_state.add_symbol(FunctionReturnSymbol("openschema"))
-            cg_state.add_function_return(cg_state.scope_mgr.current_scope, "openschema")
+        # with cg_state.scope_mgr.temporary_scope(ScopeType.SCOPE_FUNCTION_CALL):
+        cg_state.add_symbol(FunctionReturnSymbol("openschema"))
+        cg_state.add_function_return(cg_state.scope_mgr.current_scope, "openschema")
 
     def rollbacktrans(self, cg_state: CodegenState):
         """"""

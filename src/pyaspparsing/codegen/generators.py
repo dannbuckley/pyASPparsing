@@ -12,6 +12,9 @@ from ..ast.ast_types import (
     EvalExpr,
     LeftExpr,
     PropertyExpr,
+    ResponseExpr,
+    RequestExpr,
+    ServerExpr,
     # special constructs
     ProcessingDirective,
     IncludeFile,
@@ -487,7 +490,50 @@ def cghelper_call_builtin_object(left_expr: LeftExpr, cg_state: CodegenState):
     left_expr : LeftExpr
     cg_state : CodegenState
     """
-    cg_state.sym_table.sym_scopes[0].sym_table[left_expr.sym_name](left_expr, cg_state)
+    with cg_state.scope_mgr.temporary_scope(ScopeType.SCOPE_FUNCTION_CALL):
+        sym: ASPObject = cg_state.sym_table.sym_scopes[0].sym_table[left_expr.sym_name]
+        try:
+            ex = None
+            assert isinstance(
+                left_expr, LeftExpr
+            ), f"left_expr must be a valid left expression, got {repr(type(left_expr))}"
+            assert left_expr.end_idx >= 1, "left_expr cannot contain only symbol name"
+            if isinstance(left_expr, PropertyExpr):
+                getattr(sym, "handle_property_expr")(left_expr, cg_state)
+                return
+            if isinstance(left_expr, (ResponseExpr, RequestExpr, ServerExpr)):
+                getattr(sym, "handle_builtin_left_expr")(left_expr, cg_state)
+                return
+            idx = 0
+            ret_obj = sym
+            try:
+                while idx < left_expr.end_idx:
+                    if (l_subname := left_expr.subnames.get(idx, None)) is not None:
+                        ret_obj = getattr(ret_obj, l_subname)
+                    elif (l_callargs := left_expr.call_args.get(idx, None)) is not None:
+                        ret_obj = ret_obj(cg_state, *l_callargs)
+                    else:
+                        # don't catch, something is seriously wrong
+                        raise RuntimeError(
+                            f"Index {idx} of left expression is not valid"
+                        )
+                    idx += 1
+            except (AttributeError, ValueError):
+                # retry as a get property
+                getattr(sym, "handle_property_expr")(
+                    PropertyExpr.from_retrieval(left_expr), cg_state
+                )
+        except AssertionError as ex_wrong_type:
+            ex = ex_wrong_type
+        except AttributeError as ex_wrong_name:
+            ex = ex_wrong_name
+        except TypeError as ex_wrong_sig:
+            ex = ex_wrong_sig
+        finally:
+            if ex is not None:
+                raise ValueError(
+                    f"Invalid call on {sym.__class__.__name__} object symbol"
+                ) from ex
 
 
 def cghelper_call_builtin_function(left_expr: LeftExpr, cg_state: CodegenState):
@@ -500,9 +546,10 @@ def cghelper_call_builtin_function(left_expr: LeftExpr, cg_state: CodegenState):
     left_expr : LeftExpr
     cg_state : CodegenState
     """
-    cg_state.sym_table.sym_scopes[0].sym_table[left_expr.sym_name](
-        cg_state, *left_expr.call_args[left_expr.end_idx - 1]
-    )
+    with cg_state.scope_mgr.temporary_scope(ScopeType.SCOPE_FUNCTION_CALL):
+        cg_state.sym_table.sym_scopes[0].sym_table[left_expr.sym_name](
+            cg_state, *left_expr.call_args[left_expr.end_idx - 1]
+        )
 
 
 def cghelper_call_value_object(
@@ -516,9 +563,10 @@ def cghelper_call_value_object(
     left_expr : LeftExpr
     cg_state : CodegenState
     """
-    cg_state.sym_table.sym_scopes[res_scope].sym_table[left_expr.sym_name].value(
-        left_expr, cg_state
-    )
+    with cg_state.scope_mgr.temporary_scope(ScopeType.SCOPE_FUNCTION_CALL):
+        cg_state.sym_table.sym_scopes[res_scope].sym_table[left_expr.sym_name].value(
+            left_expr, cg_state
+        )
 
 
 def cghelper_setup_user_arguments(

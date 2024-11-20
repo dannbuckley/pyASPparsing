@@ -31,7 +31,6 @@ from ...ast.ast_types.builtin_leftexpr.response import (
 )
 from .asp_object import ASPObject
 from .symbol import prepare_symbol_name, FunctionReturnSymbol
-from ..scope import ScopeType
 from ..codegen_state import CodegenState
 
 response_expr_handlers: dict[
@@ -113,9 +112,8 @@ def handle_response_buffer_expr(
     resp : Response
     left_expr : ResponseBufferExpr
     """
-    with cg_state.scope_mgr.temporary_scope(ScopeType.SCOPE_FUNCTION_CALL):
-        cg_state.add_symbol(FunctionReturnSymbol("buffer"))
-        cg_state.add_function_return(cg_state.scope_mgr.current_scope, "buffer")
+    cg_state.add_symbol(FunctionReturnSymbol("buffer"))
+    cg_state.add_function_return(cg_state.scope_mgr.current_scope, "buffer")
 
 
 @create_response_handler(ResponseCacheControlExpr)
@@ -188,11 +186,8 @@ def handle_response_is_client_connected_expr(
     resp : Response
     left_expr : ResponseIsClientConnectedExpr
     """
-    with cg_state.scope_mgr.temporary_scope(ScopeType.SCOPE_FUNCTION_CALL):
-        cg_state.add_symbol(FunctionReturnSymbol("isclientconnected"))
-        cg_state.add_function_return(
-            cg_state.scope_mgr.current_scope, "isclientconnected"
-        )
+    cg_state.add_symbol(FunctionReturnSymbol("isclientconnected"))
+    cg_state.add_function_return(cg_state.scope_mgr.current_scope, "isclientconnected")
 
 
 @create_response_handler(ResponsePICSExpr)

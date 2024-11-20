@@ -24,7 +24,6 @@ from .symbol import prepare_symbol_name, FunctionReturnSymbol
 from .adodb import Connection, Recordset
 from .mswc import PageCounter
 from ..codegen_state import CodegenState
-from ..scope import ScopeType
 
 server_object_types: dict[str, dict[str, type[ASPObject]]] = {
     "adodb": {"connection": Connection, "recordset": Recordset},
@@ -117,11 +116,10 @@ def handle_server_create_object_expr(
     assert len(parts) == 2, "progid should match 'Vendor.Component'"
     try:
         new_obj = server_object_types[parts[0].casefold()][parts[1].casefold()]()
-        with cg_state.scope_mgr.temporary_scope(ScopeType.SCOPE_FUNCTION_CALL):
-            cg_state.add_symbol(FunctionReturnSymbol("createobject", new_obj))
-            cg_state.add_function_return(
-                cg_state.scope_mgr.current_scope, "createobject"
-            )
+        cg_state.add_symbol(FunctionReturnSymbol("createobject", new_obj))
+        cg_state.add_function_return(
+            cg_state.scope_mgr.current_scope, "createobject"
+        )
     except KeyError as ex:
         raise ValueError(
             f"Could not determine type of component: '{left_expr.param_progid.expr_value}'"

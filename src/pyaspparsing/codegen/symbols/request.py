@@ -22,7 +22,6 @@ from ...ast.ast_types.builtin_leftexpr.request import (
 )
 from .asp_object import ASPObject
 from .symbol import prepare_symbol_name, FunctionReturnSymbol
-from ..scope import ScopeType
 from ..codegen_state import CodegenState
 
 request_expr_handlers: dict[
@@ -92,9 +91,8 @@ def handle_request_anonymous_expr(
     req : Request
     left_expr : RequestAnonymousExpr
     """
-    with cg_state.scope_mgr.temporary_scope(ScopeType.SCOPE_FUNCTION_CALL):
-        cg_state.add_symbol(FunctionReturnSymbol("<anonymous>"))
-        cg_state.add_function_return(cg_state.scope_mgr.current_scope, "<anonymous>")
+    cg_state.add_symbol(FunctionReturnSymbol("<anonymous>"))
+    cg_state.add_function_return(cg_state.scope_mgr.current_scope, "<anonymous>")
 
 
 @create_request_handler(RequestClientCertificateExpr)
@@ -107,11 +105,8 @@ def handle_request_client_certificate_expr(
     req : Request
     left_expr : RequestClientCertificateExpr
     """
-    with cg_state.scope_mgr.temporary_scope(ScopeType.SCOPE_FUNCTION_CALL):
-        cg_state.add_symbol(FunctionReturnSymbol("clientcertificate"))
-        cg_state.add_function_return(
-            cg_state.scope_mgr.current_scope, "clientcertificate"
-        )
+    cg_state.add_symbol(FunctionReturnSymbol("clientcertificate"))
+    cg_state.add_function_return(cg_state.scope_mgr.current_scope, "clientcertificate")
 
 
 @attrs.define(repr=False, slots=False)
@@ -139,18 +134,17 @@ def handle_request_cookies_expr(
     req : Request
     left_expr : RequestCookiesExpr
     """
-    with cg_state.scope_mgr.temporary_scope(ScopeType.SCOPE_FUNCTION_CALL):
-        cg_state.add_symbol(
-            FunctionReturnSymbol(
-                "cookies",
-                RequestCookie(
-                    left_expr.cookie_name,
-                    left_expr.cookie_key,
-                    left_expr.cookie_attribute,
-                ),
-            )
+    cg_state.add_symbol(
+        FunctionReturnSymbol(
+            "cookies",
+            RequestCookie(
+                left_expr.cookie_name,
+                left_expr.cookie_key,
+                left_expr.cookie_attribute,
+            ),
         )
-        cg_state.add_function_return(cg_state.scope_mgr.current_scope, "cookies")
+    )
+    cg_state.add_function_return(cg_state.scope_mgr.current_scope, "cookies")
 
 
 @create_request_handler(RequestFormExpr)
@@ -163,9 +157,8 @@ def handle_request_form_expr(
     req : Request
     left_expr : RequestFormExpr
     """
-    with cg_state.scope_mgr.temporary_scope(ScopeType.SCOPE_FUNCTION_CALL):
-        cg_state.add_symbol(FunctionReturnSymbol("form"))
-        cg_state.add_function_return(cg_state.scope_mgr.current_scope, "form")
+    cg_state.add_symbol(FunctionReturnSymbol("form"))
+    cg_state.add_function_return(cg_state.scope_mgr.current_scope, "form")
 
 
 @create_request_handler(RequestQueryStringExpr)
@@ -178,9 +171,8 @@ def handle_request_query_string_expr(
     req : Request
     left_expr : RequestQueryStringExpr
     """
-    with cg_state.scope_mgr.temporary_scope(ScopeType.SCOPE_FUNCTION_CALL):
-        cg_state.add_symbol(FunctionReturnSymbol("querystring"))
-        cg_state.add_function_return(cg_state.scope_mgr.current_scope, "querystring")
+    cg_state.add_symbol(FunctionReturnSymbol("querystring"))
+    cg_state.add_function_return(cg_state.scope_mgr.current_scope, "querystring")
 
 
 @create_request_handler(RequestServerVariablesExpr)
@@ -193,11 +185,8 @@ def handle_request_server_variables_expr(
     req : Request
     left_expr : RequestServerVariablesExpr
     """
-    with cg_state.scope_mgr.temporary_scope(ScopeType.SCOPE_FUNCTION_CALL):
-        cg_state.add_symbol(FunctionReturnSymbol("servervariables"))
-        cg_state.add_function_return(
-            cg_state.scope_mgr.current_scope, "servervariables"
-        )
+    cg_state.add_symbol(FunctionReturnSymbol("servervariables"))
+    cg_state.add_function_return(cg_state.scope_mgr.current_scope, "servervariables")
 
 
 @create_request_handler(RequestTotalBytesExpr)
@@ -210,9 +199,8 @@ def handle_request_total_bytes_expr(
     req : Request
     left_expr : RequestTotalBytesExpr
     """
-    with cg_state.scope_mgr.temporary_scope(ScopeType.SCOPE_FUNCTION_CALL):
-        cg_state.add_symbol(FunctionReturnSymbol("totalbytes"))
-        cg_state.add_function_return(cg_state.scope_mgr.current_scope, "totalbytes")
+    cg_state.add_symbol(FunctionReturnSymbol("totalbytes"))
+    cg_state.add_function_return(cg_state.scope_mgr.current_scope, "totalbytes")
 
 
 @create_request_handler(RequestBinaryReadExpr)
@@ -225,6 +213,5 @@ def handle_request_binary_read_expr(
     req : Request
     left_expr : RequestBinaryReadExpr
     """
-    with cg_state.scope_mgr.temporary_scope(ScopeType.SCOPE_FUNCTION_CALL):
-        cg_state.add_symbol(FunctionReturnSymbol("binaryread"))
-        cg_state.add_function_return(cg_state.scope_mgr.current_scope, "binaryread")
+    cg_state.add_symbol(FunctionReturnSymbol("binaryread"))
+    cg_state.add_function_return(cg_state.scope_mgr.current_scope, "binaryread")
