@@ -15,7 +15,7 @@ from ..ast.ast_types import (
     OutputText,
 )
 from .linker import Linker, generate_linked_program
-from .generators import CodegenState, codegen_global_stmt
+from .generators import codegen_global_stmt, CodegenState  # pylint: disable=E0401
 from .scope import ScopeType
 from .symbols import Response, Request, Server
 from .symbols.functions import vbscript_builtin as vb_blt

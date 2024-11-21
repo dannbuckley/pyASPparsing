@@ -1,37 +1,14 @@
-"""Code generator state functions"""
-
-from __future__ import annotations
-from collections.abc import Callable
-from functools import wraps
 from inspect import signature, Signature
-from pathlib import Path
-from typing import Optional, Any, Generator
-import attrs
-from attrs.validators import instance_of
-from ..ast.ast_types import (
-    GlobalStmt,
-    EvalExpr,
+from typing import Any, Generator
+from ....ast.ast_types import (
     LeftExpr,
     PropertyExpr,
     ResponseExpr,
     RequestExpr,
     ServerExpr,
-    # special constructs
-    ProcessingDirective,
-    IncludeFile,
-    OutputText,
-    OutputDirective,
-    OutputType,
     # global statements
     OptionExplicit,
-    ClassDecl,
-    FieldDecl,
-    ConstDecl,
-    ArgModifierType,
-    SubDecl,
-    FunctionDecl,
     # block statements
-    VarDecl,
     RedimStmt,
     IfStmt,
     WithStmt,
@@ -46,439 +23,40 @@ from ..ast.ast_types import (
     ExitStmt,
     EraseStmt,
 )
-from ..ast.ast_types.parser import Parser
-from .scope import ScopeType
-from .symbols import ValueSymbol, ArraySymbol
-from .symbols.asp_object import ASPObject
-from .symbols.symbol import (
+from ...symbols.asp_object import ASPObject
+from ...symbols.symbol import (
+    ValueSymbol,
+    ArraySymbol,
     LocalAssignmentSymbol,
     ValueMethodArgument,
     ReferenceMethodArgument,
-    FunctionReturnSymbol,
-    ConstantSymbol,
     ForLoopRangeTargetSymbol,
     ForLoopIteratorTargetSymbol,
 )
-from .symbols.functions.function import ASPFunction, UserFunction, UserSub
-from .codegen_state import CodegenState
+from ...symbols.functions.function import ASPFunction, UserFunction, UserSub
+from ...scope import ScopeType
+from ..codegen_state import CodegenState
+from ..codegen_return import CodegenReturn
+from ..codegen_reg import create_global_cg_func, codegen_global_stmt
+
+__all__ = [
+    "cg_option_explicit",
+    "cg_error_stmt",
+    "cg_redim_stmt",
+    "cg_erase_stmt",
+    "cg_call_stmt",
+    "cg_sub_call_stmt",
+    "cg_assign_stmt",
+    "cg_exit_stmt",
+    "cg_if_stmt",
+    "cg_with_stmt",
+    "cg_select_stmt",
+    "cg_loop_stmt",
+    "cg_for_stmt",
+]
 
 
-@attrs.define
-class CodegenReturn:
-    """Return value for code generation functions"""
-
-    indent_width: int = attrs.field(default=4, validator=instance_of(int), kw_only=True)
-    _script_lines: list[str] = attrs.field(default=attrs.Factory(list), init=False)
-
-    def __str__(self):
-        return "\n".join(self._script_lines)
-
-    def append(self, line: str):
-        """
-        Parameters
-        ----------
-        line : str
-        """
-        if not isinstance(line, str):
-            raise ValueError("line must be a string")
-        self._script_lines.append(line)
-
-    def combine(self, other: CodegenReturn, *, indent: bool = True):
-        """Append the content of `other` to the current instance
-
-        Parameters
-        ----------
-        other : CodegenReturn
-        indent : bool, default=True
-        """
-        # pylint: disable=W0212
-        #         ~~~~~~~~~~~~~ _script_lines is "protected",
-        #                       but we're accessing from the same class
-        assert isinstance(other, CodegenReturn)
-        self._script_lines.extend(
-            map(lambda x: (" " * self.indent_width) + x, other._script_lines)
-            if indent
-            else other._script_lines
-        )
-
-
-reg_stmt_cg: dict[
-    type[GlobalStmt], Callable[[GlobalStmt, CodegenState], CodegenReturn]
-] = {}
-
-
-def codegen_global_stmt(
-    stmt: GlobalStmt, cg_state: CodegenState, *, top_level: bool = False
-) -> Optional[CodegenReturn]:
-    """
-    Parameters
-    ----------
-    stmt : GlobalStmt
-    cg_state : CodegenState
-    top_level : bool, default=False
-        Set this to True if `stmt` comes directly from a `Program` object
-
-    Returns
-    -------
-    CodegenReturn | None
-        Returns None if `top_level` is True
-    """
-    if top_level:
-        if cg_state.in_script_block and isinstance(stmt, OutputText):
-            cg_state.end_script_block()
-        elif not cg_state.in_script_block and not isinstance(
-            stmt,
-            (
-                OutputText,
-                IncludeFile,
-                ProcessingDirective,
-                OptionExplicit,
-                ErrorStmt,
-                FunctionDecl,
-                SubDecl,
-            ),
-        ):
-            cg_state.start_script_block()
-        ret = str(reg_stmt_cg[type(stmt)](stmt, cg_state))
-        print(
-            ret,
-            end="" if len(ret) == 0 else "\n",
-            file=cg_state.script_file,
-        )
-        return None
-    return reg_stmt_cg[type(stmt)](stmt, cg_state)
-
-
-def create_global_cg_func(
-    stmt_type: type[GlobalStmt], *, enters_scope: Optional[ScopeType] = None
-):
-    """
-    Parameters
-    ----------
-    stmt_type : type[GlobalStmt]
-    """
-    assert issubclass(
-        stmt_type, GlobalStmt
-    ), "stmt_type must be a subclass of GlobalStmt"
-
-    def wrap_func(
-        func: Callable[[GlobalStmt, CodegenState, CodegenReturn], CodegenReturn]
-    ):
-        @wraps(func)
-        def perform_cg(stmt: GlobalStmt, cg_state: CodegenState):
-            if enters_scope is None:
-                return func(stmt, cg_state, CodegenReturn())
-            with cg_state.scope_mgr.temporary_scope(enters_scope):
-                ret = func(stmt, cg_state, CodegenReturn())
-            return ret
-
-        reg_stmt_cg[stmt_type] = perform_cg
-        return perform_cg
-
-    return wrap_func
-
-
-@create_global_cg_func(ProcessingDirective)
-def cg_processing_directive(
-    stmt: ProcessingDirective, cg_state: CodegenState, cg_ret: CodegenReturn
-) -> CodegenReturn:
-    """Code generator for processing directive
-
-    Parameters
-    ----------
-    stmt : ProcessingDirective
-    cg_state : CodegenState
-    cg_ret : CodegenReturn
-
-    Returns
-    -------
-    CodegenReturn
-    """
-    cg_ret.append("Processing directive")
-    return cg_ret
-
-
-@create_global_cg_func(OptionExplicit)
-def cg_option_explicit(
-    stmt: OptionExplicit, cg_state: CodegenState, cg_ret: CodegenReturn
-) -> CodegenReturn:
-    """Handler for Option Explicit statement
-
-    Parameters
-    ----------
-    stmt : OptionExplicit
-    cg_state : CodegenState
-    cg_ret : CodegenReturn
-
-    Returns
-    -------
-    CodegenReturn
-    """
-    cg_ret.append("Option Explicit")
-    cg_state.sym_table.set_explicit()
-    return cg_ret
-
-
-@create_global_cg_func(ErrorStmt)
-def cg_error_stmt(
-    stmt: ErrorStmt, cg_state: CodegenState, cg_ret: CodegenReturn
-) -> CodegenReturn:
-    """Handler for error statement
-
-    Parameters
-    ----------
-    stmt : ErrorStmt
-    cg_state: CodegenState
-    cg_ret : CodegenReturn
-
-    Returns
-    -------
-    CodegenReturn
-    """
-    cg_ret.append("Error statement")
-    return cg_ret
-
-
-@create_global_cg_func(IncludeFile)
-def cg_include_file(
-    stmt: IncludeFile, cg_state: CodegenState, cg_ret: CodegenReturn
-) -> CodegenReturn:
-    """Handler for (unresolved) includes
-
-    Parameters
-    ----------
-    stmt : IncludeFile
-    cg_state : CodegenState
-    cg_ret : CodegenReturn
-
-    Returns
-    -------
-    CodegenReturn
-    """
-    # try to include file
-    inc_path = Path(stmt.include_path[1:-1])
-    if (inc_prog := cg_state.lnk.request(inc_path)) is not None:
-        for glob_st in inc_prog.global_stmt_list:
-            if isinstance(glob_st, OutputText) and (
-                len(glob_st.directives) == 0
-                and len(glob_st.chunks) == 1
-                and glob_st.chunks[0].isspace()
-            ):
-                # ignore output between statements if the output is exclusively whitespace
-                continue
-            cg_ret.combine(
-                codegen_global_stmt(
-                    (
-                        Parser.reinterpret_output_block(glob_st)
-                        if isinstance(glob_st, OutputText)
-                        else glob_st
-                    ),
-                    cg_state,
-                ),
-                indent=False,
-            )
-    else:
-        print(f"Unresolved include: {stmt.include_path}", file=cg_state.error_file)
-    return cg_ret
-
-
-@create_global_cg_func(OutputText)
-def cg_output_text(
-    stmt: OutputText, cg_state: CodegenState, cg_ret: CodegenReturn
-) -> CodegenReturn:
-    """Code generator for output text
-
-    Parameters
-    ----------
-    stmt : OutputText
-    cg_state : CodegenState
-    cg_ret : CodegenReturn
-
-    Returns
-    -------
-    CodegenReturn
-    """
-    if not (all(map(lambda x: x.isspace(), stmt.chunks)) and len(stmt.directives) == 0):
-        for output in stmt.stitch():
-            match output[0]:
-                case OutputType.OUTPUT_RAW:
-                    print(output[1], end="", file=cg_state.template_file)
-                case OutputType.OUTPUT_DIRECTIVE:
-                    # assert for type inference
-                    assert isinstance(output[1], OutputDirective)
-                    out_expr = output[1].output_expr
-                    # check if the expression can be evaluated
-                    if isinstance(out_expr, EvalExpr):
-                        # print directly to template as string
-                        print(
-                            out_expr.str_cast().expr_value,
-                            end="",
-                            file=cg_state.template_file,
-                        )
-                        continue
-                    elif isinstance(out_expr, LeftExpr):
-                        # check if the left expression represents a value
-                        res_out = cg_state.sym_table.resolve_symbol(
-                            out_expr, cg_state.scope_mgr.current_environment
-                        )
-                        if len(res_out) == 1:
-                            sym_out = res_out[0].symbol
-                            if isinstance(sym_out, ValueSymbol) and isinstance(
-                                sym_out.value, EvalExpr
-                            ):
-                                print(
-                                    sym_out.value.str_cast().expr_value,
-                                    end="",
-                                    file=cg_state.template_file,
-                                )
-                                continue
-                            elif isinstance(sym_out, ArraySymbol):
-                                try:
-                                    if isinstance(
-                                        (sym_arr_val := sym_out.retrieve(out_expr)),
-                                        EvalExpr,
-                                    ):
-                                        print(
-                                            sym_arr_val.str_cast().expr_value,
-                                            end="",
-                                            file=cg_state.template_file,
-                                        )
-                                        continue
-                                except AssertionError:
-                                    # could not evaluate array indices
-                                    pass
-                    # register output expression
-                    expr_name = cg_state.add_output_expr(output[1].output_expr)
-                    print(
-                        "{{- " + expr_name + " -}}", end="", file=cg_state.template_file
-                    )
-                    cg_ret.append(f"Create output expression {expr_name}")
-    return cg_ret
-
-
-@create_global_cg_func(VarDecl)
-def cg_var_decl(
-    stmt: VarDecl, cg_state: CodegenState, cg_ret: CodegenReturn
-) -> CodegenReturn:
-    """Code generator for variable declaration
-
-    Parameters
-    ----------
-    stmt : VarDecl
-    cg_state : CodegenState
-    cg_ret : CodegenReturn
-
-    Returns
-    -------
-    CodegenReturn
-    """
-    cg_ret.append("Variable declaration")
-    for var_name in stmt.var_name:
-        cg_state.add_symbol(
-            ValueSymbol.from_var_name(var_name)
-            if len(var_name.array_rank_list) == 0
-            else ArraySymbol.from_var_name(var_name)
-        )
-    return cg_ret
-
-
-@create_global_cg_func(FieldDecl)
-def cg_field_decl(
-    stmt: FieldDecl, cg_state: CodegenState, cg_ret: CodegenReturn
-) -> CodegenReturn:
-    """Code generator for field declaration
-
-    Parameters
-    ----------
-    stmt : FieldDecl
-    cg_state : CodegenState
-    cg_ret : CodegenReturn
-
-    Returns
-    -------
-    CodegenReturn
-    """
-    cg_ret.append("Field declaration")
-    cg_state.add_symbol(
-        ValueSymbol.from_field_name(stmt.field_name, stmt.access_mod)
-        if len(stmt.field_name.array_rank_list) == 0
-        else ArraySymbol.from_field_name(stmt.field_name, stmt.access_mod)
-    )
-    for var_name in stmt.other_vars:
-        cg_state.add_symbol(
-            ValueSymbol.from_var_name(var_name, access_mod=stmt.access_mod)
-            if len(var_name.array_rank_list) == 0
-            else ArraySymbol.from_var_name(var_name, access_mod=stmt.access_mod)
-        )
-    return cg_ret
-
-
-@create_global_cg_func(ConstDecl)
-def cg_const_decl(
-    stmt: ConstDecl, cg_state: CodegenState, cg_ret: CodegenReturn
-) -> CodegenReturn:
-    """Code generator for constant declaration
-
-    Parameters
-    ----------
-    stmt : ConstDecl
-    cg_state : CodegenState
-    cg_ret : CodegenReturn
-
-    Returns
-    -------
-    CodegenReturn
-    """
-    cg_ret.append("Constant declaration")
-    for const_item in stmt.const_list:
-        cg_state.add_symbol(
-            ConstantSymbol(
-                const_item.extended_id.id_code,
-                stmt.access_mod,
-                const_item.const_expr.expr_value,
-            )
-        )
-    return cg_ret
-
-
-@create_global_cg_func(RedimStmt)
-def cg_redim_stmt(
-    stmt: RedimStmt, cg_state: CodegenState, cg_ret: CodegenReturn
-) -> CodegenReturn:
-    """Code generator for redim statement
-
-    Parameters
-    ----------
-    stmt : RedimStmt
-    cg_state : CodegenState
-    cg_ret : CodegenReturn
-
-    Returns
-    -------
-    CodegenReturn
-    """
-    cg_ret.append("Redim statement")
-    return cg_ret
-
-
-@create_global_cg_func(EraseStmt)
-def cg_erase_stmt(
-    stmt: EraseStmt, cg_state: CodegenState, cg_ret: CodegenReturn
-) -> CodegenReturn:
-    """Code generator for erase statement
-
-    Parameters
-    ----------
-    stmt : EraseStmt
-    cg_state : CodegenState
-    cg_ret : CodegenReturn
-
-    Returns
-    -------
-    CodegenReturn
-    """
-    cg_ret.append("Erase statement")
-    return cg_ret
+# ======== HELPER FUNCTIONS ========
 
 
 def display_left_expr(left_expr: LeftExpr) -> str:
@@ -841,6 +419,90 @@ def cghelper_call(
     return cg_ret
 
 
+# ======== CODE GENERATION FUNCTIONS ========
+
+
+@create_global_cg_func(OptionExplicit)
+def cg_option_explicit(
+    stmt: OptionExplicit, cg_state: CodegenState, cg_ret: CodegenReturn
+) -> CodegenReturn:
+    """Handler for Option Explicit statement
+
+    Parameters
+    ----------
+    stmt : OptionExplicit
+    cg_state : CodegenState
+    cg_ret : CodegenReturn
+
+    Returns
+    -------
+    CodegenReturn
+    """
+    cg_ret.append("Option Explicit")
+    cg_state.sym_table.set_explicit()
+    return cg_ret
+
+
+@create_global_cg_func(ErrorStmt)
+def cg_error_stmt(
+    stmt: ErrorStmt, cg_state: CodegenState, cg_ret: CodegenReturn
+) -> CodegenReturn:
+    """Handler for error statement
+
+    Parameters
+    ----------
+    stmt : ErrorStmt
+    cg_state: CodegenState
+    cg_ret : CodegenReturn
+
+    Returns
+    -------
+    CodegenReturn
+    """
+    cg_ret.append("Error statement")
+    return cg_ret
+
+
+@create_global_cg_func(RedimStmt)
+def cg_redim_stmt(
+    stmt: RedimStmt, cg_state: CodegenState, cg_ret: CodegenReturn
+) -> CodegenReturn:
+    """Code generator for redim statement
+
+    Parameters
+    ----------
+    stmt : RedimStmt
+    cg_state : CodegenState
+    cg_ret : CodegenReturn
+
+    Returns
+    -------
+    CodegenReturn
+    """
+    cg_ret.append("Redim statement")
+    return cg_ret
+
+
+@create_global_cg_func(EraseStmt)
+def cg_erase_stmt(
+    stmt: EraseStmt, cg_state: CodegenState, cg_ret: CodegenReturn
+) -> CodegenReturn:
+    """Code generator for erase statement
+
+    Parameters
+    ----------
+    stmt : EraseStmt
+    cg_state : CodegenState
+    cg_ret : CodegenReturn
+
+    Returns
+    -------
+    CodegenReturn
+    """
+    cg_ret.append("Erase statement")
+    return cg_ret
+
+
 @create_global_cg_func(CallStmt)
 def cg_call_stmt(
     stmt: CallStmt, cg_state: CodegenState, cg_ret: CodegenReturn
@@ -1172,108 +834,4 @@ def cg_for_stmt(
     for block_stmt in stmt.block_stmt_list:
         cg_ret.combine(codegen_global_stmt(block_stmt, cg_state))
     cg_ret.append("}")
-    return cg_ret
-
-
-@create_global_cg_func(SubDecl, enters_scope=ScopeType.SCOPE_SUB_DEFINITION)
-def cg_sub_decl(
-    stmt: SubDecl, cg_state: CodegenState, cg_ret: CodegenReturn
-) -> CodegenReturn:
-    """Code generator for sub declaration
-
-    Parameters
-    ----------
-    stmt : SubDecl
-    cg_state : CodegenState
-    cg_ret : CodegenReturn
-
-    Returns
-    -------
-    CodegenReturn
-    """
-    # define arguments in sub scope
-    arg_names: list[str] = []
-    for method_arg in stmt.method_arg_list:
-        arg_names.append(method_arg.extended_id.id_code)
-        match method_arg.arg_modifier:
-            case ArgModifierType.ARG_VALUE:
-                cg_state.add_symbol(ValueMethodArgument(arg_names[-1]))
-            case ArgModifierType.ARG_REFERENCE:
-                cg_state.add_symbol(ReferenceMethodArgument(arg_names[-1]))
-    if (body_len := len(stmt.method_stmt_list)) > 0:
-        body_desc = f" // {body_len} body statement{'s' if body_len > 1 else ''}"
-    else:
-        body_desc = " // empty sub body"
-    cg_ret.append(f"Sub {stmt.extended_id.id_code}({', '.join(arg_names)});{body_desc}")
-    # define sub symbol in enclosing scope
-    cg_state.add_user_sub_symbol(
-        stmt.extended_id.id_code,
-        arg_names,
-        # don't evaluate the sub body until the sub is called
-        stmt.method_stmt_list,
-    )
-    return cg_ret
-
-
-@create_global_cg_func(FunctionDecl, enters_scope=ScopeType.SCOPE_FUNCTION_DEFINITION)
-def cg_function_decl(
-    stmt: FunctionDecl, cg_state: CodegenState, cg_ret: CodegenReturn
-) -> CodegenReturn:
-    """Code generator for function declaration
-
-    Parameters
-    ----------
-    stmt : FunctionDecl
-    cg_state : CodegenState
-    cg_ret : CodegenReturn
-
-    Returns
-    -------
-    CodegenReturn
-    """
-    # define function name as return target
-    cg_state.add_symbol(FunctionReturnSymbol(stmt.extended_id.id_code))
-    # define arguments in function scope
-    arg_names: list[str] = []
-    for method_arg in stmt.method_arg_list:
-        arg_names.append(method_arg.extended_id.id_code)
-        match method_arg.arg_modifier:
-            case ArgModifierType.ARG_VALUE:
-                cg_state.add_symbol(ValueMethodArgument(arg_names[-1]))
-            case ArgModifierType.ARG_REFERENCE:
-                cg_state.add_symbol(ReferenceMethodArgument(arg_names[-1]))
-    if (body_len := len(stmt.method_stmt_list)) > 0:
-        body_desc = f" // {body_len} body statement{'s' if body_len > 1 else ''}"
-    else:
-        body_desc = " // empty function body"
-    cg_ret.append(
-        f"Function {stmt.extended_id.id_code}({', '.join(arg_names)});{body_desc}"
-    )
-    # define function symbol in enclosing scope
-    cg_state.add_user_function_symbol(
-        stmt.extended_id.id_code,
-        arg_names,
-        # don't evaluate the function body until the function is called
-        stmt.method_stmt_list,
-    )
-    return cg_ret
-
-
-@create_global_cg_func(ClassDecl, enters_scope=ScopeType.SCOPE_CLASS)
-def cg_class_decl(
-    stmt: ClassDecl, cg_state: CodegenState, cg_ret: CodegenReturn
-) -> CodegenReturn:
-    """Code generator for class declaration
-
-    Parameters
-    ----------
-    stmt : ClassDecl
-    cg_state : CodegenState
-    cg_ret : CodegenReturn
-
-    Returns
-    -------
-    CodegenReturn
-    """
-    cg_ret.append("Class declaration")
     return cg_ret
