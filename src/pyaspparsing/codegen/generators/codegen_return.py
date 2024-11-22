@@ -9,7 +9,7 @@ from attrs.validators import instance_of
 class CodegenReturn:
     """Return value for code generation functions"""
 
-    indent_width: int = attrs.field(default=1, validator=instance_of(int), kw_only=True)
+    indent_width: int = attrs.field(default=4, validator=instance_of(int), kw_only=True)
     _script_lines: list[str] = attrs.field(default=attrs.Factory(list), init=False)
 
     def __str__(self):

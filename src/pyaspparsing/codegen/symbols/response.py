@@ -1,6 +1,6 @@
 """ASP Response object"""
 
-from collections.abc import Callable
+from collections.abc import Callable  # pylint: disable=E0611
 from functools import wraps
 from typing import Any
 import attrs
@@ -31,7 +31,7 @@ from ...ast.ast_types.builtin_leftexpr.response import (
 )
 from .asp_object import ASPObject
 from .symbol import prepare_symbol_name, FunctionReturnSymbol
-from ..codegen_state import CodegenState
+from ..generators.codegen_state import CodegenState
 
 response_expr_handlers: dict[
     type[ResponseExpr], Callable[[ASPObject, ResponseExpr, CodegenState], Any]

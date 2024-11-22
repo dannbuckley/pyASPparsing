@@ -32,13 +32,15 @@ class Query(FormatterMixin):
     ----------
     db : int
         ID of existing database connection
-    commandtext : Expr
+    command_text : Expr
+    command_params : list[Expr]
     ra : Expr | None
     options : Expr | None
     """
 
     db: int = attrs.field(validator=instance_of(int))
-    commandtext: Expr
+    command_text: str
+    command_params: list[Expr]
     ra: Optional[Expr]
     options: Optional[Expr]
 

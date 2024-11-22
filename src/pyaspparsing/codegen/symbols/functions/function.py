@@ -1,6 +1,6 @@
 """Function base class"""
 
-from collections.abc import Callable
+from collections.abc import Callable  # pylint: disable=E0611
 import inspect
 import attrs
 from attrs.validators import deep_iterable, instance_of

@@ -5,7 +5,7 @@ import attrs
 from ....ast.ast_types.builtin_leftexpr.obj_property import PropertyExpr
 from ..asp_object import ASPObject
 from ..symbol import prepare_symbol_name, FunctionReturnSymbol
-from ...codegen_state import CodegenState
+from ...generators.codegen_state import CodegenState
 
 
 @prepare_symbol_name

@@ -1,6 +1,6 @@
 """VBScript builtin date/time functions"""
 
-from ....codegen_state import CodegenState
+from ....generators.codegen_state import CodegenState
 from .make_builtin import make_builtin_function
 
 

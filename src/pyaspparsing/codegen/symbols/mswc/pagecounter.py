@@ -5,7 +5,7 @@ import attrs
 from ....ast.ast_types.base import Expr
 from ..asp_object import ASPObject
 from ..symbol import prepare_symbol_name
-from ...codegen_state import CodegenState
+from ...generators.codegen_state import CodegenState
 
 
 @prepare_symbol_name

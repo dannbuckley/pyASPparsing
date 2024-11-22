@@ -1,12 +1,12 @@
 """Helper function to make a builtin Function symbol"""
 
-from collections.abc import Callable
+from collections.abc import Callable  # pylint: disable=E0611
 from functools import wraps
 import re
 from typing import Concatenate, ParamSpec
 from ..function import ASPFunction
 from ...symbol import FunctionReturnSymbol
-from ....codegen_state import CodegenState
+from ....generators.codegen_state import CodegenState
 
 P = ParamSpec("P")
 

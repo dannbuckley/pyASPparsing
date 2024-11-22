@@ -2,13 +2,14 @@
 
 from itertools import groupby
 from operator import itemgetter
+import re
 import sys
 from typing import Optional, Any, IO
 
 import attrs
 from jinja2 import Environment
 
-from ...ast.ast_types import Expr, MethodStmt
+from ...ast.ast_types import Expr, EvalExpr, ConcatExpr, MethodStmt
 from ..linker import Linker
 from ..scope import ScopeType, ScopeManager
 from ..symbols.symbol import Symbol, FunctionReturnSymbol
@@ -325,6 +326,53 @@ class CodegenState:
         self.db_cxns.append(Database(connectionstring, userid, password, options))
         return len(self.db_cxns) - 1
 
+    @staticmethod
+    def handle_sql_concat(concat_expr: ConcatExpr) -> tuple[str, list[Expr]]:
+        """
+        Parameters
+        ----------
+        concat_expr : ConcatExpr
+
+        Returns
+        -------
+        tuple[str, list[Expr]]
+        """
+        stmt: Optional[EvalExpr] = None
+        params: list[Expr] = []
+
+        def _append_stmt(eval_expr: EvalExpr):
+            nonlocal stmt
+            if stmt is None:
+                stmt = eval_expr
+            else:
+                stmt += eval_expr
+
+        def _handle_expr(child_expr: Expr):
+            nonlocal params
+            if isinstance(child_expr, EvalExpr):
+                _append_stmt(child_expr)
+            else:
+                params.append(child_expr)
+                _append_stmt(EvalExpr("?"))
+
+        def _recursion_helper(_concat_expr: ConcatExpr):
+            (
+                _recursion_helper
+                if isinstance(_concat_expr.left, ConcatExpr)
+                else _handle_expr
+            )(_concat_expr.left)
+            (
+                _recursion_helper
+                if isinstance(_concat_expr.right, ConcatExpr)
+                else _handle_expr
+            )(_concat_expr.right)
+
+        _recursion_helper(concat_expr)
+        assert stmt is not None and isinstance(
+            stmt.expr_value, str
+        ), "Expected text in SQL statement, but stmt was None"
+        return (re.sub(r"'[?]'", "?", stmt.expr_value).strip(), params)
+
     def add_database_query(
         self,
         db: int,
@@ -348,7 +396,12 @@ class CodegenState:
         """
         try:
             assert 0 <= db < len(self.db_cxns)
-            self.db_queries.append(Query(db, commandtext, ra, options))
+            command = (
+                (commandtext.expr_value, [])
+                if isinstance(commandtext, EvalExpr)
+                else CodegenState.handle_sql_concat(commandtext)
+            )
+            self.db_queries.append(Query(db, *command, ra, options))
             query_id = len(self.db_queries) - 1
             self._cxn_to_query.append((db, query_id))
             return query_id

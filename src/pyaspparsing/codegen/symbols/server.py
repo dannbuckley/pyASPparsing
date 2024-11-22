@@ -1,6 +1,6 @@
 """ASP Server object"""
 
-from collections.abc import Callable
+from collections.abc import Callable  # pylint: disable=E0611
 from functools import wraps
 from typing import Any
 import attrs
@@ -23,7 +23,7 @@ from .asp_object import ASPObject
 from .symbol import prepare_symbol_name, FunctionReturnSymbol
 from .adodb import Connection, Recordset
 from .mswc import PageCounter
-from ..codegen_state import CodegenState
+from ..generators.codegen_state import CodegenState
 
 server_object_types: dict[str, dict[str, type[ASPObject]]] = {
     "adodb": {"connection": Connection, "recordset": Recordset},
