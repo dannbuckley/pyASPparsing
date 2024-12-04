@@ -1,6 +1,9 @@
 from inspect import signature, Signature
 from typing import Any, Generator
+import attrs
 from ....ast.ast_types import (
+    FormatterMixin,
+    Expr,
     LeftExpr,
     PropertyExpr,
     ResponseExpr,
@@ -33,6 +36,7 @@ from ...symbols.symbol import (
     ForLoopRangeTargetSymbol,
     ForLoopIteratorTargetSymbol,
 )
+from ...symbols.symbol_table import ResolvedSymbol
 from ...symbols.functions.function import ASPFunction, UserFunction, UserSub
 from ...scope import ScopeType
 from ..codegen_state import CodegenState
@@ -111,9 +115,11 @@ def cghelper_setup_builtin_arguments(
                 codegen_global_stmt(
                     AssignStmt(LeftExpr(param_obj.name), idx_arg), cg_state
                 )
-                yield cg_state.sym_table.sym_scopes[
-                    cg_state.scope_mgr.current_scope
-                ].sym_table[param_obj.name].value
+                yield (
+                    cg_state.sym_table.sym_scopes[cg_state.scope_mgr.current_scope]
+                    .sym_table[param_obj.name]
+                    .value
+                )
             except IndexError:
                 # argument not specified in left expression
                 # check for default value in function signature
@@ -273,9 +279,9 @@ def cghelper_setup_user_arguments(
             cg_state.sym_table.sym_scopes[call_scp].sym_table[marg].ref_name = arg_resv[
                 -1
             ].symbol.symbol_name
-            cg_state.sym_table.sym_scopes[call_scp].sym_table[marg].ref_scope = (
-                arg_resv[-1].scope
-            )
+            cg_state.sym_table.sym_scopes[call_scp].sym_table[
+                marg
+            ].ref_scope = arg_resv[-1].scope
 
 
 def cghelper_call_user_function(
@@ -698,6 +704,24 @@ def cg_exit_stmt(
     return cg_ret
 
 
+@attrs.define(repr=False, slots=False)
+class BranchingExpr(FormatterMixin, Expr):
+    """Graph type representing all possible values for
+    a variable that has been assigned to within a branching statement
+
+    Attributes
+    ----------
+    branches : list[Any]
+        List of locally assigned values from different statement branches
+    default_value : Any
+        Either a value locally assigned within an else branch
+        or the original value of the variable
+    """
+
+    branches: list[Any]
+    default_value: Any
+
+
 @create_global_cg_func(IfStmt, enters_scope=ScopeType.SCOPE_IF)
 def cg_if_stmt(
     stmt: IfStmt, cg_state: CodegenState, cg_ret: CodegenReturn
@@ -714,18 +738,76 @@ def cg_if_stmt(
     -------
     CodegenReturn
     """
-    cg_ret.append("If statement {")
+    # helpers for constructing BranchingExpr values
+    local_branches: dict[str, list[Any]] = {}
+    local_defaults: dict[str, Any] = {}
+
+    def _add_branch_scopes(name: str, scope: int):
+        nonlocal local_branches
+        scp_sym: LocalAssignmentSymbol = cg_state.sym_table.sym_scopes[scope].sym_table[
+            name
+        ]
+        assert isinstance(scp_sym, LocalAssignmentSymbol)
+        if name in local_branches:
+            local_branches[name].append(scp_sym.value)
+        else:
+            local_branches[name] = [scp_sym.value]
+
+    cg_ret.append(f"If[{cg_state.scope_mgr.current_scope}] {'{'}")
     with cg_state.scope_mgr.temporary_scope(ScopeType.SCOPE_IF_BRANCH):
+        main_branch_scope = cg_state.scope_mgr.current_scope
+        main_branch_ret = CodegenReturn()
+        main_branch_ret.append(f"If Branch[{main_branch_scope}] {'{'}")
         for block_stmt in stmt.block_stmt_list:
-            cg_ret.combine(codegen_global_stmt(block_stmt, cg_state))
+            main_branch_ret.combine(codegen_global_stmt(block_stmt, cg_state))
+        main_branch_ret.append("}")
+        cg_ret.combine(main_branch_ret)
+
+        # check for local assignments in main branch scope
+        for sym_name, sym_type in cg_state.sym_table.sym_scopes[
+            main_branch_scope
+        ].sym_table.items():
+            if isinstance(sym_type, LocalAssignmentSymbol):
+                _add_branch_scopes(sym_name, main_branch_scope)
+
     for else_stmt in stmt.else_stmt_list:
-        cg_ret.append(
-            "} Else statement {" if else_stmt.is_else else "} ElseIf statement {"
-        )
         with cg_state.scope_mgr.temporary_scope(ScopeType.SCOPE_IF_BRANCH):
+            else_branch_scope = cg_state.scope_mgr.current_scope
+            else_branch_ret = CodegenReturn()
+            else_branch_type = "Else" if else_stmt.is_else else "ElseIf"
+            else_branch_ret.append(
+                f"{else_branch_type} Branch[{else_branch_scope}] {'{'}"
+            )
             for else_block_stmt in else_stmt.stmt_list:
-                cg_ret.combine(codegen_global_stmt(else_block_stmt, cg_state))
+                else_branch_ret.combine(codegen_global_stmt(else_block_stmt, cg_state))
+            else_branch_ret.append("}")
+            cg_ret.combine(else_branch_ret)
+
+            # check for local assignments in else(if) branch scope
+            for sym_name, sym_type in cg_state.sym_table.sym_scopes[
+                else_branch_scope
+            ].sym_table.items():
+                if isinstance(sym_type, LocalAssignmentSymbol):
+                    if else_stmt.is_else:
+                        # local assignment in an else branch
+                        # overrides the original value
+                        local_defaults[sym_name] = sym_type.value
+                    else:
+                        _add_branch_scopes(sym_name, else_branch_scope)
     cg_ret.append("}")
+
+    # update value symbols in enclosing scopes
+    for bname, bvals in local_branches.items():
+        # don't catch index error
+        bsym: ResolvedSymbol = cg_state.sym_table.resolve_symbol(
+            LeftExpr(bname), cg_state.scope_mgr.current_environment
+        )[-1]
+        assert isinstance(bsym.symbol, ValueSymbol)
+        bdef = local_defaults.get(bname, bsym.symbol.value)
+        cg_state.sym_table.sym_scopes[bsym.scope].sym_table[
+            bname
+        ].value = BranchingExpr(bvals, bdef)
+
     return cg_ret
 
 
