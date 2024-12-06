@@ -711,6 +711,9 @@ class BranchingExpr(FormatterMixin, Expr):
 
     Attributes
     ----------
+    orig_sym : ValueSymbol
+        Original value symbol, to be used for substitution in
+        branch expressions
     branches : list[Any]
         List of locally assigned values from different statement branches
     default_value : Any
@@ -718,6 +721,7 @@ class BranchingExpr(FormatterMixin, Expr):
         or the original value of the variable
     """
 
+    orig_sym: ValueSymbol
     branches: list[Any]
     default_value: Any
 
@@ -806,7 +810,11 @@ def cg_if_stmt(
         bdef = local_defaults.get(bname, bsym.symbol.value)
         cg_state.sym_table.sym_scopes[bsym.scope].sym_table[
             bname
-        ].value = BranchingExpr(bvals, bdef)
+        ].value = BranchingExpr(
+            ValueSymbol(bsym.symbol.symbol_name, bsym.symbol.value),
+            bvals,
+            bdef
+        )
 
     return cg_ret
 

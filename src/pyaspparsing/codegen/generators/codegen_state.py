@@ -337,6 +337,9 @@ class CodegenState:
         -------
         tuple[str, list[Expr]]
         """
+        if not isinstance(concat_expr, ConcatExpr):
+            return ("?", [concat_expr])
+
         stmt: Optional[EvalExpr] = None
         params: list[Expr] = []
 
