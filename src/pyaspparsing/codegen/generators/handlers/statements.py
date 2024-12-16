@@ -1,9 +1,12 @@
+from difflib import SequenceMatcher
 from inspect import signature, Signature
+from io import StringIO
 from typing import Any, Generator
 import attrs
 from ....ast.ast_types import (
     FormatterMixin,
     Expr,
+    EvalExpr,
     LeftExpr,
     PropertyExpr,
     ResponseExpr,
@@ -42,6 +45,7 @@ from ...scope import ScopeType
 from ..codegen_state import CodegenState
 from ..codegen_return import CodegenReturn
 from ..codegen_reg import create_global_cg_func, codegen_global_stmt
+from .expression_finalizer import finalize_expr
 
 __all__ = [
     "cg_option_explicit",
@@ -747,15 +751,16 @@ def cg_if_stmt(
     local_defaults: dict[str, Any] = {}
 
     def _add_branch_scopes(name: str, scope: int):
-        nonlocal local_branches
+        nonlocal local_branches, cg_state
         scp_sym: LocalAssignmentSymbol = cg_state.sym_table.sym_scopes[scope].sym_table[
             name
         ]
         assert isinstance(scp_sym, LocalAssignmentSymbol)
+        branch_val = finalize_expr(scp_sym.value, cg_state)
         if name in local_branches:
-            local_branches[name].append(scp_sym.value)
+            local_branches[name].append(branch_val)
         else:
-            local_branches[name] = [scp_sym.value]
+            local_branches[name] = [branch_val]
 
     cg_ret.append(f"If[{cg_state.scope_mgr.current_scope}] {'{'}")
     with cg_state.scope_mgr.temporary_scope(ScopeType.SCOPE_IF_BRANCH):
@@ -795,7 +800,9 @@ def cg_if_stmt(
                     if else_stmt.is_else:
                         # local assignment in an else branch
                         # overrides the original value
-                        local_defaults[sym_name] = sym_type.value
+                        local_defaults[sym_name] = finalize_expr(
+                            sym_type.value, cg_state
+                        )
                     else:
                         _add_branch_scopes(sym_name, else_branch_scope)
     cg_ret.append("}")
@@ -807,14 +814,40 @@ def cg_if_stmt(
             LeftExpr(bname), cg_state.scope_mgr.current_environment
         )[-1]
         assert isinstance(bsym.symbol, ValueSymbol)
-        bdef = local_defaults.get(bname, bsym.symbol.value)
-        cg_state.sym_table.sym_scopes[bsym.scope].sym_table[
-            bname
-        ].value = BranchingExpr(
-            ValueSymbol(bsym.symbol.symbol_name, bsym.symbol.value),
-            bvals,
-            bdef
-        )
+        bdef = local_defaults.get(bname, finalize_expr(bsym.symbol.value, cg_state))
+        if (
+            len(bvals) == 1
+            and isinstance(bvals[0], EvalExpr)
+            and isinstance(bvals[0].expr_value, str)
+        ) and (isinstance(bdef, EvalExpr) and isinstance(bdef.expr_value, str)):
+            res_str = StringIO()
+            val_a: str = bdef.expr_value
+            val_b: str = bvals[0].expr_value
+            for tag, i1, i2, j1, j2 in SequenceMatcher(
+                lambda x: x.isspace(), val_a, val_b, False
+            ).get_opcodes():
+                match tag:
+                    case "replace":
+                        print(
+                            f"{'{{'}{val_a[i1:i2]}|{val_b[j1:j2]}{'}}'}",
+                            end="",
+                            file=res_str,
+                        )
+                    case "delete":
+                        print(f"{'{{'}{val_a[i1:i2]}{'}}'}", end="", file=res_str)
+                    case "insert":
+                        print(f"{'{{'}{val_b[j1:j2]}{'}}'}", end="", file=res_str)
+                    case "equal":
+                        print(val_a[i1:i2], end="", file=res_str)
+            cg_state.sym_table.sym_scopes[bsym.scope].sym_table[bname].value = EvalExpr(
+                res_str.getvalue()
+            )
+        else:
+            cg_state.sym_table.sym_scopes[bsym.scope].sym_table[
+                bname
+            ].value = BranchingExpr(
+                ValueSymbol(bsym.symbol.symbol_name, bsym.symbol.value), bvals, bdef
+            )
 
     return cg_ret
 
