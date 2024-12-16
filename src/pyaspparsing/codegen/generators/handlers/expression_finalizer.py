@@ -61,7 +61,8 @@ def fin_left_expr(exp: Expr, cg_state: CodegenState) -> Expr:
     res_sym = cg_state.sym_table.resolve_symbol(
         exp, cg_state.scope_mgr.current_environment[:-1]
     )
-    assert len(res_sym) > 0
+    if len(res_sym) == 0:
+        return exp
     if isinstance(res_sym[-1].symbol, ValueSymbol):
         return res_sym[-1].symbol.value
     return exp

@@ -609,7 +609,10 @@ def cg_assign_stmt(
                     break
                 elif isinstance(rhs_sym, ArraySymbol):
                     # array variable
-                    rhs_expr = rhs_sym.retrieve(rhs_expr)
+                    try:
+                        rhs_expr = rhs_sym.retrieve(rhs_expr)
+                    except AssertionError:
+                        rhs_expr = EvalExpr("PLACEHOLDER")
                     break
                 elif isinstance(rhs_sym, ValueSymbol):
                     if isinstance(rhs_sym.value, ASPObject):
@@ -619,6 +622,13 @@ def cg_assign_stmt(
                         # simple variable
                         rhs_expr = rhs_sym.value
                         break
+                elif isinstance(rhs_sym, ForLoopIteratorTargetSymbol):
+                    # TODO: add a for loop iteration expression
+                    rhs_expr = EvalExpr("PLACEHOLDER")
+                    break
+                elif isinstance(rhs_sym, ForLoopRangeTargetSymbol):
+                    rhs_expr = EvalExpr("PLACEHOLDER")
+                    break
                 elif isinstance(rhs_sym, ASPObject):
                     # builtin object
                     cghelper_call_object(rhs_expr, cg_state)
@@ -773,11 +783,12 @@ def cg_if_stmt(
         cg_ret.combine(main_branch_ret)
 
         # check for local assignments in main branch scope
-        for sym_name, sym_type in cg_state.sym_table.sym_scopes[
-            main_branch_scope
-        ].sym_table.items():
-            if isinstance(sym_type, LocalAssignmentSymbol):
-                _add_branch_scopes(sym_name, main_branch_scope)
+        if main_branch_scope in cg_state.sym_table.sym_scopes:
+            for sym_name, sym_type in cg_state.sym_table.sym_scopes[
+                main_branch_scope
+            ].sym_table.items():
+                if isinstance(sym_type, LocalAssignmentSymbol):
+                    _add_branch_scopes(sym_name, main_branch_scope)
 
     for else_stmt in stmt.else_stmt_list:
         with cg_state.scope_mgr.temporary_scope(ScopeType.SCOPE_IF_BRANCH):
@@ -793,18 +804,19 @@ def cg_if_stmt(
             cg_ret.combine(else_branch_ret)
 
             # check for local assignments in else(if) branch scope
-            for sym_name, sym_type in cg_state.sym_table.sym_scopes[
-                else_branch_scope
-            ].sym_table.items():
-                if isinstance(sym_type, LocalAssignmentSymbol):
-                    if else_stmt.is_else:
-                        # local assignment in an else branch
-                        # overrides the original value
-                        local_defaults[sym_name] = finalize_expr(
-                            sym_type.value, cg_state
-                        )
-                    else:
-                        _add_branch_scopes(sym_name, else_branch_scope)
+            if else_branch_scope in cg_state.sym_table.sym_scopes:
+                for sym_name, sym_type in cg_state.sym_table.sym_scopes[
+                    else_branch_scope
+                ].sym_table.items():
+                    if isinstance(sym_type, LocalAssignmentSymbol):
+                        if else_stmt.is_else:
+                            # local assignment in an else branch
+                            # overrides the original value
+                            local_defaults[sym_name] = finalize_expr(
+                                sym_type.value, cg_state
+                            )
+                        else:
+                            _add_branch_scopes(sym_name, else_branch_scope)
     cg_ret.append("}")
 
     # update value symbols in enclosing scopes
